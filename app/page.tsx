@@ -464,6 +464,11 @@ export default function ArcadePage() {
     textShadow: "0 1px 0 rgba(255,255,255,.4)",
     boxShadow: "0 8px 0 #4d063d, 0 0 26px rgba(255,43,209,.7), inset 0 4px 8px rgba(255,255,255,.6)",
     animation: "pressstart 1.1s steps(1) infinite",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: 1.15,
   };
   const errBase: CSSProperties = {
     fontFamily: PS,
@@ -795,16 +800,16 @@ export default function ArcadePage() {
 
                 {/* Hook form */}
                 <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
-                  <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.2vw,14px)", color: "#ff2bd1", textShadow: "0 0 10px #ff2bd1", letterSpacing: "1px" }}>QUICK HOOK · INSERT PLAYER DATA</div>
+                  <div style={{ fontFamily: PS, fontSize: "clamp(8px,1.1vw,14px)", color: "#ff2bd1", textShadow: "0 0 10px #ff2bd1", letterSpacing: "1px", textAlign: "center", lineHeight: 1.35 }}>QUICK HOOK · INSERT PLAYER DATA</div>
                   <div className="hook-form-inputs">
                     <input value={form.name} onChange={setField("name")} placeholder="PLAYER NAME" style={hookInput} />
                     <input value={form.email} onChange={setField("email")} placeholder="EMAIL" style={hookInput} />
                   </div>
-                  <div style={{ ...errBase, fontSize: "8px", minHeight: "8px" }}>{error}</div>
+                  <div style={{ ...errBase, fontSize: "8px", minHeight: "8px", textAlign: "center" }}>{error}</div>
                   <div style={{ display: "flex", gap: "10px", marginTop: "2px" }}>
                     <ArcadeButton
                       onClick={onScrollDomains}
-                      style={{ cursor: "pointer", width: "clamp(48px,5.5vw,66px)", height: "clamp(48px,5.5vw,66px)", borderRadius: "50%", border: "none", background: "radial-gradient(circle at 38% 30%, #7de8ff, #0090b8 55%, #003a4d)", boxShadow: "0 8px 0 #002230, 0 0 18px rgba(0,240,255,.6), inset 0 3px 6px rgba(255,255,255,.5)", fontFamily: PS, fontSize: "7px", color: "#04121a" }}
+                      style={{ cursor: "pointer", width: "clamp(48px,5.5vw,66px)", height: "clamp(48px,5.5vw,66px)", borderRadius: "50%", border: "none", background: "radial-gradient(circle at 38% 30%, #7de8ff, #0090b8 55%, #003a4d)", boxShadow: "0 8px 0 #002230, 0 0 18px rgba(0,240,255,.6), inset 0 3px 6px rgba(255,255,255,.5)", fontFamily: PS, fontSize: "clamp(7px, 0.9vw, 9px)", color: "#04121a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1.15 }}
                       activeStyle={{ transform: "translateY(6px)", boxShadow: "0 2px 0 #002230, inset 0 3px 6px rgba(255,255,255,.5)" }}
                     >
                       A<br />INFO
