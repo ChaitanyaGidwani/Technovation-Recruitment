@@ -140,7 +140,7 @@ export default function ArcadePage() {
   const [progress, setProgress] = useState(0);
   const [jx, setJx] = useState(0);
   const [jy, setJy] = useState(0);
-  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [score, setScore] = useState(1337);
   const [playerNo, setPlayerNo] = useState(0);
   const [hover, setHover] = useState("");
@@ -173,12 +173,22 @@ export default function ArcadePage() {
   const mt = useRef({ rx: 0, ry: 0 });
   const cur = useRef({ x: 0, y: 0 });
 
-  const selDomain = () => DOMAINS.find((d) => d.key === selectedClass);
+  const selDomain = (idx = 0) => DOMAINS.find((d) => d.key === selectedClasses[idx]);
   const selLabel = () => {
-    const d = selDomain();
-    return d ? d.name + " / " + d.cls : "";
+    return selectedClasses.map((k) => {
+      const d = DOMAINS.find((dm) => dm.key === k);
+      return d ? d.name + " / " + d.cls : "";
+    }).filter(Boolean).join(" + ");
   };
-  const avatarSeed = () => (form.name || "PLAYER1") + (selectedClass || "x");
+  const avatarSeed = () => (form.name || "PLAYER1") + (selectedClasses[0] || "x");
+  const toggleClass = (key: string) => {
+    setSelectedClasses((prev) => {
+      if (prev.includes(key)) return prev.filter((k) => k !== key);
+      if (prev.length >= 2) return [prev[1], key]; // replace oldest
+      return [...prev, key];
+    });
+    setError("");
+  };
   const club = () => CLUB_NAME || "[REDACTED] GUILD";
 
   const openDetail = (key: string) => {
@@ -242,9 +252,10 @@ export default function ArcadePage() {
       cvs.width = W;
       cvs.height = H;
       const name = (form.name || "PLAYER 1").toUpperCase();
-      const dom = selDomain();
-      const cls = dom ? dom.stage : "ROOKIE";
-      const clsName = dom ? dom.name + " / " + dom.cls : "UNASSIGNED";
+      const dom = selDomain(0);
+      const dom2 = selDomain(1);
+      const cls = [dom, dom2].filter(Boolean).map((d) => d!.stage).join(" + ") || "ROOKIE";
+      const clsName = [dom, dom2].filter(Boolean).map((d) => d!.name + " / " + d!.cls).join(" + ") || "UNASSIGNED";
       const accent = dom ? dom.color : "#00f0ff";
       ctx.fillStyle = "#080912";
       ctx.fillRect(0, 0, W, H);
@@ -335,8 +346,8 @@ export default function ArcadePage() {
     if (sc) sc.scrollTo({ top: sc.scrollHeight * 0.62, behavior: "smooth" });
   };
   const onSaveData = () => {
-    if (!form.name.trim() || !form.email.trim() || !form.branch.trim() || !form.phone.trim() || !selectedClass) {
-      setError("!! INCOMPLETE — NAME, EMAIL, BRANCH, PHONE & CLASS REQUIRED");
+    if (!form.name.trim() || !form.email.trim() || !form.branch.trim() || !form.phone.trim() || selectedClasses.length < 2) {
+      setError("!! INCOMPLETE — NAME, EMAIL, BRANCH, PHONE & 2 CLASSES REQUIRED");
       return;
     }
     setScore((s) => {
@@ -496,7 +507,7 @@ export default function ArcadePage() {
     };
   };
   const badgeStyle = (d: (typeof DOMAINS)[number]): CSSProperties => {
-    const on = selectedClass === d.key;
+    const on = selectedClasses.includes(d.key);
     return {
       cursor: "pointer",
       display: "flex",
@@ -847,32 +858,71 @@ export default function ArcadePage() {
           </div>
         </div>
 
-        {/* Section 2 */}
+        {/* Section 2 — Dual Class Selection */}
         <div style={panelBox}>
-          <div style={sectionHdr}><span style={{ color: "#ff2bd1" }}>02</span> CLASS SELECTION</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "clamp(10px,1.6vw,16px)" }}>
-            {DOMAINS.map((d) => (
-              <div key={d.key} style={badgeStyle(d)} onClick={() => { setSelectedClass(d.key); setError(""); }}>
-                <div style={{ width: "clamp(44px,5vw,60px)", height: "clamp(44px,5vw,60px)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px", background: "rgba(255,255,255,.03)", border: "2px solid " + d.color, fontFamily: PS, fontSize: "clamp(18px,2.4vw,26px)", color: d.color, textShadow: "0 0 12px " + d.color }}>{d.glyph}</div>
-                <div style={{ textAlign: "left", flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: PS, fontSize: "clamp(8px,1vw,11px)", color: "#fff" }}>{d.name}</div>
-                  <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,19px)", color: d.color }}>{d.stage}</div>
-                  <div style={{ fontFamily: VT, fontSize: "clamp(12px,1.3vw,16px)", color: "#7de8ff" }}>CLASS · {d.cls}</div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                  <div style={{ position: "absolute", top: "8px", right: "10px", fontFamily: PS, fontSize: "12px", color: d.color, textShadow: "0 0 8px " + d.color, opacity: selectedClass === d.key ? 1 : 0 }}>✓</div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openDetail(d.key); }}
-                    style={{ cursor: "pointer", position: "absolute", bottom: "8px", right: "10px", fontFamily: PS, fontSize: "7px", color: d.color, background: `${d.color}11`, border: `1.5px solid ${d.color}44`, borderRadius: "4px", padding: "4px 8px", textShadow: `0 0 6px ${d.color}`, transition: "all .15s", opacity: 0.7 }}
-                    onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = `${d.color}22`; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.7"; e.currentTarget.style.background = `${d.color}11`; }}
-                  >
-                    ⓘ INFO
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div style={sectionHdr}><span style={{ color: "#ff2bd1" }}>02</span> CLASS SELECTION <span style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#7de8ff", marginLeft: "8px" }}>— PICK 2 DOMAINS</span></div>
+          <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginBottom: "clamp(12px,1.8vw,18px)" }}>
+            Select your <span style={{ color: "#00f0ff", textShadow: "0 0 6px #00f0ff" }}>PRIMARY</span> and <span style={{ color: "#ff2bd1", textShadow: "0 0 6px #ff2bd1" }}>SECONDARY</span> guild domains. Your 1st pick is your primary class.
           </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "clamp(10px,1.6vw,16px)" }}>
+            {DOMAINS.map((d) => {
+              const idx = selectedClasses.indexOf(d.key);
+              const isPrimary = idx === 0;
+              const isSecondary = idx === 1;
+              const labelColor = isPrimary ? "#00f0ff" : isSecondary ? "#ff2bd1" : d.color;
+              const labelText = isPrimary ? "1ST" : isSecondary ? "2ND" : "";
+              return (
+                <div key={d.key} style={badgeStyle(d)} onClick={() => toggleClass(d.key)}>
+                  <div style={{ width: "clamp(44px,5vw,60px)", height: "clamp(44px,5vw,60px)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px", background: "rgba(255,255,255,.03)", border: "2px solid " + d.color, fontFamily: PS, fontSize: "clamp(18px,2.4vw,26px)", color: d.color, textShadow: "0 0 12px " + d.color }}>{d.glyph}</div>
+                  <div style={{ textAlign: "left", flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: PS, fontSize: "clamp(8px,1vw,11px)", color: "#fff" }}>{d.name}</div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,19px)", color: d.color }}>{d.stage}</div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(12px,1.3vw,16px)", color: "#7de8ff" }}>CLASS · {d.cls}</div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+                    {/* Selection badge */}
+                    <div style={{
+                      position: "absolute", top: "8px", right: "10px",
+                      fontFamily: PS, fontSize: "9px",
+                      color: "#04040a",
+                      background: labelColor,
+                      borderRadius: "4px",
+                      padding: "3px 7px",
+                      boxShadow: `0 0 10px ${labelColor}88`,
+                      opacity: idx >= 0 ? 1 : 0,
+                      transition: "all .15s",
+                    }}>{labelText}</div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openDetail(d.key); }}
+                      style={{ cursor: "pointer", position: "absolute", bottom: "8px", right: "10px", fontFamily: PS, fontSize: "7px", color: d.color, background: `${d.color}11`, border: `1.5px solid ${d.color}44`, borderRadius: "4px", padding: "4px 8px", textShadow: `0 0 6px ${d.color}`, transition: "all .15s", opacity: 0.7 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = `${d.color}22`; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.7"; e.currentTarget.style.background = `${d.color}11`; }}
+                    >
+                      ⓘ INFO
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Selection summary */}
+          {selectedClasses.length > 0 && (
+            <div style={{ marginTop: "clamp(12px,1.8vw,18px)", padding: "10px 14px", borderRadius: "8px", background: "rgba(255,255,255,.02)", border: "2px solid #1c2540", display: "flex", gap: "16px", alignItems: "center", flexWrap: "wrap" }}>
+              {selectedClasses.map((key, i) => {
+                const dm = DOMAINS.find((x) => x.key === key);
+                if (!dm) return null;
+                return (
+                  <div key={key} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontFamily: PS, fontSize: "9px", color: "#04040a", background: i === 0 ? "#00f0ff" : "#ff2bd1", borderRadius: "3px", padding: "2px 6px" }}>{i === 0 ? "1ST" : "2ND"}</span>
+                    <span style={{ fontFamily: PS, fontSize: "clamp(8px,1vw,11px)", color: dm.color, textShadow: `0 0 6px ${dm.color}` }}>{dm.glyph} {dm.name}</span>
+                  </div>
+                );
+              })}
+              {selectedClasses.length < 2 && (
+                <span style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#ffe600", animation: "blink 1s steps(1) infinite" }}>← PICK {2 - selectedClasses.length} MORE</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Section 3 */}
@@ -945,7 +995,8 @@ export default function ArcadePage() {
 
   // ================= HQ =================
   const renderHQ = () => {
-    const dom = selDomain();
+    const dom = selDomain(0);
+    const dom2 = selDomain(1);
     const selColor = dom ? dom.color : "#00f0ff";
     const tasks = [
       {
@@ -982,7 +1033,7 @@ export default function ArcadePage() {
               </div>
               <div>
                 <div style={{ fontFamily: PS, fontSize: "clamp(12px,1.8vw,20px)", color: "#00f0ff", textShadow: "0 0 12px rgba(0,240,255,.5)" }}>{(form.name || "PLAYER 1").toUpperCase()}</div>
-                <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,21px)", color: selColor }}>{dom ? dom.stage : "UNASSIGNED"} · {dom ? dom.cls : "ROOKIE"}</div>
+                <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,21px)", color: selColor }}>{[dom, dom2].filter(Boolean).map((d) => d!.stage + " · " + d!.cls).join(" + ") || "UNASSIGNED · ROOKIE"}</div>
                 <div style={{ fontFamily: PS, fontSize: "8px", color: "#7de8ff", marginTop: "4px" }}>PLAYER No. #{String(playerNo || 1).padStart(4, "0")} · LV.01</div>
               </div>
             </div>
@@ -1247,8 +1298,7 @@ export default function ArcadePage() {
               {page !== "floor" && (
                 <ArcadeButton
                   onClick={() => {
-                    setSelectedClass(d.key);
-                    setError("");
+                    toggleClass(d.key);
                     closeDetail();
                   }}
                   style={{
@@ -1256,17 +1306,21 @@ export default function ArcadePage() {
                     fontFamily: PS,
                     fontSize: "clamp(9px,1.1vw,12px)",
                     color: "#04040a",
-                    background: `radial-gradient(circle at 40% 30%, ${d.color}dd, ${d.color} 55%, ${d.color}aa)`,
+                    background: selectedClasses.includes(d.key)
+                      ? "radial-gradient(circle at 40% 30%, #ff5555dd, #ff3b30 55%, #ff3b30aa)"
+                      : `radial-gradient(circle at 40% 30%, ${d.color}dd, ${d.color} 55%, ${d.color}aa)`,
                     border: "none",
                     borderRadius: "8px",
                     padding: "clamp(12px,1.8vw,18px) clamp(20px,3vw,32px)",
-                    boxShadow: `0 6px 0 ${d.color}55, 0 0 28px ${d.color}66`,
+                    boxShadow: selectedClasses.includes(d.key)
+                      ? `0 6px 0 #aa000055, 0 0 28px #ff3b3066`
+                      : `0 6px 0 ${d.color}55, 0 0 28px ${d.color}66`,
                     textShadow: "0 1px 0 rgba(255,255,255,.4)",
                     letterSpacing: "1px",
                   }}
                   activeStyle={{ transform: "translateY(4px)", boxShadow: `0 2px 0 ${d.color}55, 0 0 14px ${d.color}44` }}
                 >
-                  ▶ SELECT {d.cls} CLASS
+                  {selectedClasses.includes(d.key) ? `✕ DESELECT ${d.cls}` : `▶ SELECT ${d.cls} CLASS`}
                 </ArcadeButton>
               )}
               <ArcadeButton
