@@ -50,7 +50,13 @@ interface Candidate {
   answers: Record<string, string>;
   stageIdx: number; // 0 to 4 (or 5 for rejected)
   submissionLink?: string;
+  submissions?: Record<string, string>;
   notes?: string;
+  rejected?: boolean;
+  rejectedAtStage?: number;
+  rejectionFeedback?: string;
+  taskScore?: number;      // /100, set once candidate reaches Task Round
+  interviewScore?: number; // /100, set once candidate reaches Interview
   updatedAt: string;
 }
 
@@ -98,6 +104,13 @@ export default function AdminPage() {
   const [stageFilter, setStageFilter] = useState("all");
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [editingNotes, setEditingNotes] = useState("");
+  const [scoreTask, setScoreTask] = useState("");
+  const [scoreInterview, setScoreInterview] = useState("");
+  // Candidate awaiting a promotion the admin must re-confirm.
+  const [confirmPromote, setConfirmPromote] = useState<Candidate | null>(null);
+  // Candidate awaiting a rejection ("stop journey") the admin must re-confirm.
+  const [confirmReject, setConfirmReject] = useState<Candidate | null>(null);
+  const [rejectFeedback, setRejectFeedback] = useState("");
 
   // Persist candidates to LocalStorage
   useEffect(() => {
@@ -105,6 +118,32 @@ export default function AdminPage() {
       localStorage.setItem("tech_candidates_admin", JSON.stringify(candidates));
     }
   }, [candidates]);
+
+  // ---- LIVE: reflect new applicants & candidate task submissions ----
+  // Reloads the roster whenever another tab (a candidate) writes the store,
+  // on window focus, and on a gentle poll. The equality guard prevents any
+  // churn or clobbering of the admin's own in-tab edits.
+  useEffect(() => {
+    const reload = () => {
+      try {
+        const raw = localStorage.getItem("tech_candidates_admin");
+        if (!raw) return;
+        setCandidates((prev) => (JSON.stringify(prev) === raw ? prev : JSON.parse(raw)));
+      } catch {
+        /* ignore */
+      }
+    };
+    const onStorage = (e: StorageEvent) => { if (e.key === "tech_candidates_admin") reload(); };
+    const onFocus = () => reload();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    const iv = setInterval(reload, 4000);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+      clearInterval(iv);
+    };
+  }, []);
 
   // Lockout Timer countdown
   useEffect(() => {
@@ -165,6 +204,62 @@ export default function AdminPage() {
     );
   };
 
+  // Executed only after the admin confirms the promotion dialog.
+  const promoteConfirmed = () => {
+    if (!confirmPromote) return;
+    const next = Math.min(confirmPromote.stageIdx + 1, 4);
+    updateStage(confirmPromote.id, next);
+    setConfirmPromote(null);
+  };
+
+  // Stop an applicant's journey (rejection) — only after admin confirmation.
+  const rejectConfirmed = () => {
+    if (!confirmReject) return;
+    const atStage = confirmReject.stageIdx; // stage reached when stopped
+    const feedback = rejectFeedback.trim();
+    setCandidates((prev) =>
+      prev.map((c) => {
+        if (c.id === confirmReject.id) {
+          const updated: Candidate = {
+            ...c,
+            stageIdx: 5,
+            rejected: true,
+            rejectedAtStage: atStage,
+            rejectionFeedback: feedback,
+            updatedAt: "JUST NOW",
+          };
+          if (selectedCandidate?.id === c.id) setSelectedCandidate(updated);
+          return updated;
+        }
+        return c;
+      })
+    );
+    setConfirmReject(null);
+    setRejectFeedback("");
+  };
+
+  // Save Task / Interview scores (each out of 100). Empty clears the score.
+  const clampScore = (raw: string): number | undefined => {
+    if (raw.trim() === "") return undefined;
+    const n = Number(raw);
+    if (Number.isNaN(n)) return undefined;
+    return Math.max(0, Math.min(100, Math.round(n)));
+  };
+  const saveScores = (candId: string) => {
+    const t = clampScore(scoreTask);
+    const iv = clampScore(scoreInterview);
+    setCandidates((prev) =>
+      prev.map((c) => {
+        if (c.id === candId) {
+          const updated: Candidate = { ...c, taskScore: t, interviewScore: iv, updatedAt: "JUST NOW" };
+          if (selectedCandidate?.id === candId) setSelectedCandidate(updated);
+          return updated;
+        }
+        return c;
+      })
+    );
+  };
+
   const saveNotes = (candId: string) => {
     setCandidates((prev) =>
       prev.map((c) => {
@@ -179,7 +274,7 @@ export default function AdminPage() {
   };
 
   const exportCSV = () => {
-    const headers = ["PlayerNo", "Name", "Email", "Branch", "Phone", "Domains", "Stage", "Updated"];
+    const headers = ["PlayerNo", "Name", "Email", "Branch", "Phone", "Domains", "Stage", "TaskScore", "InterviewScore", "TotalScore", "Updated"];
     const rows = candidates.map((c) => [
       c.playerNo,
       `"${c.name}"`,
@@ -188,6 +283,9 @@ export default function AdminPage() {
       `"${c.phone}"`,
       `"${c.domains.join(" + ")}"`,
       `"${STAGES[c.stageIdx]?.label || "UNKNOWN"}"`,
+      c.taskScore != null ? c.taskScore : "",
+      c.interviewScore != null ? c.interviewScore : "",
+      c.taskScore != null && c.interviewScore != null ? c.taskScore + c.interviewScore : "",
       `"${c.updatedAt}"`,
     ]);
     const content = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -200,9 +298,9 @@ export default function AdminPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Filtered Candidates computation
+  // Filtered + evaluation-ordered candidates
   const filteredCandidates = useMemo(() => {
-    return candidates.filter((c) => {
+    const list = candidates.filter((c) => {
       const matchesSearch =
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -217,6 +315,14 @@ export default function AdminPage() {
         (stageFilter === "rejected" ? c.stageIdx === 5 : c.stageIdx === Number(stageFilter));
 
       return matchesSearch && matchesDomain && matchesStage;
+    });
+
+    // Evaluation order: pending review first (submitted a task but not yet
+    // promoted), then furthest-along stage, then by player number.
+    return list.sort((a, b) => {
+      const aReady = a.submissionLink && a.stageIdx < 4 ? 1 : 0;
+      const bReady = b.submissionLink && b.stageIdx < 4 ? 1 : 0;
+      return bReady - aReady || b.stageIdx - a.stageIdx || a.playerNo - b.playerNo;
     });
   }, [candidates, searchQuery, domainFilter, stageFilter]);
 
@@ -402,6 +508,7 @@ export default function AdminPage() {
                 <th style={{ padding: "12px" }}>ID</th>
                 <th style={{ padding: "12px" }}>APPLICANT</th>
                 <th style={{ padding: "12px" }}>DOMAINS</th>
+                <th style={{ padding: "12px" }}>TASK</th>
                 <th style={{ padding: "12px" }}>CURRENT STAGE</th>
                 <th style={{ padding: "12px" }}>MANUAL ACTION</th>
               </tr>
@@ -409,7 +516,7 @@ export default function AdminPage() {
             <tbody>
               {filteredCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: "30px", textAlign: "center", fontFamily: VT, fontSize: "20px", color: "#4a5a7a" }}>
+                  <td colSpan={6} style={{ padding: "30px", textAlign: "center", fontFamily: VT, fontSize: "20px", color: "#4a5a7a" }}>
                     NO APPLICANTS FOUND MATCHING FILTERS.
                   </td>
                 </tr>
@@ -423,7 +530,10 @@ export default function AdminPage() {
                       </td>
                       <td style={{ padding: "12px" }}>
                         <div style={{ color: "#fff", fontWeight: "bold" }}>{cand.name}</div>
-                        <div style={{ fontSize: "14px", color: "#7de8ff" }}>{cand.email} · {cand.branch}</div>
+                        <div style={{ fontSize: "14px", color: "#7de8ff" }}>{cand.email}</div>
+                        <div style={{ fontSize: "13px", color: "#4a5a7a" }}>
+                          {cand.branch}{cand.section ? ` · SEC ${cand.section}` : ""}{cand.collegeId ? ` · ${cand.collegeId}` : ""}
+                        </div>
                       </td>
                       <td style={{ padding: "12px" }}>
                         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
@@ -450,6 +560,22 @@ export default function AdminPage() {
                         </div>
                       </td>
                       <td style={{ padding: "12px" }}>
+                        {sanitizeUrl(cand.submissionLink) ? (
+                          <a
+                            href={sanitizeUrl(cand.submissionLink)!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontFamily: PS, fontSize: "8px", color: "#39ff14", border: "1px solid #39ff1466", background: "#39ff1411", borderRadius: "4px", padding: "4px 8px", whiteSpace: "nowrap" }}
+                          >
+                            ✓ SUBMITTED ↗
+                          </a>
+                        ) : cand.submissionLink ? (
+                          <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff3b30" }}>⚠ INVALID</span>
+                        ) : (
+                          <span style={{ fontFamily: PS, fontSize: "8px", color: "#4a5a7a" }}>— AWAITING</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "12px" }}>
                         <span
                           style={{
                             fontFamily: PS,
@@ -471,6 +597,8 @@ export default function AdminPage() {
                             onClick={() => {
                               setSelectedCandidate(cand);
                               setEditingNotes(cand.notes || "");
+                              setScoreTask(cand.taskScore != null ? String(cand.taskScore) : "");
+                              setScoreInterview(cand.interviewScore != null ? String(cand.interviewScore) : "");
                             }}
                             style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#00f0ff", background: "transparent", border: "1.5px solid #00f0ff44", borderRadius: "4px", padding: "6px 10px" }}
                           >
@@ -479,11 +607,24 @@ export default function AdminPage() {
 
                           {cand.stageIdx < 4 && (
                             <button
-                              onClick={() => updateStage(cand.id, cand.stageIdx + 1)}
+                              onClick={() => setConfirmPromote(cand)}
                               style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#39ff14", border: "none", borderRadius: "4px", padding: "6px 10px", boxShadow: "0 3px 0 #0a5200" }}
                             >
                               PROMOTE ▶
                             </button>
+                          )}
+
+                          {cand.stageIdx < 4 && (
+                            <button
+                              onClick={() => { setConfirmReject(cand); setRejectFeedback(cand.rejectionFeedback || ""); }}
+                              style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#ff3b30", background: "transparent", border: "1.5px solid #ff3b30", borderRadius: "4px", padding: "6px 10px" }}
+                            >
+                              ✕ STOP
+                            </button>
+                          )}
+
+                          {cand.stageIdx === 5 && (
+                            <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff3b30", border: "1px solid #ff3b3066", background: "rgba(255,59,48,.1)", borderRadius: "4px", padding: "5px 8px" }}>✕ JOURNEY STOPPED</span>
                           )}
                         </div>
                       </td>
@@ -544,31 +685,41 @@ export default function AdminPage() {
               Branch: {selectedCandidate.branch} | Section: {selectedCandidate.section} | ID: {selectedCandidate.collegeId} | Phone: {selectedCandidate.phone}
             </div>
 
-            {/* Stage Selector Controls */}
-            <div style={{ marginTop: "20px", padding: "16px", background: "rgba(255,255,255,.02)", border: "2px solid #1c2540", borderRadius: "10px" }}>
-              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffe600", marginBottom: "10px" }}>
-                MANUAL STAGE OVERRIDE:
+            {/* STAGE PROGRESSION — read-only pipeline. Fully visible, but the
+                admin cannot click to change it here. Promotion happens only
+                from the applicant list via the confirmation-gated PROMOTE. */}
+            <div style={{ marginTop: "20px", padding: "18px", background: "rgba(255,255,255,.02)", border: "2px solid #1c2540", borderRadius: "10px" }}>
+              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffe600", marginBottom: "18px" }}>
+                STAGE PROGRESSION <span style={{ color: "#4a5a7a" }}>· 🔒 VIEW ONLY</span>
               </div>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                {STAGES.map((s, idx) => (
-                  <button
-                    key={s.key}
-                    onClick={() => updateStage(selectedCandidate.id, idx)}
-                    style={{
-                      cursor: "pointer",
-                      fontFamily: PS,
-                      fontSize: "8px",
-                      color: selectedCandidate.stageIdx === idx ? "#04040a" : s.color,
-                      background: selectedCandidate.stageIdx === idx ? s.color : "transparent",
-                      border: `1.5px solid ${s.color}`,
-                      borderRadius: "6px",
-                      padding: "8px 12px",
-                      boxShadow: selectedCandidate.stageIdx === idx ? `0 0 12px ${s.color}` : "none",
-                    }}
-                  >
-                    {s.icon} {s.label}
-                  </button>
-                ))}
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 0 }}>
+                {STAGES.slice(0, 5).map((s, idx) => {
+                  const curIdx = selectedCandidate.stageIdx;
+                  const done = idx < curIdx;
+                  const isCur = idx === curIdx;
+                  const col = done ? "#39ff14" : isCur ? s.color : "#2a3350";
+                  return (
+                    <div key={s.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", position: "relative" }}>
+                      {idx > 0 && (
+                        <div style={{ position: "absolute", top: "17px", left: "-50%", width: "100%", height: "4px", background: idx <= curIdx ? "#39ff14" : "#1c2540", zIndex: 0 }} />
+                      )}
+                      <div style={{ position: "relative", zIndex: 1, width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: PS, fontSize: "12px", color: isCur ? "#04040a" : col, background: isCur ? s.color : done ? "rgba(57,255,20,.12)" : "rgba(255,255,255,.02)", border: `3px solid ${col}`, boxShadow: done || isCur ? `0 0 14px ${col}` : "none", animation: isCur ? "floaty 1.6s ease-in-out infinite" : "none" }}>
+                        {done ? "✓" : s.icon}
+                      </div>
+                      <div style={{ fontFamily: PS, fontSize: "7px", color: col, marginTop: "10px", lineHeight: 1.4, textShadow: done || isCur ? `0 0 6px ${col}` : "none" }}>{s.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {selectedCandidate.stageIdx === 5 && (
+                <div style={{ marginTop: "16px", textAlign: "center" }}>
+                  <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff3b30", border: "1px solid #ff3b30", background: "rgba(255,59,48,.12)", borderRadius: "4px", padding: "5px 9px" }}>✕ BENCH / ON HOLD</span>
+                </div>
+              )}
+
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#7de8ff", marginTop: "18px", lineHeight: 1.3, textAlign: "center" }}>
+                View only — stage cannot be changed here. Use PROMOTE in the applicant list (requires admin confirmation).
               </div>
             </div>
 
@@ -590,6 +741,63 @@ export default function AdminPage() {
                 )}
               </div>
             )}
+
+            {/* Evaluation scores — unlock per stage reached */}
+            <div style={{ marginTop: "20px", padding: "16px", background: "rgba(255,255,255,.02)", border: "2px solid #1c2540", borderRadius: "10px" }}>
+              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffe600", marginBottom: "14px" }}>▮ EVALUATION SCORES <span style={{ color: "#4a5a7a" }}>(EACH / 100)</span></div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                {/* Task score — unlocks at Task Round */}
+                <div>
+                  <div style={{ fontFamily: PS, fontSize: "8px", color: selectedCandidate.stageIdx >= 2 ? "#ffe600" : "#4a5a7a", marginBottom: "7px" }}>TASK ROUND SCORE</div>
+                  {selectedCandidate.stageIdx >= 2 ? (
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={scoreTask}
+                      onChange={(e) => setScoreTask(e.target.value)}
+                      placeholder="0 - 100"
+                      style={{ ...inputStyle, color: "#ffe600" }}
+                    />
+                  ) : (
+                    <div style={{ fontFamily: VT, fontSize: "16px", color: "#4a5a7a" }}>🔒 Unlocks at Task Round</div>
+                  )}
+                </div>
+                {/* Interview score — unlocks at Interview */}
+                <div>
+                  <div style={{ fontFamily: PS, fontSize: "8px", color: selectedCandidate.stageIdx >= 3 ? "#ff2bd1" : "#4a5a7a", marginBottom: "7px" }}>INTERVIEW SCORE</div>
+                  {selectedCandidate.stageIdx >= 3 ? (
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={scoreInterview}
+                      onChange={(e) => setScoreInterview(e.target.value)}
+                      placeholder="0 - 100"
+                      style={{ ...inputStyle, color: "#ff2bd1" }}
+                    />
+                  ) : (
+                    <div style={{ fontFamily: VT, fontSize: "16px", color: "#4a5a7a" }}>🔒 Unlocks at Interview</div>
+                  )}
+                </div>
+              </div>
+
+              {selectedCandidate.stageIdx >= 2 && (
+                <button
+                  onClick={() => saveScores(selectedCandidate.id)}
+                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#ffe600", border: "none", borderRadius: "4px", padding: "8px 14px", marginTop: "12px", boxShadow: "0 3px 0 #8a7b00" }}
+                >
+                  💾 SAVE SCORES
+                </button>
+              )}
+
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#7de8ff", marginTop: "12px" }}>
+                Recorded — Task: <span style={{ color: "#ffe600" }}>{selectedCandidate.taskScore != null ? `${selectedCandidate.taskScore}/100` : "—"}</span> · Interview: <span style={{ color: "#ff2bd1" }}>{selectedCandidate.interviewScore != null ? `${selectedCandidate.interviewScore}/100` : "—"}</span>
+                {selectedCandidate.taskScore != null && selectedCandidate.interviewScore != null && (
+                  <span> · Total: <span style={{ color: "#39ff14" }}>{selectedCandidate.taskScore + selectedCandidate.interviewScore}/200</span></span>
+                )}
+              </div>
+            </div>
 
             {/* 7 Quest Answers */}
             <div style={{ marginTop: "24px" }}>
@@ -630,6 +838,107 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* Promotion re-confirmation — required before advancing any applicant */}
+      {confirmPromote && (() => {
+        const from = STAGES[confirmPromote.stageIdx] || STAGES[0];
+        const to = STAGES[Math.min(confirmPromote.stageIdx + 1, 4)];
+        const hasTask = !!sanitizeUrl(confirmPromote.submissionLink);
+        return (
+          <div
+            onClick={() => setConfirmPromote(null)}
+            style={{ position: "fixed", inset: 0, zIndex: 120, background: "rgba(4,4,10,0.9)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "100%", maxWidth: "520px", background: "radial-gradient(120% 100% at 50% 0%, #1a1226 0%, #070914 100%)", border: "3px solid #ffe600", borderRadius: "16px", padding: "28px", boxShadow: "0 0 50px rgba(255,230,0,.25)", textAlign: "center" }}
+            >
+              <div style={{ fontFamily: PS, fontSize: "16px", color: "#ffe600", textShadow: "0 0 12px #ffe600" }}>⚠ CONFIRM PROMOTION</div>
+              <div style={{ fontFamily: VT, fontSize: "20px", color: "#fff", marginTop: "14px" }}>
+                Promote <span style={{ color: "#00f0ff" }}>{confirmPromote.name}</span> (#{confirmPromote.playerNo})?
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", margin: "18px 0" }}>
+                <span style={{ fontFamily: PS, fontSize: "8px", color: from.color, border: `1px solid ${from.color}66`, background: `${from.color}15`, borderRadius: "4px", padding: "6px 9px", whiteSpace: "nowrap" }}>{from.icon} {from.label}</span>
+                <span style={{ fontFamily: PS, fontSize: "12px", color: "#7de8ff" }}>▶</span>
+                <span style={{ fontFamily: PS, fontSize: "8px", color: to.color, border: `1px solid ${to.color}`, background: `${to.color}22`, borderRadius: "4px", padding: "6px 9px", whiteSpace: "nowrap", boxShadow: `0 0 12px ${to.color}66` }}>{to.icon} {to.label}</span>
+              </div>
+
+              <div style={{ fontFamily: VT, fontSize: "16px", color: hasTask ? "#39ff14" : "#ff7a2b", marginBottom: "6px" }}>
+                {hasTask ? "✓ Task submission on file." : "⚠ No valid task submission on file yet."}
+              </div>
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#7de8ff", marginBottom: "22px" }}>
+                This action advances the applicant to the next stage. Please re-confirm.
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+                <button
+                  onClick={() => setConfirmPromote(null)}
+                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff3b30", background: "transparent", border: "2px solid #ff3b30", borderRadius: "8px", padding: "12px 18px" }}
+                >
+                  ✕ CANCEL
+                </button>
+                <button
+                  onClick={promoteConfirmed}
+                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #eaffb0, #39ff14 60%, #0f8a00)", border: "none", borderRadius: "8px", padding: "12px 20px", boxShadow: "0 5px 0 #0a5200, 0 0 18px rgba(57,255,20,.5)" }}
+                >
+                  ✓ CONFIRM PROMOTE
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Rejection ("stop journey") re-confirmation with optional feedback */}
+      {confirmReject && (() => {
+        const at = STAGES[confirmReject.stageIdx] || STAGES[0];
+        return (
+          <div
+            onClick={() => { setConfirmReject(null); setRejectFeedback(""); }}
+            style={{ position: "fixed", inset: 0, zIndex: 120, background: "rgba(4,4,10,0.9)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "100%", maxWidth: "560px", background: "radial-gradient(120% 100% at 50% 0%, #2a0e18 0%, #070914 100%)", border: "3px solid #ff3b30", borderRadius: "16px", padding: "28px", boxShadow: "0 0 50px rgba(255,59,48,.25)" }}
+            >
+              <div style={{ fontFamily: PS, fontSize: "15px", color: "#ff3b30", textShadow: "0 0 12px #ff3b30", textAlign: "center" }}>✕ STOP APPLICANT JOURNEY</div>
+              <div style={{ fontFamily: VT, fontSize: "20px", color: "#fff", marginTop: "14px", textAlign: "center" }}>
+                End the recruitment journey for <span style={{ color: "#00f0ff" }}>{confirmReject.name}</span> (#{confirmReject.playerNo})?
+              </div>
+              <div style={{ fontFamily: VT, fontSize: "16px", color: "#7de8ff", marginTop: "8px", textAlign: "center" }}>
+                They were at the <span style={{ color: at.color }}>{at.label}</span> stage. This marks them as rejected and shows the outcome on their dashboard.
+              </div>
+
+              <div style={{ marginTop: "18px" }}>
+                <div style={{ fontFamily: PS, fontSize: "8px", color: "#ff2bd1", marginBottom: "6px" }}>FEEDBACK FOR APPLICANT (OPTIONAL — SHOWN TO THEM):</div>
+                <textarea
+                  value={rejectFeedback}
+                  onChange={(e) => setRejectFeedback(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. Strong fundamentals — sharpen your project depth and reapply next season."
+                  style={{ ...inputStyle, minHeight: "78px" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap", marginTop: "20px" }}>
+                <button
+                  onClick={() => { setConfirmReject(null); setRejectFeedback(""); }}
+                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#7de8ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "8px", padding: "12px 18px" }}
+                >
+                  ◄ CANCEL
+                </button>
+                <button
+                  onClick={rejectConfirmed}
+                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#fff", background: "radial-gradient(circle at 40% 30%, #ff8a80, #ff3b30 60%, #8a0e0e)", border: "none", borderRadius: "8px", padding: "12px 20px", boxShadow: "0 5px 0 #5a1010, 0 0 18px rgba(255,59,48,.5)" }}
+                >
+                  ✕ CONFIRM STOP
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

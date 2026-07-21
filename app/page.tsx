@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
 
 
 // ---- config (edit freely) ----
@@ -178,6 +179,13 @@ export default function ArcadePage() {
   const [stageIdx, setStageIdx] = useState(1);
   const [taskInput, setTaskInput] = useState("");
   const [taskSubmitted, setTaskSubmitted] = useState(false);
+  // Rejection / "journey stopped" state (set by the Guild Council admin).
+  const [rejected, setRejected] = useState(false);
+  const [rejectedAtStage, setRejectedAtStage] = useState(1);
+  const [rejectionFeedback, setRejectionFeedback] = useState("");
+  // Per-department task submissions (keyed by domain key).
+  const [taskLinks, setTaskLinks] = useState<Record<string, string>>({});
+  const [taskDone, setTaskDone] = useState<Record<string, boolean>>({});
   const [comms, setComms] = useState<Comm[]>([
     { id: "c1", icon: "✓", color: "#39ff14", title: "REGISTRATION CONFIRMED", body: "Welcome, Player 1. Your file is locked in. Stand by for screening.", time: "JUST NOW" },
     { id: "c2", icon: "◉", color: "#00f0ff", title: "SCREENING IN PROGRESS", body: "The guild council is reviewing your player file. ETA 48 hrs.", time: "5 MIN AGO" },
@@ -388,6 +396,26 @@ export default function ArcadePage() {
       setSelectedClasses(match.domains || []);
       setPlayerNo(match.playerNo || 1001);
       setStageIdx(match.stageIdx || 1);
+
+      // Rejection / journey-stopped state
+      setRejected(!!match.rejected);
+      setRejectedAtStage(
+        typeof match.rejectedAtStage === "number"
+          ? match.rejectedAtStage
+          : match.stageIdx && match.stageIdx <= 4 ? match.stageIdx : 1
+      );
+      setRejectionFeedback(match.rejectionFeedback || "");
+
+      // Per-department task submissions (with legacy single-link fallback)
+      const subs: Record<string, string> = { ...(match.submissions || {}) };
+      const done: Record<string, boolean> = {};
+      Object.keys(subs).forEach((k) => { if (subs[k]) done[k] = true; });
+      if (match.submissionLink && Object.keys(subs).length === 0 && (match.domains || [])[0]) {
+        subs[match.domains[0]] = match.submissionLink;
+        done[match.domains[0]] = true;
+      }
+      setTaskLinks(subs);
+      setTaskDone(done);
       if (match.submissionLink) {
         setTaskSubmitted(true);
         setTaskInput(match.submissionLink);
@@ -398,12 +426,14 @@ export default function ArcadePage() {
     }
   };
 
+  // Session persists across browser restarts so a returning applicant lands
+  // straight on their HQ without logging in again.
   const saveSession = (email: string) => {
-    try { sessionStorage.setItem("tech_session", email); } catch { /* ignore */ }
+    try { localStorage.setItem("tech_session", email); } catch { /* ignore */ }
   };
 
   const clearSession = () => {
-    try { sessionStorage.removeItem("tech_session"); } catch { /* ignore */ }
+    try { localStorage.removeItem("tech_session"); } catch { /* ignore */ }
   };
 
   const handleLogout = () => {
@@ -411,16 +441,123 @@ export default function ArcadePage() {
     goTo("floor");
   };
 
+  const router = useRouter();
+
   // Auto-restore session on mount / refresh
   useEffect(() => {
     try {
-      const savedEmail = sessionStorage.getItem("tech_session");
+      const savedEmail = localStorage.getItem("tech_session");
       if (savedEmail && loadCandidateByEmail(savedEmail)) {
         setPage("hq");
       }
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Returning from /process — land on domain/class selection with the
+  // name & email the player entered on the arcade floor still filled in.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("step") === "create") {
+        const raw = sessionStorage.getItem("tech_hook");
+        if (raw) {
+          const h = JSON.parse(raw);
+          setForm((s) => ({
+            ...s,
+            name: h.name ?? s.name,
+            email: h.email ?? s.email,
+          }));
+        }
+        setPage("create");
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // ---- LIVE SYNC ----
+  // Keep the candidate dashboard in lockstep with admin actions (promotions,
+  // rejections, task unlocks). Uses cross-tab storage events + focus + a short
+  // poll so the HQ updates without a manual refresh.
+  const lastSyncStageRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (page !== "hq") {
+      lastSyncStageRef.current = null;
+      return;
+    }
+    const email =
+      form.email ||
+      (typeof window !== "undefined" ? localStorage.getItem("tech_session") : "") ||
+      "";
+    if (!email) return;
+
+    const sync = () => {
+      try {
+        const raw = localStorage.getItem("tech_candidates_admin");
+        if (!raw) return;
+        const list = JSON.parse(raw);
+        const match = list.find(
+          (c: any) => c.email?.toLowerCase() === email.toLowerCase()
+        );
+        if (!match) return;
+
+        const newStage = match.stageIdx || 1;
+        if (lastSyncStageRef.current === null) {
+          lastSyncStageRef.current = newStage;
+        } else if (newStage > lastSyncStageRef.current && newStage <= 4) {
+          const lbl = STAGES[Math.min(newStage, STAGES.length - 1)]?.label || "NEXT STAGE";
+          setComms((cs) => [
+            {
+              id: "sync" + Date.now(),
+              icon: "★",
+              color: "#39ff14",
+              title: "STAGE ADVANCED",
+              body: `The Guild Council promoted you to ${lbl}.${newStage >= 2 ? " Your domain tasks are now unlocked below." : ""}`,
+              time: "JUST NOW",
+            },
+            ...cs,
+          ]);
+          lastSyncStageRef.current = newStage;
+        } else {
+          lastSyncStageRef.current = newStage;
+        }
+
+        setStageIdx(newStage);
+        setRejected(!!match.rejected);
+        if (typeof match.rejectedAtStage === "number") setRejectedAtStage(match.rejectedAtStage);
+        setRejectionFeedback(match.rejectionFeedback || "");
+
+        const subs = match.submissions || {};
+        if (Object.keys(subs).length) {
+          setTaskDone((p) => {
+            const n = { ...p };
+            Object.keys(subs).forEach((k) => { if (subs[k]) n[k] = true; });
+            return n;
+          });
+          setTaskLinks((p) => {
+            const n = { ...p };
+            Object.keys(subs).forEach((k) => { if (subs[k]) n[k] = subs[k]; });
+            return n;
+          });
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+
+    sync();
+    const iv = setInterval(sync, 2500);
+    const onStorage = (e: StorageEvent) => { if (e.key === "tech_candidates_admin") sync(); };
+    const onFocus = () => sync();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(iv);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, form.email]);
+
   const setField = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const v = e.target.value;
     setForm((s) => ({ ...s, [k]: v }));
@@ -431,7 +568,14 @@ export default function ArcadePage() {
       setError("ENTER NAME & EMAIL TO PRESS START");
       return;
     }
-    goTo("create");
+    // Route through the Recruitment Quest briefing before domain selection.
+    try {
+      sessionStorage.setItem(
+        "tech_hook",
+        JSON.stringify({ name: form.name, email: form.email })
+      );
+    } catch { /* ignore */ }
+    router.push("/process");
   };
   const onScrollDomains = () => {
     const sc = scrollerRef.current;
@@ -455,39 +599,62 @@ export default function ArcadePage() {
     try {
       const existingRaw = localStorage.getItem("tech_candidates_admin");
       const list = existingRaw ? JSON.parse(existingRaw) : [];
-      const newPlayerNo = 1000 + list.length + 1;
-      
-      const newCand = {
-        id: `cand-${Date.now()}`,
-        playerNo: newPlayerNo,
-        name: form.name.trim(),
-        email: form.email.trim(),
-        branch: form.branch.trim(),
-        section: form.section.trim(),
-        phone: form.phone.trim(),
-        collegeId: form.college.trim(),
-        domains: selectedClasses,
-        answers: {
-          q1: form.q1.trim(),
-          q2: form.q2.trim(),
-          q3: form.q3.trim(),
-          q4: form.q4.trim(),
-          q5: form.q5.trim(),
-          q6: form.q6.trim(),
-          q7: form.q7.trim(),
-        },
-        stageIdx: 1, // SCREENING
-        pinHash: "", // will be set in onEnterHQ
-        updatedAt: "JUST NOW",
+      const emailKey = form.email.trim().toLowerCase();
+      const existing = list.find((c: any) => c.email.toLowerCase() === emailKey);
+
+      // Already applied AND activated → never re-submit. Route to login instead,
+      // preserving all their existing progress.
+      if (existing && existing.pinHash) {
+        setLoginEmail(form.email.trim());
+        setLoginErr("YOU'VE ALREADY APPLIED WITH THIS EMAIL — ENTER YOUR PIN TO LOG IN.");
+        setShowLoginModal(true);
+        return;
+      }
+
+      const answers = {
+        q1: form.q1.trim(), q2: form.q2.trim(), q3: form.q3.trim(),
+        q4: form.q4.trim(), q5: form.q5.trim(), q6: form.q6.trim(), q7: form.q7.trim(),
       };
 
-      // Filter out duplicate email if existing
-      const filtered = list.filter((c: any) => c.email.toLowerCase() !== newCand.email.toLowerCase());
-      filtered.unshift(newCand);
-      localStorage.setItem("tech_candidates_admin", JSON.stringify(filtered));
-
-      setPlayerNo(newPlayerNo);
-      setScore(1337 + filtered.length);
+      if (existing) {
+        // Applied but not activated yet → update their file, keep id/progress.
+        const updatedCand = {
+          ...existing,
+          name: form.name.trim(),
+          branch: form.branch.trim(),
+          section: form.section.trim(),
+          phone: form.phone.trim(),
+          collegeId: form.college.trim(),
+          domains: selectedClasses,
+          answers,
+          updatedAt: "JUST NOW",
+        };
+        const merged = list.map((c: any) => (c.email.toLowerCase() === emailKey ? updatedCand : c));
+        localStorage.setItem("tech_candidates_admin", JSON.stringify(merged));
+        setPlayerNo(existing.playerNo || 1001);
+        setScore(1337 + merged.length);
+      } else {
+        const newPlayerNo = 1000 + list.length + 1;
+        const newCand = {
+          id: `cand-${Date.now()}`,
+          playerNo: newPlayerNo,
+          name: form.name.trim(),
+          email: form.email.trim(),
+          branch: form.branch.trim(),
+          section: form.section.trim(),
+          phone: form.phone.trim(),
+          collegeId: form.college.trim(),
+          domains: selectedClasses,
+          answers,
+          stageIdx: 1, // SCREENING
+          pinHash: "", // set in onEnterHQ
+          updatedAt: "JUST NOW",
+        };
+        list.unshift(newCand);
+        localStorage.setItem("tech_candidates_admin", JSON.stringify(list));
+        setPlayerNo(newPlayerNo);
+        setScore(1337 + list.length);
+      }
     } catch {
       setPlayerNo(1001);
     }
@@ -533,19 +700,24 @@ export default function ArcadePage() {
     goTo("hq");
   };
 
-  const onSubmitTask = () => {
-    if (!taskInput.trim()) return;
-    setTaskSubmitted(true);
-    setStageIdx((s) => Math.max(s, 2));
+  // Submit the task for one specific department. Stage is NOT self-advanced —
+  // only the Guild Council admin promotes candidates between rounds.
+  const submitTaskFor = (domainKey: string) => {
+    if (taskDone[domainKey]) return; // submissions are final — no resubmit
+    const link = (taskLinks[domainKey] || "").trim();
+    if (!link) return;
+    setTaskDone((p) => ({ ...p, [domainKey]: true }));
 
-    // Save submission link to real candidate store
+    // Persist per-department submissions to the shared candidate store.
     try {
       const existingRaw = localStorage.getItem("tech_candidates_admin");
       if (existingRaw) {
         const list = JSON.parse(existingRaw);
         const updated = list.map((c: any) => {
           if (c.email.toLowerCase() === form.email.trim().toLowerCase()) {
-            return { ...c, submissionLink: taskInput.trim(), updatedAt: "JUST NOW" };
+            const submissions = { ...(c.submissions || {}), [domainKey]: link };
+            const firstLink = Object.values(submissions).find(Boolean) as string | undefined;
+            return { ...c, submissions, submissionLink: firstLink || c.submissionLink, updatedAt: "JUST NOW" };
           }
           return c;
         });
@@ -555,8 +727,9 @@ export default function ArcadePage() {
       /* fallback */
     }
 
+    const dm = DOMAINS.find((d) => d.key === domainKey);
     setComms((cs) => [
-      { id: "c" + Date.now(), icon: "⚔", color: "#39ff14", title: "TASK SUBMITTED", body: "Round 1 quest received. The council will judge your work soon. +50 XP", time: "JUST NOW" },
+      { id: "c" + Date.now(), icon: "⚔", color: "#39ff14", title: "TASK SUBMITTED", body: `${dm ? dm.name : "Domain"} task received. The council will judge your work soon. +50 XP`, time: "JUST NOW" },
       ...cs,
     ]);
   };
@@ -993,7 +1166,7 @@ export default function ArcadePage() {
             {/* candidate login */}
             <div style={{ position: "absolute", top: "8.2%", left: "2.5%", zIndex: 7, textAlign: "left", display: "flex", gap: "8px", flexWrap: "wrap" }}>
               <button
-                onClick={() => setShowLoginModal(true)}
+                onClick={() => { setLoginEmail(form.email.trim() || loginEmail); setShowLoginModal(true); }}
                 style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#39ff14", border: "1.5px solid #39ff1466", background: "rgba(57,255,20,.1)", borderRadius: "4px", padding: "6px 10px", textShadow: "0 0 8px #39ff14" }}
               >
                 🔑 PLAYER LOGIN
@@ -1037,9 +1210,19 @@ export default function ArcadePage() {
                       <div>&gt; 6 GUILD DOMAINS DETECTED.</div>
                       <div style={{ color: "#ffe600", textShadow: "0 0 12px #ffe600", animation: "blink 1.05s steps(1) infinite", marginTop: "6px" }}>&gt; INSERT COIN OR SCROLL TO START ▮</div>
                     </div>
+                    {/* Primary landing action -> the Recruitment Quest briefing */}
+                    <div style={{ marginTop: "30px" }}>
+                      <ArcadeButton
+                        onClick={() => router.push("/process")}
+                        style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(10px,1.5vw,15px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "8px", padding: "15px 24px", boxShadow: "0 8px 0 #006074, 0 0 28px rgba(0,240,255,.6), inset 0 3px 8px rgba(255,255,255,.5)", letterSpacing: "1px", textShadow: "0 1px 0 rgba(255,255,255,.4)" }}
+                        activeStyle={{ transform: "translateY(6px)", boxShadow: "0 2px 0 #006074, 0 0 18px rgba(0,240,255,.5), inset 0 3px 8px rgba(255,255,255,.5)" }}
+                      >
+                        ▶ INSERT COIN · VIEW QUEST
+                      </ArcadeButton>
+                    </div>
                   </div>
                   <div style={{ position: "absolute", bottom: "5%", left: 0, right: 0, textAlign: "center", fontFamily: PS, fontSize: "10px", color: "#7de8ff" }}>
-                    <div>SCROLL DOWN</div>
+                    <div>SCROLL TO BROWSE DOMAINS</div>
                     <div style={{ fontSize: "18px", animation: "scrollpulse 1.4s infinite", marginTop: "8px" }}>▼</div>
                   </div>
                 </div>
@@ -1115,7 +1298,7 @@ export default function ArcadePage() {
                       A<br />INFO
                     </ArcadeButton>
                     <button
-                      onClick={() => setShowLoginModal(true)}
+                      onClick={() => { setLoginEmail(form.email.trim() || loginEmail); setShowLoginModal(true); }}
                       style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#ffe600", background: "rgba(255,230,0,.1)", border: "1px solid #ffe60066", borderRadius: "4px", padding: "6px 10px", textShadow: "0 0 6px #ffe600" }}
                     >
                       RETURNING PLAYER LOGIN ▶
@@ -1322,32 +1505,90 @@ export default function ArcadePage() {
   );
 
   // ================= HQ =================
+  // ---- Journey stopped (rejection) outcome screen ----
+  const renderRejected = () => {
+    const dom = selDomain(0);
+    const reachedIdx = Math.min(Math.max(rejectedAtStage, 1), STAGES.length - 1);
+    const reachedLabel = STAGES[reachedIdx]?.label || "SCREENING";
+    const positive =
+      `Reaching the ${reachedLabel} stage is no small feat — it means your skills are real. ` +
+      `Every great player has a stack of "Game Over" screens behind them. Keep building, keep shipping, ` +
+      `and drop another coin next season. TECHNOVATION would love to see you back. 🎮`;
+    return (
+      <div style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: "radial-gradient(120% 80% at 50% -5%, #2a0e18 0%, #0a0e1c 55%, #05060d 100%)", position: "relative" }}>
+        <div style={scanOverlay(0.22)} />
+        <div style={{ maxWidth: "760px", margin: "0 auto", padding: "clamp(28px,5vw,60px) clamp(16px,4vw,40px) 80px", display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(18px,3vw,26px)" }}>
+          {/* identity */}
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <div style={{ width: "64px", height: "64px", borderRadius: "8px", overflow: "hidden", border: "3px solid #ff3b30", boxShadow: "0 0 18px #ff3b3066", flexShrink: 0 }}>
+              <canvas ref={hqAvatarRef} style={{ width: "100%", height: "100%", imageRendering: "pixelated" }} />
+            </div>
+            <div>
+              <div style={{ fontFamily: PS, fontSize: "clamp(12px,1.8vw,18px)", color: "#fff" }}>{(form.name || "PLAYER 1").toUpperCase()}</div>
+              <div style={{ fontFamily: PS, fontSize: "8px", color: "#7de8ff", marginTop: "6px" }}>PLAYER No. #{String(playerNo || 1).padStart(4, "0")}</div>
+            </div>
+          </div>
+
+          {/* GAME OVER */}
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontFamily: PS, fontSize: "clamp(20px,4vw,40px)", color: "#ff3b30", textShadow: "0 0 18px rgba(255,59,48,.6)", letterSpacing: "2px" }}>GAME OVER</div>
+            <div style={{ fontFamily: VT, fontSize: "clamp(18px,2.2vw,26px)", color: "#7de8ff", marginTop: "12px" }}>Your quest concluded at the <span style={{ color: "#ffe600" }}>{reachedLabel}</span> stage.</div>
+          </div>
+
+          {/* journey tracker (stopped) */}
+          <div style={{ ...panelBox, width: "100%", marginTop: 0 }}>
+            <div style={sectionHdr}><span style={{ color: "#ff3b30" }}>▮</span> YOUR JOURNEY</div>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 0, position: "relative" }}>
+              {STAGES.map((s, i) => {
+                const cleared = i < reachedIdx;
+                const stopped = i === reachedIdx;
+                const col = cleared ? "#39ff14" : stopped ? "#ff3b30" : "#2a3350";
+                return (
+                  <div key={s.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", position: "relative" }}>
+                    <div style={{ position: "absolute", top: "clamp(16px,2.4vw,22px)", left: "-50%", width: "100%", height: "4px", background: i === 0 ? "transparent" : i <= reachedIdx ? "#39ff14" : "#1c2540", zIndex: 0 }} />
+                    <div style={{ position: "relative", zIndex: 1, width: "clamp(34px,4.8vw,48px)", height: "clamp(34px,4.8vw,48px)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: PS, fontSize: "clamp(11px,1.4vw,16px)", color: stopped ? "#04040a" : col, background: stopped ? "#ff3b30" : cleared ? "rgba(57,255,20,.12)" : "rgba(255,255,255,.02)", border: "3px solid " + col, boxShadow: cleared || stopped ? "0 0 16px " + col : "none" }}>{cleared ? "✓" : stopped ? "✕" : s.icon}</div>
+                    <div style={{ fontFamily: PS, fontSize: "clamp(6px,.85vw,9px)", color: col, marginTop: "10px", lineHeight: 1.4, textShadow: cleared || stopped ? "0 0 6px " + col : "none" }}>{s.label}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* council feedback (if provided) */}
+          {rejectionFeedback.trim() && (
+            <div style={{ ...panelBoxTight, width: "100%" }}>
+              <div style={sectionHdr}><span style={{ color: "#ff2bd1" }}>✎</span> COUNCIL FEEDBACK</div>
+              <div style={{ fontFamily: VT, fontSize: "clamp(16px,2vw,20px)", color: "#a9c3d6", lineHeight: 1.35 }}>&quot;{rejectionFeedback}&quot;</div>
+            </div>
+          )}
+
+          {/* positive message */}
+          <div style={{ width: "100%", background: "rgba(57,255,20,.05)", border: "2px solid #39ff1466", borderRadius: "14px", padding: "clamp(18px,2.4vw,26px)", textAlign: "center" }}>
+            <div style={{ fontFamily: PS, fontSize: "clamp(10px,1.4vw,13px)", color: "#39ff14", textShadow: "0 0 10px #39ff14" }}>▶ 1UP · THIS ISN&apos;T THE END</div>
+            <div style={{ fontFamily: VT, fontSize: "clamp(17px,2vw,22px)", color: "#cfe8ff", marginTop: "12px", lineHeight: 1.4 }}>{positive}</div>
+          </div>
+
+          {/* actions */}
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
+            <ArcadeButton onClick={() => goTo("pass")} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#00f0ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>◄ VIEW MY PASS</ArcadeButton>
+            <ArcadeButton onClick={handleLogout} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff3b30", background: "transparent", border: "2px solid #5a1a1a", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>⏻ LOG OUT</ArcadeButton>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderHQ = () => {
+    if (rejected) return renderRejected();
+
     const dom = selDomain(0);
     const dom2 = selDomain(1);
     const selColor = dom ? dom.color : "#00f0ff";
-    const tasks = [
-      {
-        id: "t1",
-        title: "ROUND 1 · GUILD TASK",
-        desc: stageIdx < 2 ? "Unlocks after screening. A domain-specific mini-challenge will appear here." : "Build a small artifact for the " + (dom ? dom.stage : "guild") + ". Submit your link below.",
-        tag: stageIdx < 2 ? "LOCKED" : taskSubmitted ? "SUBMITTED" : "ACTIVE",
-        titleColor: stageIdx < 2 ? "#4a5a7a" : "#ffe600",
-        tagKind: (stageIdx < 2 ? "locked" : taskSubmitted ? "done" : "active") as "locked" | "done" | "active",
-        cardLocked: stageIdx < 2,
-        showInput: stageIdx >= 2 && !taskSubmitted,
-      },
-      {
-        id: "t2",
-        title: "ROUND 2 · INTERVIEW PREP",
-        desc: "Review guild lore & prepare a 2-min pitch. Slot booking opens after Round 1.",
-        tag: "UPCOMING",
-        titleColor: "#4a5a7a",
-        tagKind: "locked" as const,
-        cardLocked: true,
-        showInput: false,
-      },
-    ];
+    // Task guild unlocks only once the admin clears the SCREENING round.
+    const screeningCleared = stageIdx >= 2;
+    const domainTasks = selectedClasses
+      .map((k) => DOMAINS.find((d) => d.key === k))
+      .filter((d): d is (typeof DOMAINS)[number] => !!d);
 
     return (
       <div style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: "radial-gradient(120% 80% at 80% -5%, #12203a 0%, #0a0e1c 55%, #05060d 100%)", position: "relative" }}>
@@ -1392,26 +1633,65 @@ export default function ArcadePage() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "clamp(16px,2.4vw,24px)" }}>
-            {/* quest log */}
+            {/* quest log — locked until SCREENING is cleared by the council */}
             <div style={panelBoxTight}>
               <div style={sectionHdr}><span style={{ color: "#ff2bd1" }}>⚔</span> QUEST LOG</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                {tasks.map((t) => (
-                  <div key={t.id} style={taskCard(t.cardLocked)}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
-                      <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: t.titleColor }}>{t.title}</div>
-                      <div style={tagStyle(t.tagKind)}>{t.tag}</div>
-                    </div>
-                    <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginTop: "6px" }}>{t.desc}</div>
-                    {t.showInput && (
-                      <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
-                        <input value={taskInput} onChange={(e) => setTaskInput(e.target.value)} placeholder="PASTE SUBMISSION LINK" style={{ flex: 1, minWidth: "150px", background: "#050a10", border: "2px solid #12463f", borderRadius: "4px", color: "#39ff14", fontFamily: VT, fontSize: "16px", padding: "6px 9px", textShadow: "0 0 6px #39ff14" }} />
-                        <ArcadeButton onClick={onSubmitTask} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#053200", background: "#39ff14", border: "none", borderRadius: "4px", padding: "8px 12px", boxShadow: "0 4px 0 #0a5200" }} activeStyle={{ transform: "translateY(2px)", boxShadow: "0 2px 0 #0a5200" }}>SUBMIT</ArcadeButton>
-                      </div>
-                    )}
+
+              {!screeningCleared ? (
+                <div style={{ ...taskCard(true), textAlign: "center", padding: "clamp(20px,3vw,30px)" }}>
+                  <div style={{ fontFamily: PS, fontSize: "clamp(11px,1.4vw,14px)", color: "#4a5a7a" }}>🔒 TASK GUILD LOCKED</div>
+                  <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "12px", lineHeight: 1.35 }}>
+                    Clear the <span style={{ color: "#00f0ff" }}>SCREENING</span> round first. Once the Guild Council shortlists you, your domain tasks unlock here — one for each guild you enlisted in.
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  {domainTasks.map((d, i) => {
+                    const done = !!taskDone[d.key];
+                    return (
+                      <div key={d.key} style={taskCard(false)}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+                          <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: done ? "#39ff14" : "#ffe600" }}>
+                            {i === 0 ? "1ST" : "2ND"} · {d.name} TASK
+                          </div>
+                          <div style={tagStyle(done ? "done" : "active")}>{done ? "SUBMITTED" : "ACTIVE"}</div>
+                        </div>
+                        <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginTop: "6px" }}>
+                          Build a small artifact for the <span style={{ color: d.color }}>{d.stage}</span>. Submit your proof link below.
+                        </div>
+                        {done ? (
+                          <>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px", flexWrap: "wrap", background: "#050a10", border: "2px solid #12463f", borderRadius: "4px", padding: "7px 10px" }}>
+                              <span style={{ fontFamily: PS, fontSize: "8px", color: "#39ff14" }}>🔒</span>
+                              <span style={{ fontFamily: VT, fontSize: "16px", color: "#39ff14", wordBreak: "break-all", flex: 1, minWidth: 0, textShadow: "0 0 6px #39ff14" }}>{taskLinks[d.key]}</span>
+                            </div>
+                            <div style={{ fontFamily: VT, fontSize: "14px", color: "#39ff14", marginTop: "6px" }}>✓ Submitted &amp; locked — the council will review your {d.name} task. Submissions are final.</div>
+                          </>
+                        ) : (
+                          <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
+                            <input
+                              value={taskLinks[d.key] || ""}
+                              onChange={(e) => setTaskLinks((p) => ({ ...p, [d.key]: e.target.value }))}
+                              placeholder="PASTE SUBMISSION LINK"
+                              style={{ flex: 1, minWidth: "150px", background: "#050a10", border: "2px solid #12463f", borderRadius: "4px", color: "#39ff14", fontFamily: VT, fontSize: "16px", padding: "6px 9px", textShadow: "0 0 6px #39ff14" }}
+                            />
+                            <ArcadeButton onClick={() => submitTaskFor(d.key)} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#053200", background: "#39ff14", border: "none", borderRadius: "4px", padding: "8px 12px", boxShadow: "0 4px 0 #0a5200" }} activeStyle={{ transform: "translateY(2px)", boxShadow: "0 2px 0 #0a5200" }}>SUBMIT</ArcadeButton>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* interview prep — upcoming */}
+                  <div style={taskCard(true)}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+                      <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: "#4a5a7a" }}>ROUND 2 · INTERVIEW PREP</div>
+                      <div style={tagStyle("locked")}>UPCOMING</div>
+                    </div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginTop: "6px" }}>Review guild lore & prepare a 2-min pitch. Unlocks once your tasks are judged.</div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* comms */}
