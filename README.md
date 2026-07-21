@@ -1,94 +1,66 @@
 # 🕹️ Club Recruitment Arcade
 
-An 8-bit arcade-themed recruitment app built with **Next.js (App Router)**,
-**TypeScript**, **Tailwind CSS**, **Framer Motion**, and **Supabase**.
+An 8-bit arcade-themed recruitment experience — a faithful port of the design
+artifact. Built with **Next.js (App Router)** + **TypeScript**.
 
-Candidates insert a coin, pick one of six domain cabinets, create an RPG-style
-character, download a retro Player ID ticket, set a passcode, and track their
-recruitment quest from a Player HQ dashboard.
+Right now it's a **single-page, frontend-only** experience (Supabase is
+stubbed) so the UI can be refined first. It's one state-driven flow:
 
-## Pages
+`ARCADE FLOOR` → `CHARACTER CREATION` → `ARCADE PASS` → `PLAYER HQ`
 
-| Route                  | What it does                                                              |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `/`                    | CRT hero + scroll to control panel, cursor-following joystick, 6 cabinets, quick `Name`/`Email` form → Press Start |
-| `/character-creation`  | Full RPG character form (branch, section, phone, college email, domain, 3 scenario answers) → saves to Supabase |
-| `/confirmation`        | `LEVEL CLEAR! / 1UP` flash, downloadable/shareable 8-bit Player ID ticket, passcode setup → auto-login |
-| `/dashboard`           | Protected Player HQ: stage tracker, Quest Log (task + proof URL), Comms Feed |
+## Features (all in `app/page.tsx`)
 
-## Getting started
+- **Arcade floor** — scroll-driven CRT that reveals the domain grid and control
+  panel, terminal boot sequence, a cursor-following joystick (rAF physics), the
+  6 guild cabinets, live "high score" ticker, quick-hook form + PRESS START.
+- **Character creation** — player file, class selection (6 domains), 3 quest
+  questions.
+- **Arcade pass** — `LEVEL CLEAR! / 1UP`, a canvas-rendered Player ID ticket
+  (download / WhatsApp / Instagram share) with a deterministic pixel avatar,
+  and a PIN gate to enter HQ.
+- **Player HQ** — stage-progress tracker, quest log with submission input, and a
+  live comms channel.
+
+All animations are ported verbatim (`crtflicker`, `marqueeglow`, `gameon`,
+`spin1up`, `floaty`, `pressstart`, `scrollpulse`, `scandrift`, `blink`) — see
+`app/globals.css`.
+
+## Run it
 
 ```bash
-# 1. Install dependencies
 npm install
-
-# 2. Configure Supabase
-cp .env.local.example .env.local
-#   then edit .env.local with your project URL + anon key
-
-# 3. Create the database
-#   Open Supabase -> SQL Editor -> paste supabase/schema.sql -> Run
-
-# 4. Run it
 npm run dev        # http://localhost:3000
 ```
 
-## Environment variables
+Fonts (`Press Start 2P`, `VT323`) load from Google Fonts via a `<link>` in
+`app/layout.tsx`.
 
-Create `.env.local` (see `.env.local.example`):
+## Config
 
+Edit the constants at the top of `app/page.tsx`:
+
+```ts
+const CLUB_NAME = "TECHNOVATION";
+const SCANLINES = 0.35;          // scanline opacity
+const FLICKER = true;            // CRT flicker
+const SCREEN_TINT = "blue";      // "blue" | "green" | "amber"
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
-```
 
-## Database & security model
+## Supabase (stubbed)
 
-`supabase/schema.sql` creates the `candidates` table and enables **Row Level
-Security**. Because candidates authenticate with an email + passcode (not a full
-auth provider), access is handled with `SECURITY DEFINER` RPC functions instead
-of raw table reads:
+`lib/supabase.ts` is a no-op stub — no live database calls. The original
+`supabase/schema.sql` (candidates table, RLS, passcode RPCs) is kept for when
+you wire persistence back in; the file header lists the exact re-enable steps.
 
-- **Public INSERT** — anyone may submit an application (the entrance form).
-- **No direct SELECT/UPDATE** for the anon key — the table is not readable
-  directly.
-- `set_passcode(email, passcode)` — sets a bcrypt-hashed passcode once, on the
-  confirmation screen.
-- `candidate_login(email, passcode)` — verifies credentials, returns the row.
-- `submit_task_link(email, passcode, link)` — saves the candidate's proof URL.
-
-Passcodes are stored as **bcrypt hashes** (`pgcrypto`), never plaintext, and the
-hash is stripped from every RPC response.
-
-> Recruiters advance a candidate by editing their row in the Supabase table
-> editor: set `stage` (`Form Submitted → Screening → Task Round → Interview →
-> Recruited`) and fill `assigned_task_title` / `assigned_task_desc`. Those show
-> up in the candidate's dashboard on their next refresh.
-
-## Tech notes
-
-- Fonts `Press Start 2P` + `VT323` load via `next/font/google`.
-- The Player ID ticket is a self-contained SVG rendered to PNG in-browser for
-  download (no external libraries).
-- Avatars are deterministic 8×8 pixel faces seeded from the candidate's email.
-- Temp state between the entrance form and character creation, plus the logged-in
-  session, live in `sessionStorage` via a small React context.
-
-## Project structure
+## Structure
 
 ```
 app/
-  layout.tsx                 root layout, fonts, context provider
-  globals.css                CRT / scanline / pixel styling
-  page.tsx                   arcade entrance
-  character-creation/page.tsx
-  confirmation/page.tsx
-  dashboard/page.tsx
-components/
-  CRTFrame, Joystick, DomainCabinet, PixelButton,
-  PixelAvatar, PlayerTicket, ProgressTracker
+  layout.tsx     fonts + metadata
+  globals.css    base styles + all keyframe animations
+  page.tsx       the entire arcade experience (floor/create/pass/hq)
 lib/
-  supabase.ts   types.ts   avatar.ts   candidate-context.tsx
+  supabase.ts    stub (frontend-only for now)
 supabase/
-  schema.sql
+  schema.sql     kept for later
 ```
