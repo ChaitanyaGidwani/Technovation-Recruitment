@@ -17,12 +17,42 @@ const FLICKER = true;
 const SCREEN_TINT = "blue" as "blue" | "green" | "amber";
 
 const DOMAINS = [
-  { key: "tech", name: "TECHNICAL", stage: "CODE CITADEL", glyph: "Ψ", color: "#00f0ff", cls: "MAGE" },
-  { key: "graphics", name: "GRAPHICS", stage: "PIXEL STUDIO", glyph: "✦", color: "#ff2bd1", cls: "ARTIFICER" },
-  { key: "prod", name: "PRODUCTION", stage: "STAGE MASTER", glyph: "◈", color: "#ffe600", cls: "TANK" },
-  { key: "events", name: "EVENTS", stage: "BOSS ARENA", glyph: "⚔", color: "#39ff14", cls: "WARRIOR" },
-  { key: "pr", name: "PR/OUTREACH", stage: "BROADCAST TOWER", glyph: "➤", color: "#ff7a2b", cls: "BARD" },
-  { key: "content", name: "CONTENT", stage: "LORE KEEPER", glyph: "✎", color: "#b06bff", cls: "SCRIBE" },
+  {
+    key: "tech", name: "TECHNICAL", stage: "CODE CITADEL", glyph: "Ψ", color: "#00f0ff", cls: "MAGE",
+    desc: "The backbone of Technovation — our Technical guild forges the digital infrastructure that powers every initiative. From full-stack web apps and mobile experiences to APIs, databases, and cloud deployments, the Mages of Code Citadel turn ideas into living, breathing software. You'll collaborate on hackathon projects, build internal tools, explore AI/ML pipelines, and push production-grade code. If you think in logic and dream in syntax, this is your stronghold.",
+    skills: ["Web & App Development", "Data Structures & Algorithms", "Cloud & DevOps", "AI / ML Prototyping", "Open-Source Contributions"],
+    quest: "Build or break things — ship code that matters.",
+  },
+  {
+    key: "graphics", name: "GRAPHICS", stage: "PIXEL STUDIO", glyph: "✦", color: "#ff2bd1", cls: "ARTIFICER",
+    desc: "The Pixel Studio is where visual magic is born. Our Artificers craft everything the world sees — event posters, social media creatives, brand identity kits, UI/UX mockups, motion graphics, and animated reels. You'll master design tools, develop a keen eye for typography and color theory, and create scroll-stopping visuals that define Technovation's aesthetic. Every pixel you place tells a story.",
+    skills: ["Graphic Design & Illustration", "UI/UX Design", "Motion Graphics & Animation", "Brand Identity Systems", "Video Editing & Thumbnails"],
+    quest: "Design the visuals that make the world stop scrolling.",
+  },
+  {
+    key: "prod", name: "PRODUCTION", stage: "STAGE MASTER", glyph: "◈", color: "#ffe600", cls: "TANK",
+    desc: "Stage Masters are the operational powerhouses — the planners, the fixers, the ones who make sure every event runs like a well-oiled machine. From venue logistics and vendor coordination to budgets, timelines, and on-ground execution, the Production guild handles the chaos so others can create. You'll manage large-scale tech fests, workshops, and hackathons from concept to curtain call.",
+    skills: ["Event Planning & Logistics", "Budget Management", "Vendor & Venue Coordination", "Team Leadership", "Crisis Management"],
+    quest: "Orchestrate flawless events from blueprint to spotlight.",
+  },
+  {
+    key: "events", name: "EVENTS", stage: "BOSS ARENA", glyph: "⚔", color: "#39ff14", cls: "WARRIOR",
+    desc: "The Boss Arena is where unforgettable experiences are forged. Warriors of this guild ideate, curate, and execute the club's marquee events — coding competitions, tech talks, gaming nights, and inter-college showdowns. You'll brainstorm wild concepts, design event formats, build engagement mechanics, and ensure every participant walks away with a story. If you live for the thrill of a packed arena, this is your battleground.",
+    skills: ["Event Ideation & Curation", "Competition Design", "Participant Engagement", "Speaker & Guest Coordination", "Community Building"],
+    quest: "Create legendary events that people talk about for semesters.",
+  },
+  {
+    key: "pr", name: "PR/OUTREACH", stage: "BROADCAST TOWER", glyph: "➤", color: "#ff7a2b", cls: "BARD",
+    desc: "Bards of the Broadcast Tower amplify Technovation's voice across every channel. From Instagram reels and LinkedIn posts to campus partnerships, email campaigns, and sponsor outreach — this guild builds the club's public presence. You'll craft narratives, negotiate collaborations, manage social media calendars, analyze engagement metrics, and connect the club with the broader tech ecosystem.",
+    skills: ["Social Media Strategy", "Content Marketing", "Sponsorship & Partnerships", "Email Campaigns", "Analytics & Growth Hacking"],
+    quest: "Broadcast the signal — make Technovation unmissable.",
+  },
+  {
+    key: "content", name: "CONTENT", stage: "LORE KEEPER", glyph: "✎", color: "#b06bff", cls: "SCRIBE",
+    desc: "Scribes of the Lore Keeper chronicle everything Technovation stands for. From blog posts and technical articles to event recaps, newsletters, and scriptwriting — the Content guild is the voice behind the brand. You'll research trending tech topics, interview speakers, document club history, and produce written + multimedia content that educates, entertains, and inspires the community.",
+    skills: ["Technical Writing & Blogging", "Copywriting & Scriptwriting", "Newsletter Curation", "Research & Documentation", "Storytelling & Narrative Design"],
+    quest: "Write the lore that defines the guild's legacy.",
+  },
 ];
 
 const STAGES = [
@@ -115,6 +145,8 @@ export default function ArcadePage() {
   const [playerNo, setPlayerNo] = useState(0);
   const [hover, setHover] = useState("");
   const [error, setError] = useState("");
+  const [detailDomain, setDetailDomain] = useState<string | null>(null);
+  const [detailVisible, setDetailVisible] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -148,6 +180,15 @@ export default function ArcadePage() {
   };
   const avatarSeed = () => (form.name || "PLAYER1") + (selectedClass || "x");
   const club = () => CLUB_NAME || "[REDACTED] GUILD";
+
+  const openDetail = (key: string) => {
+    setDetailDomain(key);
+    requestAnimationFrame(() => setDetailVisible(true));
+  };
+  const closeDetail = () => {
+    setDetailVisible(false);
+    setTimeout(() => setDetailDomain(null), 400);
+  };
 
   // joystick tilt + score ticker
   useEffect(() => {
@@ -686,7 +727,7 @@ export default function ArcadePage() {
                   </div>
                   <div style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "repeat(3,1fr)", gridTemplateRows: "repeat(2,1fr)", gap: "2.4%" }}>
                     {DOMAINS.map((d) => (
-                      <div key={d.key} style={cabStyle(d)} onClick={() => { setSelectedClass(d.key); setError(""); }} onMouseEnter={() => setHover(d.key)} onMouseLeave={() => setHover("")}>
+                      <div key={d.key} style={cabStyle(d)} onClick={() => { setSelectedClass(d.key); setError(""); openDetail(d.key); }} onMouseEnter={() => setHover(d.key)} onMouseLeave={() => setHover("")}>
                         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: d.color, boxShadow: "0 0 10px " + d.color }} />
                         <div style={{ fontFamily: PS, fontSize: "clamp(16px,2.2vw,30px)", color: d.color, textShadow: "0 0 12px " + d.color }}>{d.glyph}</div>
                         <div style={{ fontFamily: PS, fontSize: "clamp(8px,1vw,11px)", color: "#fff", marginTop: "7px", letterSpacing: "1px" }}>{d.name}</div>
@@ -818,7 +859,17 @@ export default function ArcadePage() {
                   <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,19px)", color: d.color }}>{d.stage}</div>
                   <div style={{ fontFamily: VT, fontSize: "clamp(12px,1.3vw,16px)", color: "#7de8ff" }}>CLASS · {d.cls}</div>
                 </div>
-                <div style={{ position: "absolute", top: "8px", right: "10px", fontFamily: PS, fontSize: "12px", color: d.color, textShadow: "0 0 8px " + d.color, opacity: selectedClass === d.key ? 1 : 0 }}>✓</div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+                  <div style={{ position: "absolute", top: "8px", right: "10px", fontFamily: PS, fontSize: "12px", color: d.color, textShadow: "0 0 8px " + d.color, opacity: selectedClass === d.key ? 1 : 0 }}>✓</div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openDetail(d.key); }}
+                    style={{ cursor: "pointer", position: "absolute", bottom: "8px", right: "10px", fontFamily: PS, fontSize: "7px", color: d.color, background: `${d.color}11`, border: `1.5px solid ${d.color}44`, borderRadius: "4px", padding: "4px 8px", textShadow: `0 0 6px ${d.color}`, transition: "all .15s", opacity: 0.7 }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = `${d.color}22`; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.7"; e.currentTarget.style.background = `${d.color}11`; }}
+                  >
+                    ⓘ INFO
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -1011,12 +1062,241 @@ export default function ArcadePage() {
     );
   };
 
+  // ================= DOMAIN DETAIL OVERLAY =================
+  const renderDomainDetail = () => {
+    if (!detailDomain) return null;
+    const d = DOMAINS.find((dm) => dm.key === detailDomain);
+    if (!d) return null;
+
+    return (
+      <div
+        onClick={closeDetail}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 100,
+          background: detailVisible ? "rgba(4,4,10,0.92)" : "rgba(4,4,10,0)",
+          backdropFilter: detailVisible ? "blur(12px)" : "blur(0px)",
+          WebkitBackdropFilter: detailVisible ? "blur(12px)" : "blur(0px)",
+          transition: "background 0.4s ease, backdrop-filter 0.4s ease",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "20px",
+        }}
+      >
+        {/* Scanline overlay on the modal */}
+        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 101, opacity: 0.18, background: "repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.55) 2px 4px)" }} />
+
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "relative",
+            zIndex: 102,
+            width: "100%",
+            maxWidth: "780px",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            borderRadius: "18px",
+            background: "radial-gradient(120% 100% at 50% 0%, #0f1528 0%, #080a16 55%, #050710 100%)",
+            border: `3px solid ${d.color}44`,
+            boxShadow: `0 0 80px ${d.color}22, 0 0 40px rgba(0,0,0,.8), inset 0 0 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06)`,
+            transform: detailVisible ? "scale(1) translateY(0)" : "scale(0.88) translateY(40px)",
+            opacity: detailVisible ? 1 : 0,
+            transition: "transform 0.4s cubic-bezier(.22,1,.36,1), opacity 0.35s ease",
+          }}
+        >
+          {/* Accent top bar */}
+          <div style={{ height: "4px", background: `linear-gradient(90deg, transparent, ${d.color}, transparent)`, borderRadius: "18px 18px 0 0" }} />
+
+          {/* Close button */}
+          <button
+            onClick={closeDetail}
+            style={{
+              position: "absolute",
+              top: "16px",
+              right: "18px",
+              cursor: "pointer",
+              background: "rgba(255,255,255,.04)",
+              border: `2px solid ${d.color}55`,
+              borderRadius: "6px",
+              padding: "8px 12px",
+              fontFamily: PS,
+              fontSize: "9px",
+              color: d.color,
+              textShadow: `0 0 8px ${d.color}`,
+              transition: "all .15s",
+              zIndex: 5,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = `${d.color}22`; e.currentTarget.style.transform = "scale(1.05)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,.04)"; e.currentTarget.style.transform = "scale(1)"; }}
+          >
+            ✕ CLOSE
+          </button>
+
+          <div style={{ padding: "clamp(28px,4vw,48px) clamp(24px,4vw,44px)" }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: "clamp(16px,2.5vw,28px)", marginBottom: "clamp(20px,3vw,32px)" }}>
+              <div
+                style={{
+                  width: "clamp(70px,9vw,100px)",
+                  height: "clamp(70px,9vw,100px)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "14px",
+                  background: `radial-gradient(circle at 40% 35%, ${d.color}18, transparent 70%)`,
+                  border: `3px solid ${d.color}66`,
+                  boxShadow: `0 0 30px ${d.color}33, inset 0 0 20px ${d.color}11`,
+                  fontFamily: PS,
+                  fontSize: "clamp(32px,4.5vw,52px)",
+                  color: d.color,
+                  textShadow: `0 0 20px ${d.color}, 0 0 40px ${d.color}88`,
+                  animation: "floaty 2.2s ease-in-out infinite",
+                  flexShrink: 0,
+                }}
+              >
+                {d.glyph}
+              </div>
+              <div>
+                <div style={{ fontFamily: PS, fontSize: "clamp(16px,2.6vw,28px)", color: d.color, textShadow: `0 0 14px ${d.color}`, letterSpacing: "2px", lineHeight: 1.3 }}>
+                  {d.name}
+                </div>
+                <div style={{ fontFamily: VT, fontSize: "clamp(18px,2.2vw,26px)", color: d.color, marginTop: "4px", opacity: 0.85 }}>
+                  {d.stage}
+                </div>
+                <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: "#7de8ff", marginTop: "6px", letterSpacing: "1px" }}>
+                  CLASS · {d.cls}
+                </div>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div style={{ height: "1px", background: `linear-gradient(90deg, ${d.color}55, ${d.color}11, transparent)`, marginBottom: "clamp(18px,2.5vw,28px)" }} />
+
+            {/* Description */}
+            <div style={{ marginBottom: "clamp(22px,3vw,32px)" }}>
+              <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: "#ffe600", textShadow: "0 0 8px #ffe600", letterSpacing: "1px", marginBottom: "12px" }}>
+                ▶ GUILD BRIEFING
+              </div>
+              <div style={{
+                fontFamily: VT,
+                fontSize: "clamp(17px,2vw,23px)",
+                color: "#c8dae8",
+                lineHeight: 1.45,
+                textShadow: "0 0 4px rgba(125,232,255,.15)",
+              }}>
+                {d.desc}
+              </div>
+            </div>
+
+            {/* Skills */}
+            <div style={{ marginBottom: "clamp(22px,3vw,32px)" }}>
+              <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: "#ff2bd1", textShadow: "0 0 8px #ff2bd1", letterSpacing: "1px", marginBottom: "14px" }}>
+                ◆ SKILL TREE
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                {d.skills.map((skill, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      fontFamily: PS,
+                      fontSize: "clamp(7px,.9vw,10px)",
+                      color: d.color,
+                      background: `${d.color}0F`,
+                      border: `1.5px solid ${d.color}44`,
+                      borderRadius: "6px",
+                      padding: "8px 14px",
+                      textShadow: `0 0 6px ${d.color}88`,
+                      letterSpacing: ".5px",
+                      animation: `fadeSlideUp 0.4s ease ${i * 0.07}s both`,
+                    }}
+                  >
+                    {skill}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Quest motto */}
+            <div style={{
+              padding: "clamp(14px,2vw,22px) clamp(18px,2.5vw,28px)",
+              borderRadius: "10px",
+              background: "rgba(255,255,255,.02)",
+              border: "2px solid #1c2540",
+              boxShadow: "inset 0 0 20px rgba(0,0,0,.3)",
+              marginBottom: "clamp(20px,2.5vw,28px)",
+            }}>
+              <div style={{ fontFamily: PS, fontSize: "clamp(8px,.95vw,10px)", color: "#39ff14", textShadow: "0 0 8px #39ff14", letterSpacing: "1px", marginBottom: "8px" }}>
+                ⚡ PRIMARY QUEST
+              </div>
+              <div style={{
+                fontFamily: VT,
+                fontSize: "clamp(18px,2.2vw,26px)",
+                color: "#ffe600",
+                textShadow: "0 0 10px rgba(255,230,0,.4)",
+                fontStyle: "italic",
+                lineHeight: 1.3,
+              }}>
+                "{d.quest}"
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+              <ArcadeButton
+                onClick={() => {
+                  setSelectedClass(d.key);
+                  setError("");
+                  closeDetail();
+                }}
+                style={{
+                  cursor: "pointer",
+                  fontFamily: PS,
+                  fontSize: "clamp(9px,1.1vw,12px)",
+                  color: "#04040a",
+                  background: `radial-gradient(circle at 40% 30%, ${d.color}dd, ${d.color} 55%, ${d.color}aa)`,
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "clamp(12px,1.8vw,18px) clamp(20px,3vw,32px)",
+                  boxShadow: `0 6px 0 ${d.color}55, 0 0 28px ${d.color}66`,
+                  textShadow: "0 1px 0 rgba(255,255,255,.4)",
+                  letterSpacing: "1px",
+                }}
+                activeStyle={{ transform: "translateY(4px)", boxShadow: `0 2px 0 ${d.color}55, 0 0 14px ${d.color}44` }}
+              >
+                ▶ SELECT {d.cls} CLASS
+              </ArcadeButton>
+              <ArcadeButton
+                onClick={closeDetail}
+                style={{
+                  cursor: "pointer",
+                  fontFamily: PS,
+                  fontSize: "clamp(9px,1.1vw,12px)",
+                  color: "#7de8ff",
+                  background: "transparent",
+                  border: "2px solid #1c3a4a",
+                  borderRadius: "8px",
+                  padding: "clamp(12px,1.8vw,18px) clamp(20px,3vw,32px)",
+                }}
+                activeStyle={{ transform: "translateY(2px)" }}
+              >
+                ◄ BACK
+              </ArcadeButton>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ width: "100%", height: "100vh", background: "#04040a" }}>
       {page === "floor" && renderFloor()}
       {page === "create" && renderCreate()}
       {page === "pass" && renderPass()}
       {page === "hq" && renderHQ()}
+      {renderDomainDetail()}
     </div>
   );
 }
