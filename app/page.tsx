@@ -209,6 +209,7 @@ export default function ArcadePage() {
   // A remembered session shows a one-tap "Resume" on the landing page
   // (instead of force-navigating there).
   const [resumeInfo, setResumeInfo] = useState<{ email: string; name: string } | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const ticketRef = useRef<HTMLCanvasElement | null>(null);
@@ -462,6 +463,15 @@ export default function ArcadePage() {
   };
 
   const router = useRouter();
+
+  // Track viewport so the landing page can adapt its absolutely-positioned
+  // arcade overlays for phones.
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   // Remember a prior session — but DON'T hijack the landing page. Pre-load the
   // candidate's data and offer a one-tap "Resume" on the floor instead.
@@ -1187,46 +1197,47 @@ export default function ArcadePage() {
                 top: 0,
                 left: 0,
                 right: 0,
-                height: "6.5%",
+                height: isMobile ? "34px" : "6.5%",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: "14px",
+                gap: isMobile ? "6px" : "14px",
+                padding: isMobile ? "0 8px" : 0,
                 background: "linear-gradient(#161a2d,#0d1020)",
                 borderBottom: "3px solid #23283c",
                 boxShadow: "inset 0 -6px 14px rgba(0,0,0,.6)",
                 zIndex: 6,
               }}
             >
-              <span style={{ fontFamily: PS, fontSize: "11px", color: "#00f0ff", textShadow: "0 0 8px #00f0ff" }}>◄</span>
-              <span style={{ fontFamily: PS, fontSize: "clamp(11px,1.5vw,18px)", color: "#ff2bd1", letterSpacing: "2px", animation: "marqueeglow 2.4s infinite" }}>
+              {!isMobile && <span style={{ fontFamily: PS, fontSize: "11px", color: "#00f0ff", textShadow: "0 0 8px #00f0ff" }}>◄</span>}
+              <span style={{ fontFamily: PS, fontSize: isMobile ? "8px" : "clamp(11px,1.5vw,18px)", color: "#ff2bd1", letterSpacing: isMobile ? "1px" : "2px", animation: "marqueeglow 2.4s infinite", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
                 {club()} · ARCADE RECRUITMENT
               </span>
-              <span style={{ fontFamily: PS, fontSize: "11px", color: "#00f0ff", textShadow: "0 0 8px #00f0ff" }}>►</span>
+              {!isMobile && <span style={{ fontFamily: PS, fontSize: "11px", color: "#00f0ff", textShadow: "0 0 8px #00f0ff" }}>►</span>}
             </div>
 
             {/* candidate login / resume */}
-            <div style={{ position: "absolute", top: "8.2%", left: "2.5%", zIndex: 7, textAlign: "left", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ position: "absolute", top: isMobile ? "44px" : "8.2%", left: isMobile ? "2%" : "2.5%", zIndex: 7, textAlign: "left", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", maxWidth: isMobile ? "60%" : undefined }}>
               {resumeInfo && (
                 <button
                   onClick={() => goTo("hq")}
-                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", border: "none", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", borderRadius: "4px", padding: "6px 10px", boxShadow: "0 3px 0 #006074, 0 0 12px rgba(0,240,255,.5)" }}
+                  style={{ cursor: "pointer", fontFamily: PS, fontSize: isMobile ? "7px" : "9px", color: "#04040a", border: "none", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", borderRadius: "4px", padding: isMobile ? "5px 8px" : "6px 10px", boxShadow: "0 3px 0 #006074, 0 0 12px rgba(0,240,255,.5)" }}
                 >
-                  ▶ RESUME AS {resumeInfo.name.toUpperCase().slice(0, 14)}
+                  {isMobile ? "▶ RESUME" : `▶ RESUME AS ${resumeInfo.name.toUpperCase().slice(0, 14)}`}
                 </button>
               )}
               <button
                 onClick={() => { setLoginEmail(form.email.trim() || loginEmail); setShowLoginModal(true); }}
-                style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#39ff14", border: "1.5px solid #39ff1466", background: "rgba(57,255,20,.1)", borderRadius: "4px", padding: "6px 10px", textShadow: "0 0 8px #39ff14" }}
+                style={{ cursor: "pointer", fontFamily: PS, fontSize: isMobile ? "7px" : "9px", color: "#39ff14", border: "1.5px solid #39ff1466", background: "rgba(57,255,20,.1)", borderRadius: "4px", padding: isMobile ? "5px 8px" : "6px 10px", textShadow: "0 0 8px #39ff14" }}
               >
-                🔑 PLAYER LOGIN
+                {isMobile ? "🔑 LOGIN" : "🔑 PLAYER LOGIN"}
               </button>
             </div>
 
-            <div style={{ position: "absolute", top: "8.2%", right: "2.5%", zIndex: 7, textAlign: "right", fontFamily: PS, lineHeight: 1.7 }}>
-              <div style={{ fontSize: "9px", color: "#ffe600", textShadow: "0 0 8px #ffe600" }}>HIGH SCORE</div>
-              <div style={{ fontSize: "clamp(14px,1.8vw,22px)", color: "#39ff14", textShadow: "0 0 10px #39ff14", letterSpacing: "2px" }}>{scoreStr}</div>
-              <div style={{ fontSize: "7px", color: "#7de8ff", marginTop: "2px" }}>▲ LIVE REGISTRATIONS</div>
+            <div style={{ position: "absolute", top: isMobile ? "44px" : "8.2%", right: isMobile ? "2%" : "2.5%", zIndex: 7, textAlign: "right", fontFamily: PS, lineHeight: 1.5 }}>
+              <div style={{ fontSize: isMobile ? "6px" : "9px", color: "#ffe600", textShadow: "0 0 8px #ffe600" }}>HIGH SCORE</div>
+              <div style={{ fontSize: isMobile ? "12px" : "clamp(14px,1.8vw,22px)", color: "#39ff14", textShadow: "0 0 10px #39ff14", letterSpacing: "2px" }}>{scoreStr}</div>
+              {!isMobile && <div style={{ fontSize: "7px", color: "#7de8ff", marginTop: "2px" }}>▲ LIVE REGISTRATIONS</div>}
             </div>
 
             {/* CRT */}
