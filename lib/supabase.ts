@@ -13,12 +13,16 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  */
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Accept either the classic anon key or the new publishable key, under either
+// common env-var name.
+const key =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-export const isSupabaseConfigured = Boolean(url && anonKey);
+export const isSupabaseConfigured = Boolean(url && key);
 
 export const supabase: SupabaseClient | null = isSupabaseConfigured
-  ? createClient(url as string, anonKey as string, {
+  ? createClient(url as string, key as string, {
       auth: { persistSession: false },
     })
   : null;
