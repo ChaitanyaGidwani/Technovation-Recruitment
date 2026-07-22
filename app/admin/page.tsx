@@ -106,6 +106,13 @@ export default function AdminPage() {
   const [editingNotes, setEditingNotes] = useState("");
   const [scoreTask, setScoreTask] = useState("");
   const [scoreInterview, setScoreInterview] = useState("");
+  // Google Sheets live-sync config
+  const [webhookUrl, setWebhookUrl] = useState<string>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("tech_sheet_webhook") || "" : ""
+  );
+  const [webhookDraft, setWebhookDraft] = useState("");
+  const [showSyncCfg, setShowSyncCfg] = useState(false);
+  const [lastSync, setLastSync] = useState("");
   // Candidate awaiting a promotion the admin must re-confirm.
   const [confirmPromote, setConfirmPromote] = useState<Candidate | null>(null);
   // Candidate awaiting a rejection ("stop journey") the admin must re-confirm.
@@ -274,7 +281,17 @@ export default function AdminPage() {
   };
 
   const exportCSV = () => {
-    const headers = ["PlayerNo", "Name", "Email", "Branch", "Phone", "Domains", "Stage", "TaskScore", "InterviewScore", "TotalScore", "Updated"];
+    // Build a readable per-department submission-links string for each candidate.
+    const submissionsFor = (c: Candidate) =>
+      (c.domains || [])
+        .map((k, i) => {
+          const name = DOMAINS.find((d) => d.key === k)?.name || k;
+          const link = (c.submissions && c.submissions[k]) || (i === 0 ? c.submissionLink : "") || "";
+          return `${name}: ${link || "—"}`;
+        })
+        .join(" | ");
+
+    const headers = ["PlayerNo", "Name", "Email", "Branch", "Phone", "Domains", "Stage", "TaskScore", "InterviewScore", "TotalScore", "SubmissionLinks", "Updated"];
     const rows = candidates.map((c) => [
       c.playerNo,
       `"${c.name}"`,
@@ -286,6 +303,7 @@ export default function AdminPage() {
       c.taskScore != null ? c.taskScore : "",
       c.interviewScore != null ? c.interviewScore : "",
       c.taskScore != null && c.interviewScore != null ? c.taskScore + c.interviewScore : "",
+      `"${submissionsFor(c).replace(/"/g, "'")}"`,
       `"${c.updatedAt}"`,
     ]);
     const content = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -297,6 +315,90 @@ export default function AdminPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  // Excel export (opens natively in Excel / Google Sheets). Dependency-free:
+  // an Office-flavoured HTML table saved with an .xls extension.
+  const exportXLSX = () => {
+    const esc = (v: unknown) =>
+      String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const submissionsFor = (c: Candidate) =>
+      (c.domains || [])
+        .map((k, i) => {
+          const name = DOMAINS.find((d) => d.key === k)?.name || k;
+          const link = (c.submissions && c.submissions[k]) || (i === 0 ? c.submissionLink : "") || "";
+          return `${name}: ${link || "—"}`;
+        })
+        .join(" | ");
+    const cols = ["PlayerNo", "Name", "Email", "Branch", "Section", "Phone", "Domains", "Stage", "TaskScore", "InterviewScore", "TotalScore", "SubmissionLinks", "ReviewerNotes", "Updated"];
+    const head = `<tr>${cols.map((c) => `<th style="background:#1c2540;color:#fff">${esc(c)}</th>`).join("")}</tr>`;
+    const body = candidates
+      .map((c) => {
+        const total = c.taskScore != null && c.interviewScore != null ? c.taskScore + c.interviewScore : "";
+        const vals = [
+          c.playerNo, c.name, c.email, c.branch, c.section, c.phone,
+          (c.domains || []).join(" + "),
+          STAGES[c.stageIdx]?.label || "UNKNOWN",
+          c.taskScore ?? "", c.interviewScore ?? "", total,
+          submissionsFor(c), c.notes || "", c.updatedAt,
+        ];
+        return `<tr>${vals.map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`;
+      })
+      .join("");
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1">${head}${body}</table></body></html>`;
+    const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `technovation_candidates_${Date.now()}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // -------- Google Sheets live sync --------
+  const SHEET_HEADERS = ["PlayerNo", "Name", "Email", "Branch", "Section", "Phone", "Domains", "Stage", "TaskScore", "InterviewScore", "TotalScore", "SubmissionLinks", "ReviewerNotes", "Updated"];
+  const rosterRows = () =>
+    candidates.map((c) => {
+      const total = c.taskScore != null && c.interviewScore != null ? c.taskScore + c.interviewScore : "";
+      const subs = (c.domains || [])
+        .map((k, i) => {
+          const name = DOMAINS.find((d) => d.key === k)?.name || k;
+          const link = (c.submissions && c.submissions[k]) || (i === 0 ? c.submissionLink : "") || "";
+          return `${name}: ${link || "—"}`;
+        })
+        .join(" | ");
+      const row = [
+        c.playerNo, c.name, c.email, c.branch, c.section, c.phone,
+        (c.domains || []).join(" + "),
+        c.rejected ? "REJECTED / STOPPED" : STAGES[c.stageIdx]?.label || "UNKNOWN",
+        c.taskScore ?? "", c.interviewScore ?? "", total,
+        subs, c.notes || "", c.updatedAt,
+      ];
+      return row.map((v) => (v == null ? "" : v));
+    });
+
+  const syncNow = () => {
+    if (!webhookUrl) return;
+    setLastSync("Syncing…");
+    const body = JSON.stringify({ headers: SHEET_HEADERS, rows: rosterRows(), syncedAt: new Date().toISOString() });
+    fetch(webhookUrl, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body })
+      .then(() => setLastSync("Synced " + new Date().toLocaleTimeString()))
+      .catch(() => setLastSync("Sync failed — check the URL"));
+  };
+
+  const saveWebhook = () => {
+    const u = webhookDraft.trim();
+    setWebhookUrl(u);
+    try { localStorage.setItem("tech_sheet_webhook", u); } catch { /* ignore */ }
+    setLastSync(u ? "Saved — will sync on the next update" : "Sheet sync disabled");
+  };
+
+  // Auto-push the roster to the sheet whenever anything changes (debounced).
+  useEffect(() => {
+    if (!webhookUrl) return;
+    const t = setTimeout(syncNow, 1000);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidates, webhookUrl]);
 
   // Filtered + evaluation-ordered candidates
   const filteredCandidates = useMemo(() => {
@@ -433,10 +535,22 @@ export default function AdminPage() {
           </div>
           <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
             <button
+              onClick={exportXLSX}
+              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", background: "#39ff14", border: "none", borderRadius: "6px", padding: "10px 14px", boxShadow: "0 4px 0 #0a5200" }}
+            >
+              ⤓ EXPORT EXCEL
+            </button>
+            <button
               onClick={exportCSV}
               style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", background: "#ffe600", border: "none", borderRadius: "6px", padding: "10px 14px", boxShadow: "0 4px 0 #8a7b00" }}
             >
               ⤓ EXPORT CSV
+            </button>
+            <button
+              onClick={() => { setWebhookDraft(webhookUrl); setShowSyncCfg((v) => !v); }}
+              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: webhookUrl ? "#39ff14" : "#7de8ff", background: "transparent", border: `2px solid ${webhookUrl ? "#39ff14" : "#1c3a4a"}`, borderRadius: "6px", padding: "8px 12px" }}
+            >
+              {webhookUrl ? "● " : "○ "}⚙ SHEET SYNC
             </button>
             <button
               onClick={() => setIsAuthenticated(false)}
@@ -446,6 +560,27 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
+
+        {/* Google Sheets live-sync config */}
+        {showSyncCfg && (
+          <div style={{ ...cardBox, marginBottom: "24px", borderLeft: "4px solid #39ff14" }}>
+            <div style={{ fontFamily: PS, fontSize: "10px", color: "#39ff14", textShadow: "0 0 8px #39ff14" }}>⚙ GOOGLE SHEETS LIVE SYNC</div>
+            <div style={{ fontFamily: VT, fontSize: "16px", color: "#7de8ff", marginTop: "6px", marginBottom: "12px", lineHeight: 1.3 }}>
+              Paste your Apps Script Web App URL. Once saved, the full roster auto-pushes to your sheet on every promotion, rejection, score, and submission. Setup steps are in <span style={{ color: "#ffe600" }}>SHEET_SYNC.md</span>.
+            </div>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+              <input
+                value={webhookDraft}
+                onChange={(e) => setWebhookDraft(e.target.value)}
+                placeholder="https://script.google.com/macros/s/.../exec"
+                style={{ ...inputStyle, flex: 1, minWidth: "260px", color: "#7de8ff", fontSize: "16px" }}
+              />
+              <button onClick={saveWebhook} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#39ff14", border: "none", borderRadius: "4px", padding: "10px 14px", boxShadow: "0 3px 0 #0a5200" }}>💾 SAVE</button>
+              <button onClick={syncNow} disabled={!webhookUrl} style={{ cursor: webhookUrl ? "pointer" : "not-allowed", fontFamily: PS, fontSize: "8px", color: "#04040a", background: webhookUrl ? "#00f0ff" : "#4a5a7a", border: "none", borderRadius: "4px", padding: "10px 14px", boxShadow: webhookUrl ? "0 3px 0 #007a8a" : "none" }}>⟳ SYNC NOW</button>
+            </div>
+            {lastSync && <div style={{ fontFamily: VT, fontSize: "15px", color: "#39ff14", marginTop: "10px" }}>{lastSync}</div>}
+          </div>
+        )}
 
         {/* Metric Cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px", marginBottom: "24px" }}>
