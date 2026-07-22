@@ -13,6 +13,7 @@
 
 import { useEffect, useState, useMemo, type CSSProperties } from "react";
 import Link from "next/link";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 const PS = "'Press Start 2P', monospace";
 const VT = "'VT323', monospace";
@@ -118,6 +119,9 @@ export default function AdminPage() {
   // Candidate awaiting a rejection ("stop journey") the admin must re-confirm.
   const [confirmReject, setConfirmReject] = useState<Candidate | null>(null);
   const [rejectFeedback, setRejectFeedback] = useState("");
+  // Candidate awaiting permanent deletion the admin must re-confirm.
+  const [confirmDelete, setConfirmDelete] = useState<Candidate | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Persist candidates to LocalStorage
   useEffect(() => {
@@ -243,6 +247,32 @@ export default function AdminPage() {
     );
     setConfirmReject(null);
     setRejectFeedback("");
+  };
+
+  // Permanently delete an applicant — from Supabase first (so it can't
+  // resurrect via sync), then from the local roster.
+  const deleteConfirmed = async () => {
+    if (!confirmDelete) return;
+    const email = (confirmDelete.email || "").toLowerCase();
+    setDeleting(true);
+    try {
+      if (isSupabaseConfigured && supabase) {
+        await supabase.from("candidates").delete().eq("email", email);
+      }
+      // Forget it in the sync's "seen in cloud" set so a re-registration works.
+      try {
+        const raw = localStorage.getItem("tech_pushed_emails");
+        if (raw) {
+          const next = (JSON.parse(raw) as string[]).filter((e) => e.toLowerCase() !== email);
+          localStorage.setItem("tech_pushed_emails", JSON.stringify(next));
+        }
+      } catch { /* ignore */ }
+      setCandidates((prev) => prev.filter((c) => c.id !== confirmDelete.id));
+      if (selectedCandidate?.id === confirmDelete.id) setSelectedCandidate(null);
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(null);
+    }
   };
 
   // Save Task / Interview scores (each out of 100). Empty clears the score.
@@ -771,6 +801,14 @@ export default function AdminPage() {
                           {cand.stageIdx === 5 && (
                             <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff3b30", border: "1px solid #ff3b3066", background: "rgba(255,59,48,.1)", borderRadius: "4px", padding: "5px 8px" }}>✕ JOURNEY STOPPED</span>
                           )}
+
+                          <button
+                            title="Delete applicant permanently"
+                            onClick={() => setConfirmDelete(cand)}
+                            style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#ff3b30", background: "transparent", border: "1.5px solid #5a1a1a", borderRadius: "4px", padding: "6px 9px" }}
+                          >
+                            🗑
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1104,6 +1142,43 @@ export default function AdminPage() {
           </div>
         );
       })()}
+
+      {/* Permanent delete — re-confirmation */}
+      {confirmDelete && (
+        <div
+          onClick={() => { if (!deleting) setConfirmDelete(null); }}
+          style={{ position: "fixed", inset: 0, zIndex: 130, background: "rgba(4,4,10,0.9)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: "500px", background: "radial-gradient(120% 100% at 50% 0%, #2a0e0e 0%, #070914 100%)", border: "3px solid #ff3b30", borderRadius: "16px", padding: "28px", boxShadow: "0 0 50px rgba(255,59,48,.3)", textAlign: "center" }}
+          >
+            <div style={{ fontFamily: PS, fontSize: "15px", color: "#ff3b30", textShadow: "0 0 12px #ff3b30" }}>🗑 DELETE APPLICANT</div>
+            <div style={{ fontFamily: VT, fontSize: "20px", color: "#fff", marginTop: "14px" }}>
+              Permanently delete <span style={{ color: "#00f0ff" }}>{confirmDelete.name}</span> (#{confirmDelete.playerNo})?
+            </div>
+            <div style={{ fontFamily: VT, fontSize: "16px", color: "#ff7a2b", marginTop: "8px" }}>
+              This removes their record from Supabase and the site for good. It cannot be undone.
+            </div>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap", marginTop: "22px" }}>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleting}
+                style={{ cursor: deleting ? "not-allowed" : "pointer", fontFamily: PS, fontSize: "9px", color: "#7de8ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "8px", padding: "12px 18px" }}
+              >
+                ◄ CANCEL
+              </button>
+              <button
+                onClick={deleteConfirmed}
+                disabled={deleting}
+                style={{ cursor: deleting ? "not-allowed" : "pointer", fontFamily: PS, fontSize: "9px", color: "#fff", background: deleting ? "#5a1a1a" : "radial-gradient(circle at 40% 30%, #ff8a80, #ff3b30 60%, #8a0e0e)", border: "none", borderRadius: "8px", padding: "12px 20px", boxShadow: deleting ? "none" : "0 5px 0 #5a1010, 0 0 18px rgba(255,59,48,.5)" }}
+              >
+                {deleting ? "DELETING…" : "🗑 DELETE FOREVER"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
