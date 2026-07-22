@@ -630,6 +630,10 @@ export default function ArcadePage() {
       setError("!! PLEASE USE YOUR OFFICIAL COLLEGE EMAIL (@ABES.AC.IN)");
       return;
     }
+    if (!/^\d{10}$/.test(form.phone.trim())) {
+      setError("!! PHONE NUMBER MUST BE EXACTLY 10 DIGITS");
+      return;
+    }
     if (selectedClasses.length < 2) {
       setError("!! SELECT 2 GUILD DOMAINS TO PROCEED");
       return;
@@ -1405,17 +1409,28 @@ export default function ArcadePage() {
         <div style={panelBox}>
           <div style={sectionHdr}><span style={{ color: "#00f0ff" }}>01</span> PLAYER FILE</div>
           <div className="player-form-grid">
-            {[
-              { l: "PLAYER NAME", k: "name" as const, ph: "ENTER NAME" },
-              { l: "COLLEGE EMAIL", k: "email" as const, ph: "student@abes.ac.in" },
-              { l: "BRANCH", k: "branch" as const, ph: "E.G. COMPUTER SCIENCE" },
-              { l: "SECTION", k: "section" as const, ph: "E.G. A / 2ND YEAR" },
-              { l: "PHONE NUMBER", k: "phone" as const, ph: "+91 00000 00000" },
-              { l: "STUDENT ID", k: "college" as const, ph: "STUDENT ID / ROLL NO" },
-            ].map((f) => (
+            {([
+              { l: "PLAYER NAME", k: "name", ph: "ENTER NAME" },
+              { l: "COLLEGE EMAIL", k: "email", ph: "student@abes.ac.in" },
+              { l: "BRANCH", k: "branch", ph: "E.G. COMPUTER SCIENCE" },
+              { l: "SECTION", k: "section", ph: "E.G. A / 2ND YEAR" },
+              { l: "PHONE NUMBER", k: "phone", ph: "10-DIGIT MOBILE", numeric: true, maxLen: 10 },
+              { l: "ADMISSION NUMBER", k: "college", ph: "E.G. 24B0101010" },
+            ] as { l: string; k: keyof typeof form; ph: string; numeric?: boolean; maxLen?: number }[]).map((f) => (
               <div key={f.k}>
                 <div style={labelSm}>{f.l}</div>
-                <input value={form[f.k]} onChange={setField(f.k)} placeholder={f.ph} style={fieldStyle} />
+                <input
+                  value={form[f.k]}
+                  onChange={
+                    f.numeric
+                      ? (e) => setForm((s) => ({ ...s, [f.k]: e.target.value.replace(/\D/g, "").slice(0, f.maxLen || 10) }))
+                      : setField(f.k)
+                  }
+                  placeholder={f.ph}
+                  inputMode={f.numeric ? "numeric" : undefined}
+                  maxLength={f.numeric ? f.maxLen : undefined}
+                  style={fieldStyle}
+                />
               </div>
             ))}
           </div>
