@@ -817,7 +817,7 @@ export default function AdminPage() {
               {selectedCandidate.name} · {selectedCandidate.email}
             </div>
             <div style={{ fontFamily: VT, fontSize: "16px", color: "#7de8ff" }}>
-              Branch: {selectedCandidate.branch} | Section: {selectedCandidate.section} | ID: {selectedCandidate.collegeId} | Phone: {selectedCandidate.phone}
+              Branch: {selectedCandidate.branch} | Section: {selectedCandidate.section} | Admission No: {selectedCandidate.collegeId} | Phone: {selectedCandidate.phone}
             </div>
 
             {/* STAGE PROGRESSION — read-only pipeline. Fully visible, but the

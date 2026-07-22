@@ -17,8 +17,8 @@ create table if not exists candidates (
   answers           jsonb        default '{}',  -- q1..q7
   pin_hash          text,                        -- login PIN (hashed by the app)
   stage_idx         integer      default 1,      -- 0 Form · 1 Screening · 2 Task · 3 Interview · 4 Recruited · 5 Stopped
-  submissions       jsonb        default '{}',  -- { domainKey: link }
-  submission_link   text,
+  sub_link_1        text,                         -- 1st-domain task submission link
+  sub_link_2        text,                         -- 2nd-domain task submission link
   task_score        integer,                     -- /100
   interview_score   integer,                     -- /100
   rejected          boolean      default false,

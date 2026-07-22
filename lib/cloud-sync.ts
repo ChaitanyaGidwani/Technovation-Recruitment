@@ -22,6 +22,10 @@ type Cand = Record<string, any>;
 
 // ---- object <-> row mapping (readable columns in the Supabase table) ----
 function rowFromCand(c: Cand) {
+  const doms: string[] = c.domains ?? [];
+  const subs: Record<string, string> = c.submissions ?? {};
+  const link1 = subs[doms[0]] || c.submissionLink || null;
+  const link2 = subs[doms[1]] || null;
   return {
     email: String(c.email || "").toLowerCase(),
     app_id: c.id ?? null,
@@ -31,12 +35,12 @@ function rowFromCand(c: Cand) {
     section: c.section ?? "",
     phone: c.phone ?? "",
     college_id: c.collegeId ?? "",
-    domains: c.domains ?? [],
+    domains: doms,
     answers: c.answers ?? {},
     pin_hash: c.pinHash ?? "",
     stage_idx: c.stageIdx ?? 1,
-    submissions: c.submissions ?? {},
-    submission_link: c.submissionLink ?? null,
+    sub_link_1: link1,   // 1st-domain task submission
+    sub_link_2: link2,   // 2nd-domain task submission
     task_score: c.taskScore ?? null,
     interview_score: c.interviewScore ?? null,
     rejected: !!c.rejected,
@@ -61,8 +65,14 @@ function candFromRow(r: Cand): Cand {
     answers: r.answers || {},
     pinHash: r.pin_hash || "",
     stageIdx: r.stage_idx ?? 1,
-    submissions: r.submissions || {},
-    submissionLink: r.submission_link || undefined,
+    submissions: (() => {
+      const doms: string[] = r.domains || [];
+      const m: Record<string, string> = {};
+      if (doms[0] && r.sub_link_1) m[doms[0]] = r.sub_link_1;
+      if (doms[1] && r.sub_link_2) m[doms[1]] = r.sub_link_2;
+      return m;
+    })(),
+    submissionLink: r.sub_link_1 || undefined,
     taskScore: r.task_score ?? undefined,
     interviewScore: r.interview_score ?? undefined,
     rejected: !!r.rejected,
