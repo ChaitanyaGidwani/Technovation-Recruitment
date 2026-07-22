@@ -17,7 +17,7 @@ import Link from "next/link";
 const PS = "'Press Start 2P', monospace";
 const VT = "'VT323', monospace";
 
-const MASTER_KEY = "TECH2026"; // Default Admin Master Key (overridable)
+const MASTER_KEY = "techno21";
 
 const STAGES = [
   { key: "submitted", label: "FORM SUBMITTED", icon: "✓", color: "#7de8ff" },
@@ -175,7 +175,7 @@ export default function AdminPage() {
     e.preventDefault();
     if (lockoutTime > 0) return;
 
-    if (inputKey === MASTER_KEY) {
+    if (inputKey.trim().toLowerCase() === MASTER_KEY.toLowerCase()) {
       setIsAuthenticated(true);
       setAuthError("");
       setAttempts(0);
@@ -476,7 +476,7 @@ export default function AdminPage() {
                 type="password"
                 value={inputKey}
                 onChange={(e) => setInputKey(e.target.value)}
-                placeholder="ENTER ADMIN KEY (Default: TECH2026)"
+                placeholder="ENTER ADMIN KEY"
                 disabled={lockoutTime > 0}
                 style={{ ...inputStyle, textAlign: "center", letterSpacing: "3px" }}
               />
