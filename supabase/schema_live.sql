@@ -81,6 +81,8 @@ alter table candidates enable row level security;
 drop policy if exists "app can read"   on candidates;
 drop policy if exists "app can insert" on candidates;
 drop policy if exists "app can update" on candidates;
+drop policy if exists "app can delete" on candidates;
 create policy "app can read"   on candidates for select using (true);
 create policy "app can insert" on candidates for insert with check (true);
 create policy "app can update" on candidates for update using (true) with check (true);
+create policy "app can delete" on candidates for delete using (true);

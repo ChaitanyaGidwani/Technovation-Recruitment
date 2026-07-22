@@ -122,6 +122,7 @@ export default function AdminPage() {
   // Candidate awaiting permanent deletion the admin must re-confirm.
   const [confirmDelete, setConfirmDelete] = useState<Candidate | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState("");
 
   // Persist candidates to LocalStorage
   useEffect(() => {
@@ -254,10 +255,18 @@ export default function AdminPage() {
   const deleteConfirmed = async () => {
     if (!confirmDelete) return;
     const email = (confirmDelete.email || "").toLowerCase();
+    const id = confirmDelete.id;
     setDeleting(true);
+    setDeleteErr("");
     try {
       if (isSupabaseConfigured && supabase) {
-        await supabase.from("candidates").delete().eq("email", email);
+        const { error } = await supabase.from("candidates").delete().eq("email", email);
+        if (error) {
+          // Almost always a missing DELETE policy — keep the row, tell the admin.
+          setDeleteErr("Delete blocked by Supabase: " + (error.message || String(error)) + " — re-run supabase/schema_live.sql to add the delete policy.");
+          setDeleting(false);
+          return;
+        }
       }
       // Forget it in the sync's "seen in cloud" set so a re-registration works.
       try {
@@ -267,11 +276,13 @@ export default function AdminPage() {
           localStorage.setItem("tech_pushed_emails", JSON.stringify(next));
         }
       } catch { /* ignore */ }
-      setCandidates((prev) => prev.filter((c) => c.id !== confirmDelete.id));
-      if (selectedCandidate?.id === confirmDelete.id) setSelectedCandidate(null);
-    } finally {
+      setCandidates((prev) => prev.filter((c) => c.id !== id));
+      if (selectedCandidate?.id === id) setSelectedCandidate(null);
       setDeleting(false);
       setConfirmDelete(null);
+    } catch (e) {
+      setDeleteErr("Delete error: " + String(e));
+      setDeleting(false);
     }
   };
 
@@ -804,7 +815,7 @@ export default function AdminPage() {
 
                           <button
                             title="Delete applicant permanently"
-                            onClick={() => setConfirmDelete(cand)}
+                            onClick={() => { setConfirmDelete(cand); setDeleteErr(""); }}
                             style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#ff3b30", background: "transparent", border: "1.5px solid #5a1a1a", borderRadius: "4px", padding: "6px 9px" }}
                           >
                             🗑
@@ -1160,9 +1171,12 @@ export default function AdminPage() {
             <div style={{ fontFamily: VT, fontSize: "16px", color: "#ff7a2b", marginTop: "8px" }}>
               This removes their record from Supabase and the site for good. It cannot be undone.
             </div>
+            {deleteErr && (
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#ff3b30", marginTop: "14px", lineHeight: 1.3, wordBreak: "break-word" }}>⚠ {deleteErr}</div>
+            )}
             <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap", marginTop: "22px" }}>
               <button
-                onClick={() => setConfirmDelete(null)}
+                onClick={() => { setConfirmDelete(null); setDeleteErr(""); }}
                 disabled={deleting}
                 style={{ cursor: deleting ? "not-allowed" : "pointer", fontFamily: PS, fontSize: "9px", color: "#7de8ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "8px", padding: "12px 18px" }}
               >
