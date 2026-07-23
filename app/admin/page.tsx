@@ -15,18 +15,18 @@ import { useEffect, useState, useMemo, type CSSProperties } from "react";
 import Link from "next/link";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
-const PS = "'Press Start 2P', monospace";
 const VT = "'VT323', monospace";
+const SANS = "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 const MASTER_KEY = "techno21";
 
 const STAGES = [
-  { key: "submitted", label: "FORM SUBMITTED", icon: "✓", color: "#7de8ff" },
-  { key: "screening", label: "SCREENING", icon: "◉", color: "#00f0ff" },
-  { key: "task", label: "TASK ROUND", icon: "⚔", color: "#ffb800" },
-  { key: "interview", label: "INTERVIEW", icon: "☎", color: "#ff2bd1" },
-  { key: "recruited", label: "RECRUITED", icon: "★", color: "#ffb800" },
-  { key: "rejected", label: "BENCH / ON HOLD", icon: "✕", color: "#ff2bd1" },
+  { key: "submitted", label: "FORM SUBMITTED", icon: "✓", color: "#5fb9d6" },
+  { key: "screening", label: "SCREENING", icon: "◉", color: "#29d3ec" },
+  { key: "task", label: "TASK ROUND", icon: "⚔", color: "#29d3ec" },
+  { key: "interview", label: "INTERVIEW", icon: "☎", color: "#29d3ec" },
+  { key: "recruited", label: "RECRUITED", icon: "★", color: "#2ee88c" },
+  { key: "rejected", label: "BENCH / ON HOLD", icon: "✕", color: "#ff5c6a" },
 ];
 
 const DOMAINS = [
@@ -491,50 +491,46 @@ export default function AdminPage() {
 
   // Styles
   const cardBox: CSSProperties = {
-    background: "rgba(10,14,26,.85)",
-    border: "2px solid #1c2540",
-    borderRadius: "12px",
+    background: "#0e1119",
+    border: "1px solid rgba(255,255,255,.08)",
+    borderRadius: "14px",
     padding: "20px",
-    boxShadow: "0 0 26px rgba(0,0,0,.4)",
   };
 
   const inputStyle: CSSProperties = {
-    background: "#050a10",
-    border: "2px solid #3a3410",
-    borderRadius: "6px",
-    color: "#ffb800",
+    background: "#0a0c14",
+    border: "1px solid rgba(255,255,255,.12)",
+    borderRadius: "8px",
+    color: "#e8ecf3",
     fontFamily: VT,
     fontSize: "18px",
-    padding: "8px 12px",
+    padding: "10px 14px",
     width: "100%",
   };
 
   // ---------------- LOGIN GATE ----------------
   if (!isAuthenticated) {
     return (
-      <div style={{ minHeight: "100vh", background: "#04040a", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", position: "relative" }}>
-        <div style={{ position: "fixed", inset: 0, opacity: 0.15, pointerEvents: "none", background: "repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.55) 2px 4px)" }} />
-        
-        <div style={{ width: "100%", maxWidth: "460px", background: "radial-gradient(120% 100% at 50% 0%, #12192e 0%, #070914 100%)", border: "3px solid #ff2bd1", borderRadius: "16px", padding: "36px 28px", boxShadow: "0 0 50px rgba(255,43,209,.25)", textAlign: "center" }}>
-          <div style={{ fontFamily: PS, fontSize: "28px", color: "#ff2bd1", textShadow: "0 0 16px #ff2bd1" }}>🛡 ADMIN</div>
-          <div style={{ fontFamily: PS, fontSize: "11px", color: "#00f0ff", marginTop: "8px", letterSpacing: "1px" }}>GUILD COUNCIL COMMAND CENTER</div>
-          <div style={{ fontFamily: VT, fontSize: "16px", color: "#7de8ff", marginTop: "12px" }}>Restricted Access · Authorized Personnel Only</div>
+      <div style={{ minHeight: "100vh", background: "#0a0c14", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+        <div style={{ width: "100%", maxWidth: "420px", background: "#0e1119", border: "1px solid rgba(255,255,255,.08)", borderRadius: "16px", padding: "36px 30px", textAlign: "center" }}>
+          <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "26px", color: "#e8ecf3", letterSpacing: "-.5px" }}>Command Center</div>
+          <div style={{ fontFamily: VT, fontSize: "17px", color: "#6b7688", marginTop: "6px" }}>Technovation Recruitment · Restricted access</div>
 
-          <form onSubmit={handleLogin} style={{ marginTop: "28px", display: "flex", flexDirection: "column", gap: "16px" }}>
-            <div>
-              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffb800", textAlign: "left", marginBottom: "6px" }}>MASTER ACCESS KEY</div>
+          <form onSubmit={handleLogin} style={{ marginTop: "26px", display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontFamily: VT, fontSize: "14px", color: "#6b7688", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "1px" }}>Master access key</div>
               <input
                 type="password"
                 value={inputKey}
                 onChange={(e) => setInputKey(e.target.value)}
-                placeholder="ENTER ADMIN KEY"
+                placeholder="Enter admin key"
                 disabled={lockoutTime > 0}
-                style={{ ...inputStyle, textAlign: "center", letterSpacing: "3px" }}
+                style={{ ...inputStyle, textAlign: "center", letterSpacing: "2px" }}
               />
             </div>
 
             {authError && (
-              <div style={{ fontFamily: PS, fontSize: "8px", color: "#ff2bd1", textShadow: "0 0 8px #ff2bd1", lineHeight: 1.4 }}>
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#ff5c6a", lineHeight: 1.4 }}>
                 {authError} {lockoutTime > 0 && `(${lockoutTime}s)`}
               </div>
             )}
@@ -544,24 +540,24 @@ export default function AdminPage() {
               disabled={lockoutTime > 0}
               style={{
                 cursor: lockoutTime > 0 ? "not-allowed" : "pointer",
-                fontFamily: PS,
-                fontSize: "11px",
-                color: "#04040a",
-                background: lockoutTime > 0 ? "#4a5a7a" : "radial-gradient(circle at 40% 30%, #ff9de3, #ff2bd1 60%, #8a0e6d)",
+                fontFamily: SANS,
+                fontWeight: 600,
+                fontSize: "15px",
+                color: lockoutTime > 0 ? "#6b7688" : "#06121a",
+                background: lockoutTime > 0 ? "#1a1f2b" : "#29d3ec",
                 border: "none",
                 borderRadius: "8px",
-                padding: "14px",
-                boxShadow: lockoutTime > 0 ? "none" : "0 6px 0 #4d063d, 0 0 20px rgba(255,43,209,.5)",
-                marginTop: "6px",
+                padding: "13px",
+                marginTop: "4px",
               }}
             >
-              {lockoutTime > 0 ? `LOCKED (${lockoutTime}s)` : "AUTHENTICATE ▶"}
+              {lockoutTime > 0 ? `Locked (${lockoutTime}s)` : "Authenticate →"}
             </button>
           </form>
 
-          <div style={{ marginTop: "24px", paddingTop: "18px", borderTop: "1px solid #1c2540", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Link href="/" style={{ fontFamily: PS, fontSize: "8px", color: "#7de8ff" }}>◄ BACK TO ARCADE</Link>
-            <span style={{ fontFamily: PS, fontSize: "8px", color: "#ffb800" }}>SECURE SSL 256</span>
+          <div style={{ marginTop: "24px", paddingTop: "18px", borderTop: "1px solid rgba(255,255,255,.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Link href="/" style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688" }}>← Back to arcade</Link>
+            <span style={{ fontFamily: VT, fontSize: "15px", color: "#4a5464" }}>Secure · SSL 256</span>
           </div>
         </div>
       </div>
@@ -570,81 +566,79 @@ export default function AdminPage() {
 
   // ---------------- ADMIN DASHBOARD ----------------
   return (
-    <div style={{ minHeight: "100vh", background: "#04040a", color: "#7de8ff", padding: "24px 20px 80px", position: "relative" }}>
-      <div style={{ position: "fixed", inset: 0, opacity: 0.15, pointerEvents: "none", background: "repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.55) 2px 4px)" }} />
-
-      <div style={{ maxWidth: "1280px", margin: "0 auto", position: "relative", zIndex: 1 }}>
+    <div style={{ minHeight: "100vh", background: "#0a0c14", color: "#c9cfe0", padding: "24px 20px 80px" }}>
+      <div style={{ maxWidth: "1320px", margin: "0 auto" }}>
         {/* Header Bar */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap", borderBottom: "3px solid #1c2540", paddingBottom: "18px", marginBottom: "24px" }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "16px", flexWrap: "wrap", borderBottom: "1px solid rgba(255,255,255,.08)", paddingBottom: "20px", marginBottom: "26px" }}>
           <div>
-            <div style={{ fontFamily: PS, fontSize: "clamp(16px,2.4vw,28px)", color: "#00f0ff", textShadow: "0 0 14px rgba(0,240,255,.5)" }}>
-              GUILD COUNCIL COMMAND CENTER
+            <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "clamp(24px,2.6vw,32px)", color: "#f0f3f8", letterSpacing: "-.5px" }}>
+              Command Center
             </div>
-            <div style={{ fontFamily: VT, fontSize: "18px", color: "#ff2bd1", marginTop: "4px" }}>
-              Technovation Recruitment Admin · Applicant Review & Stage Progression System
+            <div style={{ fontFamily: VT, fontSize: "17px", color: "#6b7688", marginTop: "2px" }}>
+              Technovation Recruitment · Applicant review & stage progression
             </div>
           </div>
-          <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
             <button
               onClick={exportXLSX}
-              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "6px", padding: "10px 14px", boxShadow: "0 4px 0 #3a3410" }}
+              style={{ cursor: "pointer", fontFamily: VT, fontSize: "16px", color: "#06121a", background: "#29d3ec", border: "none", borderRadius: "8px", padding: "9px 16px" }}
             >
-              ⤓ EXPORT EXCEL
+              ↓ Excel
             </button>
             <button
               onClick={exportCSV}
-              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "6px", padding: "10px 14px", boxShadow: "0 4px 0 #8a7b00" }}
+              style={{ cursor: "pointer", fontFamily: VT, fontSize: "16px", color: "#c9cfe0", background: "transparent", border: "1px solid rgba(255,255,255,.15)", borderRadius: "8px", padding: "9px 16px" }}
             >
-              ⤓ EXPORT CSV
+              ↓ CSV
             </button>
             <button
               onClick={() => { setWebhookDraft(webhookUrl); setShowSyncCfg((v) => !v); }}
-              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: webhookUrl ? "#ffb800" : "#7de8ff", background: "transparent", border: `2px solid ${webhookUrl ? "#ffb800" : "#1c3a4a"}`, borderRadius: "6px", padding: "8px 12px" }}
+              style={{ cursor: "pointer", fontFamily: VT, fontSize: "16px", color: webhookUrl ? "#2ee88c" : "#6b7688", background: "transparent", border: `1px solid ${webhookUrl ? "rgba(46,232,140,.4)" : "rgba(255,255,255,.15)"}`, borderRadius: "8px", padding: "9px 16px" }}
             >
-              {webhookUrl ? "● " : "○ "}⚙ SHEET SYNC
+              {webhookUrl ? "● " : "○ "}Sheet sync
             </button>
             <button
               onClick={() => setIsAuthenticated(false)}
-              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff2bd1", background: "transparent", border: "2px solid #ff2bd1", borderRadius: "6px", padding: "8px 12px" }}
+              style={{ cursor: "pointer", fontFamily: VT, fontSize: "16px", color: "#ff5c6a", background: "transparent", border: "1px solid rgba(255,92,106,.35)", borderRadius: "8px", padding: "9px 16px" }}
             >
-              🔒 LOGOUT
+              Logout
             </button>
           </div>
         </div>
 
         {/* Google Sheets live-sync config */}
         {showSyncCfg && (
-          <div style={{ ...cardBox, marginBottom: "24px", borderLeft: "4px solid #ffb800" }}>
-            <div style={{ fontFamily: PS, fontSize: "10px", color: "#ffb800", textShadow: "0 0 8px #ffb800" }}>⚙ GOOGLE SHEETS LIVE SYNC</div>
-            <div style={{ fontFamily: VT, fontSize: "16px", color: "#7de8ff", marginTop: "6px", marginBottom: "12px", lineHeight: 1.3 }}>
-              Paste your Apps Script Web App URL. Once saved, the full roster auto-pushes to your sheet on every promotion, rejection, score, and submission. Setup steps are in <span style={{ color: "#ffb800" }}>SHEET_SYNC.md</span>.
+          <div style={{ ...cardBox, marginBottom: "24px", borderLeft: "3px solid #2ee88c" }}>
+            <div style={{ fontFamily: VT, fontSize: "16px", color: "#2ee88c", textTransform: "uppercase", letterSpacing: "1px" }}>Google Sheets live sync</div>
+            <div style={{ fontFamily: VT, fontSize: "16px", color: "#8a93a5", marginTop: "6px", marginBottom: "12px", lineHeight: 1.4 }}>
+              Paste your Apps Script Web App URL. Once saved, the full roster auto-pushes to your sheet on every promotion, rejection, score, and submission. Setup steps are in <span style={{ color: "#29d3ec" }}>SHEET_SYNC.md</span>.
             </div>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
               <input
                 value={webhookDraft}
                 onChange={(e) => setWebhookDraft(e.target.value)}
                 placeholder="https://script.google.com/macros/s/.../exec"
-                style={{ ...inputStyle, flex: 1, minWidth: "260px", color: "#7de8ff", fontSize: "16px" }}
+                style={{ ...inputStyle, flex: 1, minWidth: "260px", fontSize: "16px" }}
               />
-              <button onClick={saveWebhook} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "4px", padding: "10px 14px", boxShadow: "0 3px 0 #3a3410" }}>💾 SAVE</button>
-              <button onClick={syncNow} disabled={!webhookUrl} style={{ cursor: webhookUrl ? "pointer" : "not-allowed", fontFamily: PS, fontSize: "8px", color: "#04040a", background: webhookUrl ? "#00f0ff" : "#4a5a7a", border: "none", borderRadius: "4px", padding: "10px 14px", boxShadow: webhookUrl ? "0 3px 0 #007a8a" : "none" }}>⟳ SYNC NOW</button>
+              <button onClick={saveWebhook} style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#06121a", background: "#29d3ec", border: "none", borderRadius: "8px", padding: "10px 16px" }}>Save</button>
+              <button onClick={syncNow} disabled={!webhookUrl} style={{ cursor: webhookUrl ? "pointer" : "not-allowed", fontFamily: VT, fontSize: "15px", color: webhookUrl ? "#06180f" : "#6b7688", background: webhookUrl ? "#2ee88c" : "#1a1f2b", border: "none", borderRadius: "8px", padding: "10px 16px" }}>Sync now</button>
             </div>
-            {lastSync && <div style={{ fontFamily: VT, fontSize: "15px", color: "#ffb800", marginTop: "10px" }}>{lastSync}</div>}
+            {lastSync && <div style={{ fontFamily: VT, fontSize: "15px", color: "#2ee88c", marginTop: "10px" }}>{lastSync}</div>}
           </div>
         )}
 
         {/* Metric Cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px", marginBottom: "24px" }}>
           {[
-            { label: "TOTAL APPLICANTS", val: stats.total, color: "#00f0ff" },
-            { label: "IN SCREENING", val: stats.screening, color: "#ffb800" },
-            { label: "IN TASK ROUND", val: stats.task, color: "#ff2bd1" },
-            { label: "INTERVIEW STAGE", val: stats.interview, color: "#ff2bd1" },
-            { label: "RECRUITED", val: stats.recruited, color: "#ffb800" },
+            { label: "TOTAL", val: stats.total, color: "#f0f3f8" },
+            { label: "SCREENING", val: stats.screening, color: "#f0f3f8" },
+            { label: "TASK ROUND", val: stats.task, color: "#f0f3f8" },
+            { label: "INTERVIEW", val: stats.interview, color: "#f0f3f8" },
+            { label: "RECRUITED", val: stats.recruited, color: "#2ee88c" },
           ].map((st, i) => (
-            <div key={i} style={{ ...cardBox, padding: "16px", borderLeft: `4px solid ${st.color}` }}>
-              <div style={{ fontFamily: PS, fontSize: "8px", color: "#7de8ff" }}>{st.label}</div>
-              <div style={{ fontFamily: PS, fontSize: "22px", color: st.color, textShadow: `0 0 10px ${st.color}`, marginTop: "8px" }}>{st.val}</div>
+            <div key={i} style={{ ...cardBox, padding: "18px 20px" }}>
+              <div style={{ fontFamily: VT, fontSize: "14px", color: "#6b7688", textTransform: "uppercase", letterSpacing: "1.5px" }}>{st.label}</div>
+              <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "34px", color: st.color, marginTop: "6px", lineHeight: 1 }}>{st.val}</div>
             </div>
           ))}
         </div>
@@ -656,17 +650,17 @@ export default function AdminPage() {
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="🔍 SEARCH BY NAME, EMAIL, BRANCH OR ID..."
-                style={{ ...inputStyle, fontSize: "16px" }}
+                placeholder="Search by name, email, branch or ID..."
+                style={{ ...inputStyle, fontSize: "17px" }}
               />
             </div>
             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
               <select
                 value={domainFilter}
                 onChange={(e) => setDomainFilter(e.target.value)}
-                style={{ ...inputStyle, width: "auto", fontSize: "14px", padding: "8px" }}
+                style={{ ...inputStyle, width: "auto", fontSize: "16px", padding: "10px 12px", color: "#c9cfe0" }}
               >
-                <option value="all">ALL DOMAINS</option>
+                <option value="all">All domains</option>
                 {DOMAINS.map((d) => (
                   <option key={d.key} value={d.key}>{d.name}</option>
                 ))}
@@ -675,9 +669,9 @@ export default function AdminPage() {
               <select
                 value={stageFilter}
                 onChange={(e) => setStageFilter(e.target.value)}
-                style={{ ...inputStyle, width: "auto", fontSize: "14px", padding: "8px" }}
+                style={{ ...inputStyle, width: "auto", fontSize: "16px", padding: "10px 12px", color: "#c9cfe0" }}
               >
-                <option value="all">ALL STAGES</option>
+                <option value="all">All stages</option>
                 {STAGES.map((s, idx) => (
                   <option key={s.key} value={idx}>{s.label}</option>
                 ))}
@@ -687,41 +681,41 @@ export default function AdminPage() {
         </div>
 
         {/* Applicants Table */}
-        <div style={{ ...cardBox, overflowX: "auto" }}>
+        <div style={{ ...cardBox, overflowX: "auto", padding: "6px 8px" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #1c2540", fontFamily: PS, fontSize: "9px", color: "#ffb800" }}>
-                <th style={{ padding: "12px" }}>ID</th>
-                <th style={{ padding: "12px" }}>APPLICANT</th>
-                <th style={{ padding: "12px" }}>DOMAINS</th>
-                <th style={{ padding: "12px" }}>TASK</th>
-                <th style={{ padding: "12px" }}>CURRENT STAGE</th>
-                <th style={{ padding: "12px" }}>MANUAL ACTION</th>
+              <tr style={{ borderBottom: "1px solid rgba(255,255,255,.08)", fontFamily: VT, fontSize: "14px", color: "#6b7688", textTransform: "uppercase", letterSpacing: ".5px" }}>
+                <th style={{ padding: "14px 12px", fontWeight: 400 }}>ID</th>
+                <th style={{ padding: "14px 12px", fontWeight: 400 }}>Applicant</th>
+                <th style={{ padding: "14px 12px", fontWeight: 400 }}>Domains</th>
+                <th style={{ padding: "14px 12px", fontWeight: 400 }}>Task</th>
+                <th style={{ padding: "14px 12px", fontWeight: 400 }}>Stage</th>
+                <th style={{ padding: "14px 12px", fontWeight: 400 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: "30px", textAlign: "center", fontFamily: VT, fontSize: "20px", color: "#4a5a7a" }}>
-                    NO APPLICANTS FOUND MATCHING FILTERS.
+                  <td colSpan={6} style={{ padding: "30px", textAlign: "center", fontFamily: VT, fontSize: "18px", color: "#4a5464" }}>
+                    No applicants found matching filters.
                   </td>
                 </tr>
               ) : (
                 filteredCandidates.map((cand) => {
                   const stage = STAGES[cand.stageIdx] || STAGES[0];
                   return (
-                    <tr key={cand.id} style={{ borderBottom: "1px solid #12192e", fontFamily: VT, fontSize: "18px" }}>
-                      <td style={{ padding: "12px", fontFamily: PS, fontSize: "10px", color: "#00f0ff" }}>
+                    <tr key={cand.id} style={{ borderBottom: "1px solid rgba(255,255,255,.05)", fontFamily: VT, fontSize: "18px" }}>
+                      <td style={{ padding: "14px 12px", fontFamily: VT, fontSize: "16px", color: "#29d3ec", verticalAlign: "top" }}>
                         #{cand.playerNo}
                       </td>
-                      <td style={{ padding: "12px" }}>
-                        <div style={{ color: "#fff", fontWeight: "bold" }}>{cand.name}</div>
-                        <div style={{ fontSize: "14px", color: "#7de8ff" }}>{cand.email}</div>
-                        <div style={{ fontSize: "13px", color: "#4a5a7a" }}>
-                          {cand.branch}{cand.section ? ` · SEC ${cand.section}` : ""}{cand.collegeId ? ` · ${cand.collegeId}` : ""}
+                      <td style={{ padding: "14px 12px", verticalAlign: "top" }}>
+                        <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "16px", color: "#f0f3f8" }}>{cand.name}</div>
+                        <div style={{ fontSize: "15px", color: "#8a93a5" }}>{cand.email}</div>
+                        <div style={{ fontSize: "14px", color: "#5a6172" }}>
+                          {cand.branch}{cand.section ? ` · ${cand.section}` : ""}{cand.collegeId ? ` · ${cand.collegeId}` : ""}
                         </div>
                       </td>
-                      <td style={{ padding: "12px" }}>
+                      <td style={{ padding: "14px 12px", verticalAlign: "top" }}>
                         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                           {cand.domains.map((key, i) => {
                             const dm = DOMAINS.find((d) => d.key === key);
@@ -730,54 +724,55 @@ export default function AdminPage() {
                               <span
                                 key={key}
                                 style={{
-                                  fontFamily: PS,
-                                  fontSize: "8px",
-                                  color: dm.color,
-                                  border: `1px solid ${dm.color}55`,
-                                  background: `${dm.color}11`,
-                                  borderRadius: "4px",
-                                  padding: "3px 6px",
+                                  fontFamily: VT,
+                                  fontSize: "14px",
+                                  color: "#29d3ec",
+                                  border: "1px solid rgba(41,211,236,.25)",
+                                  background: "rgba(41,211,236,.08)",
+                                  borderRadius: "6px",
+                                  padding: "3px 9px",
+                                  whiteSpace: "nowrap",
                                 }}
                               >
-                                {i === 0 ? "1ST" : "2ND"} {dm.glyph} {dm.name}
+                                {i === 0 ? "1st" : "2nd"} · {dm.name}
                               </span>
                             );
                           })}
                         </div>
                       </td>
-                      <td style={{ padding: "12px" }}>
+                      <td style={{ padding: "14px 12px", verticalAlign: "top" }}>
                         {sanitizeUrl(cand.submissionLink) ? (
                           <a
                             href={sanitizeUrl(cand.submissionLink)!}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ fontFamily: PS, fontSize: "8px", color: "#ffb800", border: "1px solid #ffb80066", background: "#ffb80011", borderRadius: "4px", padding: "4px 8px", whiteSpace: "nowrap" }}
+                            style={{ fontFamily: VT, fontSize: "15px", color: "#2ee88c", whiteSpace: "nowrap" }}
                           >
-                            ✓ SUBMITTED ↗
+                            ✓ Submitted ↗
                           </a>
                         ) : cand.submissionLink ? (
-                          <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff2bd1" }}>⚠ INVALID</span>
+                          <span style={{ fontFamily: VT, fontSize: "15px", color: "#ff5c6a" }}>⚠ Invalid</span>
                         ) : (
-                          <span style={{ fontFamily: PS, fontSize: "8px", color: "#4a5a7a" }}>— AWAITING</span>
+                          <span style={{ fontFamily: VT, fontSize: "15px", color: "#5a6172" }}>— Awaiting</span>
                         )}
                       </td>
-                      <td style={{ padding: "12px" }}>
+                      <td style={{ padding: "14px 12px", verticalAlign: "top" }}>
                         <span
                           style={{
-                            fontFamily: PS,
-                            fontSize: "8px",
+                            fontFamily: VT,
+                            fontSize: "14px",
                             color: stage.color,
-                            background: `${stage.color}15`,
-                            border: `1px solid ${stage.color}66`,
-                            borderRadius: "4px",
-                            padding: "4px 8px",
+                            background: `${stage.color}18`,
+                            border: `1px solid ${stage.color}44`,
+                            borderRadius: "6px",
+                            padding: "4px 10px",
                             whiteSpace: "nowrap",
                           }}
                         >
                           {stage.icon} {stage.label}
                         </span>
                       </td>
-                      <td style={{ padding: "12px" }}>
+                      <td style={{ padding: "14px 12px", verticalAlign: "top" }}>
                         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
                           <button
                             onClick={() => {
@@ -786,37 +781,37 @@ export default function AdminPage() {
                               setScoreTask(cand.taskScore != null ? String(cand.taskScore) : "");
                               setScoreInterview(cand.interviewScore != null ? String(cand.interviewScore) : "");
                             }}
-                            style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#00f0ff", background: "transparent", border: "1.5px solid #00f0ff44", borderRadius: "4px", padding: "6px 10px" }}
+                            style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#29d3ec", background: "transparent", border: "1px solid rgba(41,211,236,.35)", borderRadius: "7px", padding: "6px 13px" }}
                           >
-                            👁 DOSSIER
+                            Dossier
                           </button>
 
                           {cand.stageIdx < 4 && (
                             <button
                               onClick={() => setConfirmPromote(cand)}
-                              style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "4px", padding: "6px 10px", boxShadow: "0 3px 0 #3a3410" }}
+                              style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#06180f", background: "#2ee88c", border: "none", borderRadius: "7px", padding: "6px 13px" }}
                             >
-                              PROMOTE ▶
+                              Promote →
                             </button>
                           )}
 
                           {cand.stageIdx < 4 && (
                             <button
                               onClick={() => { setConfirmReject(cand); setRejectFeedback(cand.rejectionFeedback || ""); }}
-                              style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#ff2bd1", background: "transparent", border: "1.5px solid #ff2bd1", borderRadius: "4px", padding: "6px 10px" }}
+                              style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#ff5c6a", background: "transparent", border: "1px solid rgba(255,92,106,.4)", borderRadius: "7px", padding: "6px 13px" }}
                             >
-                              ✕ STOP
+                              Stop
                             </button>
                           )}
 
                           {cand.stageIdx === 5 && (
-                            <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff2bd1", border: "1px solid #ff2bd166", background: "rgba(255,43,209,.1)", borderRadius: "4px", padding: "5px 8px" }}>✕ JOURNEY STOPPED</span>
+                            <span style={{ fontFamily: VT, fontSize: "15px", color: "#ff5c6a", border: "1px solid rgba(255,92,106,.3)", background: "rgba(255,92,106,.12)", borderRadius: "7px", padding: "5px 12px" }}>Stopped</span>
                           )}
 
                           <button
                             title="Delete applicant permanently"
                             onClick={() => { setConfirmDelete(cand); setDeleteErr(""); }}
-                            style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#ff2bd1", background: "transparent", border: "1.5px solid #4d063d", borderRadius: "4px", padding: "6px 9px" }}
+                            style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#6b7688", background: "transparent", border: "1px solid rgba(255,255,255,.12)", borderRadius: "7px", padding: "6px 10px" }}
                           >
                             🗑
                           </button>
@@ -854,53 +849,55 @@ export default function AdminPage() {
               maxWidth: "840px",
               maxHeight: "90vh",
               overflowY: "auto",
-              background: "radial-gradient(120% 100% at 50% 0%, #12192e 0%, #070914 100%)",
-              border: "3px solid #00f0ff",
+              background: "#0e1119",
+              border: "1px solid rgba(255,255,255,.1)",
               borderRadius: "16px",
               padding: "28px",
-              boxShadow: "0 0 60px rgba(0,240,255,.3)",
               position: "relative",
             }}
           >
             <button
               onClick={() => setSelectedCandidate(null)}
-              style={{ position: "absolute", top: "18px", right: "20px", cursor: "pointer", background: "transparent", border: "2px solid #ff2bd1", color: "#ff2bd1", borderRadius: "6px", padding: "6px 10px", fontFamily: PS, fontSize: "9px" }}
+              style={{ position: "absolute", top: "18px", right: "20px", cursor: "pointer", background: "transparent", border: "1px solid rgba(255,255,255,.15)", color: "#c9cfe0", borderRadius: "7px", padding: "6px 12px", fontFamily: VT, fontSize: "15px" }}
             >
-              ✕ CLOSE
+              ✕ Close
             </button>
 
-            <div style={{ fontFamily: PS, fontSize: "20px", color: "#00f0ff", textShadow: "0 0 12px #00f0ff" }}>
-              CANDIDATE DOSSIER #{selectedCandidate.playerNo}
+            <div style={{ fontFamily: VT, fontSize: "15px", color: "#29d3ec", textTransform: "uppercase", letterSpacing: "1px" }}>
+              Candidate dossier · #{selectedCandidate.playerNo}
             </div>
-            <div style={{ fontFamily: VT, fontSize: "22px", color: "#fff", marginTop: "4px" }}>
-              {selectedCandidate.name} · {selectedCandidate.email}
+            <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "24px", color: "#f0f3f8", marginTop: "4px" }}>
+              {selectedCandidate.name}
             </div>
-            <div style={{ fontFamily: VT, fontSize: "16px", color: "#7de8ff" }}>
-              Branch: {selectedCandidate.branch} | Section: {selectedCandidate.section} | Admission No: {selectedCandidate.collegeId} | Phone: {selectedCandidate.phone}
+            <div style={{ fontFamily: VT, fontSize: "16px", color: "#8a93a5", marginTop: "2px" }}>
+              {selectedCandidate.email}
+            </div>
+            <div style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688", marginTop: "4px" }}>
+              Branch: {selectedCandidate.branch} · Section: {selectedCandidate.section} · Admission No: {selectedCandidate.collegeId} · Phone: {selectedCandidate.phone}
             </div>
 
             {/* STAGE PROGRESSION — read-only pipeline. Fully visible, but the
                 admin cannot click to change it here. Promotion happens only
                 from the applicant list via the confirmation-gated PROMOTE. */}
-            <div style={{ marginTop: "20px", padding: "18px", background: "rgba(255,255,255,.02)", border: "2px solid #1c2540", borderRadius: "10px" }}>
-              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffb800", marginBottom: "18px" }}>
-                STAGE PROGRESSION <span style={{ color: "#4a5a7a" }}>· 🔒 VIEW ONLY</span>
+            <div style={{ marginTop: "22px", padding: "18px", background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.08)", borderRadius: "12px" }}>
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688", marginBottom: "18px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                Stage progression <span style={{ color: "#4a5464" }}>· 🔒 view only</span>
               </div>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 0 }}>
                 {STAGES.slice(0, 5).map((s, idx) => {
                   const curIdx = selectedCandidate.stageIdx;
                   const done = idx < curIdx;
                   const isCur = idx === curIdx;
-                  const col = done ? "#ffb800" : isCur ? s.color : "#2a3350";
+                  const col = done ? "#2ee88c" : isCur ? "#29d3ec" : "#2a3350";
                   return (
                     <div key={s.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", position: "relative" }}>
                       {idx > 0 && (
-                        <div style={{ position: "absolute", top: "17px", left: "-50%", width: "100%", height: "4px", background: idx <= curIdx ? "#ffb800" : "#1c2540", zIndex: 0 }} />
+                        <div style={{ position: "absolute", top: "17px", left: "-50%", width: "100%", height: "3px", background: idx <= curIdx ? "#2ee88c" : "rgba(255,255,255,.08)", zIndex: 0 }} />
                       )}
-                      <div style={{ position: "relative", zIndex: 1, width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: PS, fontSize: "12px", color: isCur ? "#04040a" : col, background: isCur ? s.color : done ? "rgba(255,180,40,.12)" : "rgba(255,255,255,.02)", border: `3px solid ${col}`, boxShadow: done || isCur ? `0 0 14px ${col}` : "none", animation: isCur ? "floaty 1.6s ease-in-out infinite" : "none" }}>
+                      <div style={{ position: "relative", zIndex: 1, width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: VT, fontSize: "17px", color: isCur ? "#06121a" : done ? "#06180f" : col, background: isCur ? "#29d3ec" : done ? "#2ee88c" : "rgba(255,255,255,.03)", border: `2px solid ${col}` }}>
                         {done ? "✓" : s.icon}
                       </div>
-                      <div style={{ fontFamily: PS, fontSize: "7px", color: col, marginTop: "10px", lineHeight: 1.4, textShadow: done || isCur ? `0 0 6px ${col}` : "none" }}>{s.label}</div>
+                      <div style={{ fontFamily: VT, fontSize: "13px", color: col, marginTop: "10px", lineHeight: 1.3 }}>{s.label}</div>
                     </div>
                   );
                 })}
@@ -908,31 +905,30 @@ export default function AdminPage() {
 
               {selectedCandidate.stageIdx === 5 && (
                 <div style={{ marginTop: "16px", textAlign: "center" }}>
-                  <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff2bd1", border: "1px solid #ff2bd1", background: "rgba(255,43,209,.12)", borderRadius: "4px", padding: "5px 9px" }}>✕ BENCH / ON HOLD</span>
+                  <span style={{ fontFamily: VT, fontSize: "15px", color: "#ff5c6a", border: "1px solid rgba(255,92,106,.4)", background: "rgba(255,92,106,.12)", borderRadius: "7px", padding: "5px 12px" }}>✕ Bench / on hold</span>
                 </div>
               )}
 
-              <div style={{ fontFamily: VT, fontSize: "15px", color: "#7de8ff", marginTop: "18px", lineHeight: 1.3, textAlign: "center" }}>
-                View only — stage cannot be changed here. Use PROMOTE in the applicant list (requires admin confirmation).
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688", marginTop: "18px", lineHeight: 1.4, textAlign: "center" }}>
+                View only — stage cannot be changed here. Use Promote in the applicant list (requires admin confirmation).
               </div>
             </div>
 
             {/* Task submission links — one field per enlisted domain */}
             {selectedCandidate.domains && selectedCandidate.domains.length > 0 && (
               <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffb800" }}>▮ TASK SUBMISSIONS</div>
+                <div style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688", textTransform: "uppercase", letterSpacing: "1px" }}>Task submissions</div>
                 {selectedCandidate.domains.map((key, i) => {
                   const dm = DOMAINS.find((d) => d.key === key);
-                  const accent = dm?.color || "#ffb800";
                   const link =
                     (selectedCandidate.submissions && selectedCandidate.submissions[key]) ||
                     (i === 0 ? selectedCandidate.submissionLink : "") ||
                     "";
                   const safe = sanitizeUrl(link);
                   return (
-                    <div key={key} style={{ padding: "12px", background: `${accent}0d`, border: `1.5px solid ${accent}66`, borderRadius: "8px" }}>
-                      <div style={{ fontFamily: PS, fontSize: "8px", color: accent }}>
-                        {i === 0 ? "1ST" : "2ND"} · {dm ? dm.name : key} TASK
+                    <div key={key} style={{ padding: "12px 14px", background: "rgba(41,211,236,.05)", border: "1px solid rgba(41,211,236,.2)", borderRadius: "10px" }}>
+                      <div style={{ fontFamily: VT, fontSize: "14px", color: "#29d3ec" }}>
+                        {i === 0 ? "1st" : "2nd"} · {dm ? dm.name : key} task
                       </div>
                       {link ? (
                         safe ? (
@@ -940,15 +936,15 @@ export default function AdminPage() {
                             href={safe}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ fontFamily: VT, fontSize: "18px", color: "#ffb800", textDecoration: "underline", wordBreak: "break-all" }}
+                            style={{ fontFamily: VT, fontSize: "17px", color: "#29d3ec", textDecoration: "underline", wordBreak: "break-all" }}
                           >
                             {link} ↗
                           </a>
                         ) : (
-                          <span style={{ fontFamily: VT, fontSize: "16px", color: "#ff2bd1" }}>[BLOCKED INVALID LINK]</span>
+                          <span style={{ fontFamily: VT, fontSize: "16px", color: "#ff5c6a" }}>[blocked invalid link]</span>
                         )
                       ) : (
-                        <div style={{ fontFamily: VT, fontSize: "16px", color: "#4a5a7a" }}>— not submitted yet</div>
+                        <div style={{ fontFamily: VT, fontSize: "16px", color: "#5a6172" }}>— not submitted yet</div>
                       )}
                     </div>
                   );
@@ -957,12 +953,12 @@ export default function AdminPage() {
             )}
 
             {/* Evaluation scores — unlock per stage reached */}
-            <div style={{ marginTop: "20px", padding: "16px", background: "rgba(255,255,255,.02)", border: "2px solid #1c2540", borderRadius: "10px" }}>
-              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffb800", marginBottom: "14px" }}>▮ EVALUATION SCORES <span style={{ color: "#4a5a7a" }}>(EACH / 100)</span></div>
+            <div style={{ marginTop: "20px", padding: "18px", background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.08)", borderRadius: "12px" }}>
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688", marginBottom: "14px", textTransform: "uppercase", letterSpacing: "1px" }}>Evaluation scores <span style={{ color: "#4a5464" }}>(each / 100)</span></div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 {/* Task score — unlocks at Task Round */}
                 <div>
-                  <div style={{ fontFamily: PS, fontSize: "8px", color: selectedCandidate.stageIdx >= 2 ? "#ffb800" : "#4a5a7a", marginBottom: "7px" }}>TASK ROUND SCORE</div>
+                  <div style={{ fontFamily: VT, fontSize: "14px", color: selectedCandidate.stageIdx >= 2 ? "#29d3ec" : "#4a5464", marginBottom: "7px", textTransform: "uppercase", letterSpacing: ".5px" }}>Task round score</div>
                   {selectedCandidate.stageIdx >= 2 ? (
                     <input
                       type="number"
@@ -971,15 +967,15 @@ export default function AdminPage() {
                       value={scoreTask}
                       onChange={(e) => setScoreTask(e.target.value)}
                       placeholder="0 - 100"
-                      style={{ ...inputStyle, color: "#ffb800" }}
+                      style={{ ...inputStyle, color: "#29d3ec" }}
                     />
                   ) : (
-                    <div style={{ fontFamily: VT, fontSize: "16px", color: "#4a5a7a" }}>🔒 Unlocks at Task Round</div>
+                    <div style={{ fontFamily: VT, fontSize: "16px", color: "#5a6172" }}>🔒 Unlocks at Task Round</div>
                   )}
                 </div>
                 {/* Interview score — unlocks at Interview */}
                 <div>
-                  <div style={{ fontFamily: PS, fontSize: "8px", color: selectedCandidate.stageIdx >= 3 ? "#ff2bd1" : "#4a5a7a", marginBottom: "7px" }}>INTERVIEW SCORE</div>
+                  <div style={{ fontFamily: VT, fontSize: "14px", color: selectedCandidate.stageIdx >= 3 ? "#2ee88c" : "#4a5464", marginBottom: "7px", textTransform: "uppercase", letterSpacing: ".5px" }}>Interview score</div>
                   {selectedCandidate.stageIdx >= 3 ? (
                     <input
                       type="number"
@@ -988,10 +984,10 @@ export default function AdminPage() {
                       value={scoreInterview}
                       onChange={(e) => setScoreInterview(e.target.value)}
                       placeholder="0 - 100"
-                      style={{ ...inputStyle, color: "#ff2bd1" }}
+                      style={{ ...inputStyle, color: "#2ee88c" }}
                     />
                   ) : (
-                    <div style={{ fontFamily: VT, fontSize: "16px", color: "#4a5a7a" }}>🔒 Unlocks at Interview</div>
+                    <div style={{ fontFamily: VT, fontSize: "16px", color: "#5a6172" }}>🔒 Unlocks at Interview</div>
                   )}
                 </div>
               </div>
@@ -999,31 +995,31 @@ export default function AdminPage() {
               {selectedCandidate.stageIdx >= 2 && (
                 <button
                   onClick={() => saveScores(selectedCandidate.id)}
-                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "4px", padding: "8px 14px", marginTop: "12px", boxShadow: "0 3px 0 #8a7b00" }}
+                  style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#06121a", background: "#29d3ec", border: "none", borderRadius: "8px", padding: "9px 16px", marginTop: "12px" }}
                 >
-                  💾 SAVE SCORES
+                  Save scores
                 </button>
               )}
 
-              <div style={{ fontFamily: VT, fontSize: "15px", color: "#7de8ff", marginTop: "12px" }}>
-                Recorded — Task: <span style={{ color: "#ffb800" }}>{selectedCandidate.taskScore != null ? `${selectedCandidate.taskScore}/100` : "—"}</span> · Interview: <span style={{ color: "#ff2bd1" }}>{selectedCandidate.interviewScore != null ? `${selectedCandidate.interviewScore}/100` : "—"}</span>
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#8a93a5", marginTop: "12px" }}>
+                Recorded — Task: <span style={{ color: "#29d3ec" }}>{selectedCandidate.taskScore != null ? `${selectedCandidate.taskScore}/100` : "—"}</span> · Interview: <span style={{ color: "#2ee88c" }}>{selectedCandidate.interviewScore != null ? `${selectedCandidate.interviewScore}/100` : "—"}</span>
                 {selectedCandidate.taskScore != null && selectedCandidate.interviewScore != null && (
-                  <span> · Total: <span style={{ color: "#ffb800" }}>{selectedCandidate.taskScore + selectedCandidate.interviewScore}/200</span></span>
+                  <span> · Total: <span style={{ color: "#2ee88c" }}>{selectedCandidate.taskScore + selectedCandidate.interviewScore}/200</span></span>
                 )}
               </div>
             </div>
 
             {/* 7 Quest Answers */}
             <div style={{ marginTop: "24px" }}>
-              <div style={{ fontFamily: PS, fontSize: "11px", color: "#ffb800", marginBottom: "14px" }}>
-                ▶ RECRUITMENT QUEST RESPONSES (7 TRIALS)
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688", marginBottom: "14px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                Recruitment quest responses (7 trials)
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 {Object.entries(selectedCandidate.answers).map(([key, val], i) => (
-                  <div key={key} style={{ background: "rgba(0,0,0,.4)", border: "1px solid #3a3410", padding: "12px 14px", borderRadius: "8px" }}>
-                    <div style={{ fontFamily: PS, fontSize: "8px", color: "#7de8ff" }}>QUESTION {i + 1}</div>
-                    <div style={{ fontFamily: VT, fontSize: "18px", color: "#ffb800", marginTop: "4px", lineHeight: 1.4 }}>
-                      "{val || "NO ANSWER SUBMITTED"}"
+                  <div key={key} style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.07)", padding: "12px 14px", borderRadius: "10px" }}>
+                    <div style={{ fontFamily: VT, fontSize: "14px", color: "#6b7688" }}>Question {i + 1}</div>
+                    <div style={{ fontFamily: VT, fontSize: "18px", color: "#c9cfe0", marginTop: "4px", lineHeight: 1.4 }}>
+                      "{val || "No answer submitted"}"
                     </div>
                   </div>
                 ))}
@@ -1032,8 +1028,8 @@ export default function AdminPage() {
 
             {/* Internal Review Notes */}
             <div style={{ marginTop: "24px" }}>
-              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ff2bd1", marginBottom: "6px" }}>
-                INTERNAL GUILD COUNCIL REVIEW NOTES:
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                Internal review notes
               </div>
               <textarea
                 value={editingNotes}
@@ -1044,9 +1040,9 @@ export default function AdminPage() {
               />
               <button
                 onClick={() => saveNotes(selectedCandidate.id)}
-                style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#ff2bd1", border: "none", borderRadius: "4px", padding: "8px 14px", marginTop: "8px" }}
+                style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#06121a", background: "#29d3ec", border: "none", borderRadius: "8px", padding: "9px 16px", marginTop: "8px" }}
               >
-                💾 SAVE REVIEWER NOTES
+                Save reviewer notes
               </button>
             </div>
           </div>
@@ -1065,38 +1061,38 @@ export default function AdminPage() {
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{ width: "100%", maxWidth: "520px", background: "radial-gradient(120% 100% at 50% 0%, #2a0e18 0%, #070914 100%)", border: "3px solid #ffb800", borderRadius: "16px", padding: "28px", boxShadow: "0 0 50px rgba(255,180,40,.25)", textAlign: "center" }}
+              style={{ width: "100%", maxWidth: "520px", background: "#0e1119", border: "1px solid rgba(255,255,255,.1)", borderRadius: "16px", padding: "28px", textAlign: "center" }}
             >
-              <div style={{ fontFamily: PS, fontSize: "16px", color: "#ffb800", textShadow: "0 0 12px #ffb800" }}>⚠ CONFIRM PROMOTION</div>
-              <div style={{ fontFamily: VT, fontSize: "20px", color: "#fff", marginTop: "14px" }}>
-                Promote <span style={{ color: "#00f0ff" }}>{confirmPromote.name}</span> (#{confirmPromote.playerNo})?
+              <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "19px", color: "#f0f3f8" }}>Confirm promotion</div>
+              <div style={{ fontFamily: VT, fontSize: "19px", color: "#c9cfe0", marginTop: "12px" }}>
+                Promote <span style={{ color: "#29d3ec" }}>{confirmPromote.name}</span> (#{confirmPromote.playerNo})?
               </div>
 
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", margin: "18px 0" }}>
-                <span style={{ fontFamily: PS, fontSize: "8px", color: from.color, border: `1px solid ${from.color}66`, background: `${from.color}15`, borderRadius: "4px", padding: "6px 9px", whiteSpace: "nowrap" }}>{from.icon} {from.label}</span>
-                <span style={{ fontFamily: PS, fontSize: "12px", color: "#7de8ff" }}>▶</span>
-                <span style={{ fontFamily: PS, fontSize: "8px", color: to.color, border: `1px solid ${to.color}`, background: `${to.color}22`, borderRadius: "4px", padding: "6px 9px", whiteSpace: "nowrap", boxShadow: `0 0 12px ${to.color}66` }}>{to.icon} {to.label}</span>
+                <span style={{ fontFamily: VT, fontSize: "14px", color: from.color, border: `1px solid ${from.color}44`, background: `${from.color}18`, borderRadius: "6px", padding: "5px 11px", whiteSpace: "nowrap" }}>{from.icon} {from.label}</span>
+                <span style={{ fontFamily: VT, fontSize: "16px", color: "#6b7688" }}>→</span>
+                <span style={{ fontFamily: VT, fontSize: "14px", color: to.color, border: `1px solid ${to.color}66`, background: `${to.color}22`, borderRadius: "6px", padding: "5px 11px", whiteSpace: "nowrap" }}>{to.icon} {to.label}</span>
               </div>
 
-              <div style={{ fontFamily: VT, fontSize: "16px", color: hasTask ? "#ffb800" : "#ffb800", marginBottom: "6px" }}>
+              <div style={{ fontFamily: VT, fontSize: "16px", color: hasTask ? "#2ee88c" : "#ff5c6a", marginBottom: "6px" }}>
                 {hasTask ? "✓ Task submission on file." : "⚠ No valid task submission on file yet."}
               </div>
-              <div style={{ fontFamily: VT, fontSize: "15px", color: "#7de8ff", marginBottom: "22px" }}>
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688", marginBottom: "22px" }}>
                 This action advances the applicant to the next stage. Please re-confirm.
               </div>
 
               <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
                 <button
                   onClick={() => setConfirmPromote(null)}
-                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff2bd1", background: "transparent", border: "2px solid #ff2bd1", borderRadius: "8px", padding: "12px 18px" }}
+                  style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#c9cfe0", background: "transparent", border: "1px solid rgba(255,255,255,.15)", borderRadius: "8px", padding: "11px 20px" }}
                 >
-                  ✕ CANCEL
+                  Cancel
                 </button>
                 <button
                   onClick={promoteConfirmed}
-                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 60%, #b8a200)", border: "none", borderRadius: "8px", padding: "12px 20px", boxShadow: "0 5px 0 #3a3410, 0 0 18px rgba(255,180,40,.5)" }}
+                  style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#06180f", background: "#2ee88c", border: "none", borderRadius: "8px", padding: "11px 22px" }}
                 >
-                  ✓ CONFIRM PROMOTE
+                  Confirm promote →
                 </button>
               </div>
             </div>
@@ -1114,18 +1110,18 @@ export default function AdminPage() {
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{ width: "100%", maxWidth: "560px", background: "radial-gradient(120% 100% at 50% 0%, #2a0e18 0%, #070914 100%)", border: "3px solid #ff2bd1", borderRadius: "16px", padding: "28px", boxShadow: "0 0 50px rgba(255,43,209,.25)" }}
+              style={{ width: "100%", maxWidth: "560px", background: "#0e1119", border: "1px solid rgba(255,255,255,.1)", borderRadius: "16px", padding: "28px" }}
             >
-              <div style={{ fontFamily: PS, fontSize: "15px", color: "#ff2bd1", textShadow: "0 0 12px #ff2bd1", textAlign: "center" }}>✕ STOP APPLICANT JOURNEY</div>
-              <div style={{ fontFamily: VT, fontSize: "20px", color: "#fff", marginTop: "14px", textAlign: "center" }}>
-                End the recruitment journey for <span style={{ color: "#00f0ff" }}>{confirmReject.name}</span> (#{confirmReject.playerNo})?
+              <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "18px", color: "#ff5c6a", textAlign: "center" }}>Stop applicant journey</div>
+              <div style={{ fontFamily: VT, fontSize: "19px", color: "#c9cfe0", marginTop: "12px", textAlign: "center" }}>
+                End the recruitment journey for <span style={{ color: "#29d3ec" }}>{confirmReject.name}</span> (#{confirmReject.playerNo})?
               </div>
-              <div style={{ fontFamily: VT, fontSize: "16px", color: "#7de8ff", marginTop: "8px", textAlign: "center" }}>
+              <div style={{ fontFamily: VT, fontSize: "16px", color: "#8a93a5", marginTop: "8px", textAlign: "center" }}>
                 They were at the <span style={{ color: at.color }}>{at.label}</span> stage. This marks them as rejected and shows the outcome on their dashboard.
               </div>
 
               <div style={{ marginTop: "18px" }}>
-                <div style={{ fontFamily: PS, fontSize: "8px", color: "#ff2bd1", marginBottom: "6px" }}>FEEDBACK FOR APPLICANT (OPTIONAL — SHOWN TO THEM):</div>
+                <div style={{ fontFamily: VT, fontSize: "14px", color: "#6b7688", marginBottom: "6px", textTransform: "uppercase", letterSpacing: ".5px" }}>Feedback for applicant (optional — shown to them)</div>
                 <textarea
                   value={rejectFeedback}
                   onChange={(e) => setRejectFeedback(e.target.value)}
@@ -1138,15 +1134,15 @@ export default function AdminPage() {
               <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap", marginTop: "20px" }}>
                 <button
                   onClick={() => { setConfirmReject(null); setRejectFeedback(""); }}
-                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#7de8ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "8px", padding: "12px 18px" }}
+                  style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#c9cfe0", background: "transparent", border: "1px solid rgba(255,255,255,.15)", borderRadius: "8px", padding: "11px 20px" }}
                 >
-                  ◄ CANCEL
+                  Cancel
                 </button>
                 <button
                   onClick={rejectConfirmed}
-                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#fff", background: "radial-gradient(circle at 40% 30%, #ff9de3, #ff2bd1 60%, #8a0e6d)", border: "none", borderRadius: "8px", padding: "12px 20px", boxShadow: "0 5px 0 #4d063d, 0 0 18px rgba(255,43,209,.5)" }}
+                  style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#2a0508", background: "#ff5c6a", border: "none", borderRadius: "8px", padding: "11px 22px" }}
                 >
-                  ✕ CONFIRM STOP
+                  Confirm stop
                 </button>
               </div>
             </div>
@@ -1162,32 +1158,32 @@ export default function AdminPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ width: "100%", maxWidth: "500px", background: "radial-gradient(120% 100% at 50% 0%, #2a0e18 0%, #070914 100%)", border: "3px solid #ff2bd1", borderRadius: "16px", padding: "28px", boxShadow: "0 0 50px rgba(255,43,209,.3)", textAlign: "center" }}
+            style={{ width: "100%", maxWidth: "500px", background: "#0e1119", border: "1px solid rgba(255,255,255,.1)", borderRadius: "16px", padding: "28px", textAlign: "center" }}
           >
-            <div style={{ fontFamily: PS, fontSize: "15px", color: "#ff2bd1", textShadow: "0 0 12px #ff2bd1" }}>🗑 DELETE APPLICANT</div>
-            <div style={{ fontFamily: VT, fontSize: "20px", color: "#fff", marginTop: "14px" }}>
-              Permanently delete <span style={{ color: "#00f0ff" }}>{confirmDelete.name}</span> (#{confirmDelete.playerNo})?
+            <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "18px", color: "#ff5c6a" }}>🗑 Delete applicant</div>
+            <div style={{ fontFamily: VT, fontSize: "19px", color: "#c9cfe0", marginTop: "12px" }}>
+              Permanently delete <span style={{ color: "#29d3ec" }}>{confirmDelete.name}</span> (#{confirmDelete.playerNo})?
             </div>
-            <div style={{ fontFamily: VT, fontSize: "16px", color: "#ffb800", marginTop: "8px" }}>
+            <div style={{ fontFamily: VT, fontSize: "16px", color: "#8a93a5", marginTop: "8px" }}>
               This removes their record from Supabase and the site for good. It cannot be undone.
             </div>
             {deleteErr && (
-              <div style={{ fontFamily: VT, fontSize: "15px", color: "#ff2bd1", marginTop: "14px", lineHeight: 1.3, wordBreak: "break-word" }}>⚠ {deleteErr}</div>
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#ff5c6a", marginTop: "14px", lineHeight: 1.3, wordBreak: "break-word" }}>⚠ {deleteErr}</div>
             )}
             <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap", marginTop: "22px" }}>
               <button
                 onClick={() => { setConfirmDelete(null); setDeleteErr(""); }}
                 disabled={deleting}
-                style={{ cursor: deleting ? "not-allowed" : "pointer", fontFamily: PS, fontSize: "9px", color: "#7de8ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "8px", padding: "12px 18px" }}
+                style={{ cursor: deleting ? "not-allowed" : "pointer", fontFamily: VT, fontSize: "15px", color: "#c9cfe0", background: "transparent", border: "1px solid rgba(255,255,255,.15)", borderRadius: "8px", padding: "11px 20px" }}
               >
-                ◄ CANCEL
+                Cancel
               </button>
               <button
                 onClick={deleteConfirmed}
                 disabled={deleting}
-                style={{ cursor: deleting ? "not-allowed" : "pointer", fontFamily: PS, fontSize: "9px", color: "#fff", background: deleting ? "#4d063d" : "radial-gradient(circle at 40% 30%, #ff9de3, #ff2bd1 60%, #8a0e6d)", border: "none", borderRadius: "8px", padding: "12px 20px", boxShadow: deleting ? "none" : "0 5px 0 #4d063d, 0 0 18px rgba(255,43,209,.5)" }}
+                style={{ cursor: deleting ? "not-allowed" : "pointer", fontFamily: VT, fontSize: "15px", color: "#2a0508", background: deleting ? "#5a2a30" : "#ff5c6a", border: "none", borderRadius: "8px", padding: "11px 22px" }}
               >
-                {deleting ? "DELETING…" : "🗑 DELETE FOREVER"}
+                {deleting ? "Deleting…" : "Delete forever"}
               </button>
             </div>
           </div>
