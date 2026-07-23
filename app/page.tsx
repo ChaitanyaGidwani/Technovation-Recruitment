@@ -1262,9 +1262,8 @@ export default function ArcadePage() {
             </div>
 
             <div style={{ position: "absolute", top: isMobile ? "44px" : "8.2%", right: isMobile ? "2%" : "2.5%", zIndex: 7, textAlign: "right", fontFamily: PS, lineHeight: 1.5 }}>
-              <div style={{ fontSize: isMobile ? "6px" : "9px", color: "#ffe600", textShadow: "0 0 8px #ffe600" }}>HIGH SCORE</div>
+              <div style={{ fontSize: isMobile ? "6px" : "9px", color: "#ffe600", textShadow: "0 0 8px #ffe600" }}>LIVE REGISTRATIONS</div>
               <div style={{ fontSize: isMobile ? "12px" : "clamp(14px,1.8vw,22px)", color: "#39ff14", textShadow: "0 0 10px #39ff14", letterSpacing: "2px" }}>{scoreStr}</div>
-              {!isMobile && <div style={{ fontSize: "7px", color: "#7de8ff", marginTop: "2px" }}>▲ LIVE REGISTRATIONS</div>}
             </div>
 
             {/* CRT */}
