@@ -23,19 +23,19 @@ const MASTER_KEY = "techno21";
 const STAGES = [
   { key: "submitted", label: "FORM SUBMITTED", icon: "✓", color: "#7de8ff" },
   { key: "screening", label: "SCREENING", icon: "◉", color: "#00f0ff" },
-  { key: "task", label: "TASK ROUND", icon: "⚔", color: "#ffe600" },
+  { key: "task", label: "TASK ROUND", icon: "⚔", color: "#ffb800" },
   { key: "interview", label: "INTERVIEW", icon: "☎", color: "#ff2bd1" },
-  { key: "recruited", label: "RECRUITED", icon: "★", color: "#39ff14" },
-  { key: "rejected", label: "BENCH / ON HOLD", icon: "✕", color: "#ff3b30" },
+  { key: "recruited", label: "RECRUITED", icon: "★", color: "#ffb800" },
+  { key: "rejected", label: "BENCH / ON HOLD", icon: "✕", color: "#ff2bd1" },
 ];
 
 const DOMAINS = [
   { key: "tech", name: "TECHNICAL", color: "#00f0ff", glyph: "Ψ" },
   { key: "graphics", name: "GRAPHICS", color: "#ff2bd1", glyph: "✦" },
-  { key: "prod", name: "PRODUCTION", color: "#ffe600", glyph: "◈" },
-  { key: "events", name: "EVENTS", color: "#39ff14", glyph: "⚔" },
-  { key: "pr", name: "PR/OUTREACH", color: "#ff7a2b", glyph: "➤" },
-  { key: "content", name: "CONTENT", color: "#b06bff", glyph: "✎" },
+  { key: "prod", name: "PRODUCTION", color: "#00f0ff", glyph: "◈" },
+  { key: "events", name: "EVENTS", color: "#ff2bd1", glyph: "⚔" },
+  { key: "pr", name: "PR/OUTREACH", color: "#00f0ff", glyph: "➤" },
+  { key: "content", name: "CONTENT", color: "#ff2bd1", glyph: "✎" },
 ];
 
 interface Candidate {
@@ -500,9 +500,9 @@ export default function AdminPage() {
 
   const inputStyle: CSSProperties = {
     background: "#050a10",
-    border: "2px solid #12463f",
+    border: "2px solid #3a3410",
     borderRadius: "6px",
-    color: "#39ff14",
+    color: "#ffb800",
     fontFamily: VT,
     fontSize: "18px",
     padding: "8px 12px",
@@ -522,7 +522,7 @@ export default function AdminPage() {
 
           <form onSubmit={handleLogin} style={{ marginTop: "28px", display: "flex", flexDirection: "column", gap: "16px" }}>
             <div>
-              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffe600", textAlign: "left", marginBottom: "6px" }}>MASTER ACCESS KEY</div>
+              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffb800", textAlign: "left", marginBottom: "6px" }}>MASTER ACCESS KEY</div>
               <input
                 type="password"
                 value={inputKey}
@@ -534,7 +534,7 @@ export default function AdminPage() {
             </div>
 
             {authError && (
-              <div style={{ fontFamily: PS, fontSize: "8px", color: "#ff3b30", textShadow: "0 0 8px #ff3b30", lineHeight: 1.4 }}>
+              <div style={{ fontFamily: PS, fontSize: "8px", color: "#ff2bd1", textShadow: "0 0 8px #ff2bd1", lineHeight: 1.4 }}>
                 {authError} {lockoutTime > 0 && `(${lockoutTime}s)`}
               </div>
             )}
@@ -547,7 +547,7 @@ export default function AdminPage() {
                 fontFamily: PS,
                 fontSize: "11px",
                 color: "#04040a",
-                background: lockoutTime > 0 ? "#4a5a7a" : "radial-gradient(circle at 40% 30%, #ff8a80, #ff2bd1 60%, #8a0e6d)",
+                background: lockoutTime > 0 ? "#4a5a7a" : "radial-gradient(circle at 40% 30%, #ff9de3, #ff2bd1 60%, #8a0e6d)",
                 border: "none",
                 borderRadius: "8px",
                 padding: "14px",
@@ -561,7 +561,7 @@ export default function AdminPage() {
 
           <div style={{ marginTop: "24px", paddingTop: "18px", borderTop: "1px solid #1c2540", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Link href="/" style={{ fontFamily: PS, fontSize: "8px", color: "#7de8ff" }}>◄ BACK TO ARCADE</Link>
-            <span style={{ fontFamily: PS, fontSize: "8px", color: "#39ff14" }}>SECURE SSL 256</span>
+            <span style={{ fontFamily: PS, fontSize: "8px", color: "#ffb800" }}>SECURE SSL 256</span>
           </div>
         </div>
       </div>
@@ -587,25 +587,25 @@ export default function AdminPage() {
           <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
             <button
               onClick={exportXLSX}
-              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", background: "#39ff14", border: "none", borderRadius: "6px", padding: "10px 14px", boxShadow: "0 4px 0 #0a5200" }}
+              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "6px", padding: "10px 14px", boxShadow: "0 4px 0 #3a3410" }}
             >
               ⤓ EXPORT EXCEL
             </button>
             <button
               onClick={exportCSV}
-              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", background: "#ffe600", border: "none", borderRadius: "6px", padding: "10px 14px", boxShadow: "0 4px 0 #8a7b00" }}
+              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "6px", padding: "10px 14px", boxShadow: "0 4px 0 #8a7b00" }}
             >
               ⤓ EXPORT CSV
             </button>
             <button
               onClick={() => { setWebhookDraft(webhookUrl); setShowSyncCfg((v) => !v); }}
-              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: webhookUrl ? "#39ff14" : "#7de8ff", background: "transparent", border: `2px solid ${webhookUrl ? "#39ff14" : "#1c3a4a"}`, borderRadius: "6px", padding: "8px 12px" }}
+              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: webhookUrl ? "#ffb800" : "#7de8ff", background: "transparent", border: `2px solid ${webhookUrl ? "#ffb800" : "#1c3a4a"}`, borderRadius: "6px", padding: "8px 12px" }}
             >
               {webhookUrl ? "● " : "○ "}⚙ SHEET SYNC
             </button>
             <button
               onClick={() => setIsAuthenticated(false)}
-              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff3b30", background: "transparent", border: "2px solid #ff3b30", borderRadius: "6px", padding: "8px 12px" }}
+              style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff2bd1", background: "transparent", border: "2px solid #ff2bd1", borderRadius: "6px", padding: "8px 12px" }}
             >
               🔒 LOGOUT
             </button>
@@ -614,10 +614,10 @@ export default function AdminPage() {
 
         {/* Google Sheets live-sync config */}
         {showSyncCfg && (
-          <div style={{ ...cardBox, marginBottom: "24px", borderLeft: "4px solid #39ff14" }}>
-            <div style={{ fontFamily: PS, fontSize: "10px", color: "#39ff14", textShadow: "0 0 8px #39ff14" }}>⚙ GOOGLE SHEETS LIVE SYNC</div>
+          <div style={{ ...cardBox, marginBottom: "24px", borderLeft: "4px solid #ffb800" }}>
+            <div style={{ fontFamily: PS, fontSize: "10px", color: "#ffb800", textShadow: "0 0 8px #ffb800" }}>⚙ GOOGLE SHEETS LIVE SYNC</div>
             <div style={{ fontFamily: VT, fontSize: "16px", color: "#7de8ff", marginTop: "6px", marginBottom: "12px", lineHeight: 1.3 }}>
-              Paste your Apps Script Web App URL. Once saved, the full roster auto-pushes to your sheet on every promotion, rejection, score, and submission. Setup steps are in <span style={{ color: "#ffe600" }}>SHEET_SYNC.md</span>.
+              Paste your Apps Script Web App URL. Once saved, the full roster auto-pushes to your sheet on every promotion, rejection, score, and submission. Setup steps are in <span style={{ color: "#ffb800" }}>SHEET_SYNC.md</span>.
             </div>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
               <input
@@ -626,10 +626,10 @@ export default function AdminPage() {
                 placeholder="https://script.google.com/macros/s/.../exec"
                 style={{ ...inputStyle, flex: 1, minWidth: "260px", color: "#7de8ff", fontSize: "16px" }}
               />
-              <button onClick={saveWebhook} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#39ff14", border: "none", borderRadius: "4px", padding: "10px 14px", boxShadow: "0 3px 0 #0a5200" }}>💾 SAVE</button>
+              <button onClick={saveWebhook} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "4px", padding: "10px 14px", boxShadow: "0 3px 0 #3a3410" }}>💾 SAVE</button>
               <button onClick={syncNow} disabled={!webhookUrl} style={{ cursor: webhookUrl ? "pointer" : "not-allowed", fontFamily: PS, fontSize: "8px", color: "#04040a", background: webhookUrl ? "#00f0ff" : "#4a5a7a", border: "none", borderRadius: "4px", padding: "10px 14px", boxShadow: webhookUrl ? "0 3px 0 #007a8a" : "none" }}>⟳ SYNC NOW</button>
             </div>
-            {lastSync && <div style={{ fontFamily: VT, fontSize: "15px", color: "#39ff14", marginTop: "10px" }}>{lastSync}</div>}
+            {lastSync && <div style={{ fontFamily: VT, fontSize: "15px", color: "#ffb800", marginTop: "10px" }}>{lastSync}</div>}
           </div>
         )}
 
@@ -637,10 +637,10 @@ export default function AdminPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px", marginBottom: "24px" }}>
           {[
             { label: "TOTAL APPLICANTS", val: stats.total, color: "#00f0ff" },
-            { label: "IN SCREENING", val: stats.screening, color: "#ffe600" },
+            { label: "IN SCREENING", val: stats.screening, color: "#ffb800" },
             { label: "IN TASK ROUND", val: stats.task, color: "#ff2bd1" },
-            { label: "INTERVIEW STAGE", val: stats.interview, color: "#b06bff" },
-            { label: "RECRUITED", val: stats.recruited, color: "#39ff14" },
+            { label: "INTERVIEW STAGE", val: stats.interview, color: "#ff2bd1" },
+            { label: "RECRUITED", val: stats.recruited, color: "#ffb800" },
           ].map((st, i) => (
             <div key={i} style={{ ...cardBox, padding: "16px", borderLeft: `4px solid ${st.color}` }}>
               <div style={{ fontFamily: PS, fontSize: "8px", color: "#7de8ff" }}>{st.label}</div>
@@ -690,7 +690,7 @@ export default function AdminPage() {
         <div style={{ ...cardBox, overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #1c2540", fontFamily: PS, fontSize: "9px", color: "#ffe600" }}>
+              <tr style={{ borderBottom: "2px solid #1c2540", fontFamily: PS, fontSize: "9px", color: "#ffb800" }}>
                 <th style={{ padding: "12px" }}>ID</th>
                 <th style={{ padding: "12px" }}>APPLICANT</th>
                 <th style={{ padding: "12px" }}>DOMAINS</th>
@@ -751,12 +751,12 @@ export default function AdminPage() {
                             href={sanitizeUrl(cand.submissionLink)!}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ fontFamily: PS, fontSize: "8px", color: "#39ff14", border: "1px solid #39ff1466", background: "#39ff1411", borderRadius: "4px", padding: "4px 8px", whiteSpace: "nowrap" }}
+                            style={{ fontFamily: PS, fontSize: "8px", color: "#ffb800", border: "1px solid #ffb80066", background: "#ffb80011", borderRadius: "4px", padding: "4px 8px", whiteSpace: "nowrap" }}
                           >
                             ✓ SUBMITTED ↗
                           </a>
                         ) : cand.submissionLink ? (
-                          <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff3b30" }}>⚠ INVALID</span>
+                          <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff2bd1" }}>⚠ INVALID</span>
                         ) : (
                           <span style={{ fontFamily: PS, fontSize: "8px", color: "#4a5a7a" }}>— AWAITING</span>
                         )}
@@ -794,7 +794,7 @@ export default function AdminPage() {
                           {cand.stageIdx < 4 && (
                             <button
                               onClick={() => setConfirmPromote(cand)}
-                              style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#39ff14", border: "none", borderRadius: "4px", padding: "6px 10px", boxShadow: "0 3px 0 #0a5200" }}
+                              style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "4px", padding: "6px 10px", boxShadow: "0 3px 0 #3a3410" }}
                             >
                               PROMOTE ▶
                             </button>
@@ -803,20 +803,20 @@ export default function AdminPage() {
                           {cand.stageIdx < 4 && (
                             <button
                               onClick={() => { setConfirmReject(cand); setRejectFeedback(cand.rejectionFeedback || ""); }}
-                              style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#ff3b30", background: "transparent", border: "1.5px solid #ff3b30", borderRadius: "4px", padding: "6px 10px" }}
+                              style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#ff2bd1", background: "transparent", border: "1.5px solid #ff2bd1", borderRadius: "4px", padding: "6px 10px" }}
                             >
                               ✕ STOP
                             </button>
                           )}
 
                           {cand.stageIdx === 5 && (
-                            <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff3b30", border: "1px solid #ff3b3066", background: "rgba(255,59,48,.1)", borderRadius: "4px", padding: "5px 8px" }}>✕ JOURNEY STOPPED</span>
+                            <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff2bd1", border: "1px solid #ff2bd166", background: "rgba(255,43,209,.1)", borderRadius: "4px", padding: "5px 8px" }}>✕ JOURNEY STOPPED</span>
                           )}
 
                           <button
                             title="Delete applicant permanently"
                             onClick={() => { setConfirmDelete(cand); setDeleteErr(""); }}
-                            style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#ff3b30", background: "transparent", border: "1.5px solid #5a1a1a", borderRadius: "4px", padding: "6px 9px" }}
+                            style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#ff2bd1", background: "transparent", border: "1.5px solid #4d063d", borderRadius: "4px", padding: "6px 9px" }}
                           >
                             🗑
                           </button>
@@ -864,7 +864,7 @@ export default function AdminPage() {
           >
             <button
               onClick={() => setSelectedCandidate(null)}
-              style={{ position: "absolute", top: "18px", right: "20px", cursor: "pointer", background: "transparent", border: "2px solid #ff3b30", color: "#ff3b30", borderRadius: "6px", padding: "6px 10px", fontFamily: PS, fontSize: "9px" }}
+              style={{ position: "absolute", top: "18px", right: "20px", cursor: "pointer", background: "transparent", border: "2px solid #ff2bd1", color: "#ff2bd1", borderRadius: "6px", padding: "6px 10px", fontFamily: PS, fontSize: "9px" }}
             >
               ✕ CLOSE
             </button>
@@ -883,7 +883,7 @@ export default function AdminPage() {
                 admin cannot click to change it here. Promotion happens only
                 from the applicant list via the confirmation-gated PROMOTE. */}
             <div style={{ marginTop: "20px", padding: "18px", background: "rgba(255,255,255,.02)", border: "2px solid #1c2540", borderRadius: "10px" }}>
-              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffe600", marginBottom: "18px" }}>
+              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffb800", marginBottom: "18px" }}>
                 STAGE PROGRESSION <span style={{ color: "#4a5a7a" }}>· 🔒 VIEW ONLY</span>
               </div>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 0 }}>
@@ -891,13 +891,13 @@ export default function AdminPage() {
                   const curIdx = selectedCandidate.stageIdx;
                   const done = idx < curIdx;
                   const isCur = idx === curIdx;
-                  const col = done ? "#39ff14" : isCur ? s.color : "#2a3350";
+                  const col = done ? "#ffb800" : isCur ? s.color : "#2a3350";
                   return (
                     <div key={s.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", position: "relative" }}>
                       {idx > 0 && (
-                        <div style={{ position: "absolute", top: "17px", left: "-50%", width: "100%", height: "4px", background: idx <= curIdx ? "#39ff14" : "#1c2540", zIndex: 0 }} />
+                        <div style={{ position: "absolute", top: "17px", left: "-50%", width: "100%", height: "4px", background: idx <= curIdx ? "#ffb800" : "#1c2540", zIndex: 0 }} />
                       )}
-                      <div style={{ position: "relative", zIndex: 1, width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: PS, fontSize: "12px", color: isCur ? "#04040a" : col, background: isCur ? s.color : done ? "rgba(57,255,20,.12)" : "rgba(255,255,255,.02)", border: `3px solid ${col}`, boxShadow: done || isCur ? `0 0 14px ${col}` : "none", animation: isCur ? "floaty 1.6s ease-in-out infinite" : "none" }}>
+                      <div style={{ position: "relative", zIndex: 1, width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: PS, fontSize: "12px", color: isCur ? "#04040a" : col, background: isCur ? s.color : done ? "rgba(255,180,40,.12)" : "rgba(255,255,255,.02)", border: `3px solid ${col}`, boxShadow: done || isCur ? `0 0 14px ${col}` : "none", animation: isCur ? "floaty 1.6s ease-in-out infinite" : "none" }}>
                         {done ? "✓" : s.icon}
                       </div>
                       <div style={{ fontFamily: PS, fontSize: "7px", color: col, marginTop: "10px", lineHeight: 1.4, textShadow: done || isCur ? `0 0 6px ${col}` : "none" }}>{s.label}</div>
@@ -908,7 +908,7 @@ export default function AdminPage() {
 
               {selectedCandidate.stageIdx === 5 && (
                 <div style={{ marginTop: "16px", textAlign: "center" }}>
-                  <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff3b30", border: "1px solid #ff3b30", background: "rgba(255,59,48,.12)", borderRadius: "4px", padding: "5px 9px" }}>✕ BENCH / ON HOLD</span>
+                  <span style={{ fontFamily: PS, fontSize: "8px", color: "#ff2bd1", border: "1px solid #ff2bd1", background: "rgba(255,43,209,.12)", borderRadius: "4px", padding: "5px 9px" }}>✕ BENCH / ON HOLD</span>
                 </div>
               )}
 
@@ -920,10 +920,10 @@ export default function AdminPage() {
             {/* Task submission links — one field per enlisted domain */}
             {selectedCandidate.domains && selectedCandidate.domains.length > 0 && (
               <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffe600" }}>▮ TASK SUBMISSIONS</div>
+                <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffb800" }}>▮ TASK SUBMISSIONS</div>
                 {selectedCandidate.domains.map((key, i) => {
                   const dm = DOMAINS.find((d) => d.key === key);
-                  const accent = dm?.color || "#39ff14";
+                  const accent = dm?.color || "#ffb800";
                   const link =
                     (selectedCandidate.submissions && selectedCandidate.submissions[key]) ||
                     (i === 0 ? selectedCandidate.submissionLink : "") ||
@@ -940,12 +940,12 @@ export default function AdminPage() {
                             href={safe}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ fontFamily: VT, fontSize: "18px", color: "#ffe600", textDecoration: "underline", wordBreak: "break-all" }}
+                            style={{ fontFamily: VT, fontSize: "18px", color: "#ffb800", textDecoration: "underline", wordBreak: "break-all" }}
                           >
                             {link} ↗
                           </a>
                         ) : (
-                          <span style={{ fontFamily: VT, fontSize: "16px", color: "#ff3b30" }}>[BLOCKED INVALID LINK]</span>
+                          <span style={{ fontFamily: VT, fontSize: "16px", color: "#ff2bd1" }}>[BLOCKED INVALID LINK]</span>
                         )
                       ) : (
                         <div style={{ fontFamily: VT, fontSize: "16px", color: "#4a5a7a" }}>— not submitted yet</div>
@@ -958,11 +958,11 @@ export default function AdminPage() {
 
             {/* Evaluation scores — unlock per stage reached */}
             <div style={{ marginTop: "20px", padding: "16px", background: "rgba(255,255,255,.02)", border: "2px solid #1c2540", borderRadius: "10px" }}>
-              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffe600", marginBottom: "14px" }}>▮ EVALUATION SCORES <span style={{ color: "#4a5a7a" }}>(EACH / 100)</span></div>
+              <div style={{ fontFamily: PS, fontSize: "9px", color: "#ffb800", marginBottom: "14px" }}>▮ EVALUATION SCORES <span style={{ color: "#4a5a7a" }}>(EACH / 100)</span></div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 {/* Task score — unlocks at Task Round */}
                 <div>
-                  <div style={{ fontFamily: PS, fontSize: "8px", color: selectedCandidate.stageIdx >= 2 ? "#ffe600" : "#4a5a7a", marginBottom: "7px" }}>TASK ROUND SCORE</div>
+                  <div style={{ fontFamily: PS, fontSize: "8px", color: selectedCandidate.stageIdx >= 2 ? "#ffb800" : "#4a5a7a", marginBottom: "7px" }}>TASK ROUND SCORE</div>
                   {selectedCandidate.stageIdx >= 2 ? (
                     <input
                       type="number"
@@ -971,7 +971,7 @@ export default function AdminPage() {
                       value={scoreTask}
                       onChange={(e) => setScoreTask(e.target.value)}
                       placeholder="0 - 100"
-                      style={{ ...inputStyle, color: "#ffe600" }}
+                      style={{ ...inputStyle, color: "#ffb800" }}
                     />
                   ) : (
                     <div style={{ fontFamily: VT, fontSize: "16px", color: "#4a5a7a" }}>🔒 Unlocks at Task Round</div>
@@ -999,30 +999,30 @@ export default function AdminPage() {
               {selectedCandidate.stageIdx >= 2 && (
                 <button
                   onClick={() => saveScores(selectedCandidate.id)}
-                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#ffe600", border: "none", borderRadius: "4px", padding: "8px 14px", marginTop: "12px", boxShadow: "0 3px 0 #8a7b00" }}
+                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "4px", padding: "8px 14px", marginTop: "12px", boxShadow: "0 3px 0 #8a7b00" }}
                 >
                   💾 SAVE SCORES
                 </button>
               )}
 
               <div style={{ fontFamily: VT, fontSize: "15px", color: "#7de8ff", marginTop: "12px" }}>
-                Recorded — Task: <span style={{ color: "#ffe600" }}>{selectedCandidate.taskScore != null ? `${selectedCandidate.taskScore}/100` : "—"}</span> · Interview: <span style={{ color: "#ff2bd1" }}>{selectedCandidate.interviewScore != null ? `${selectedCandidate.interviewScore}/100` : "—"}</span>
+                Recorded — Task: <span style={{ color: "#ffb800" }}>{selectedCandidate.taskScore != null ? `${selectedCandidate.taskScore}/100` : "—"}</span> · Interview: <span style={{ color: "#ff2bd1" }}>{selectedCandidate.interviewScore != null ? `${selectedCandidate.interviewScore}/100` : "—"}</span>
                 {selectedCandidate.taskScore != null && selectedCandidate.interviewScore != null && (
-                  <span> · Total: <span style={{ color: "#39ff14" }}>{selectedCandidate.taskScore + selectedCandidate.interviewScore}/200</span></span>
+                  <span> · Total: <span style={{ color: "#ffb800" }}>{selectedCandidate.taskScore + selectedCandidate.interviewScore}/200</span></span>
                 )}
               </div>
             </div>
 
             {/* 7 Quest Answers */}
             <div style={{ marginTop: "24px" }}>
-              <div style={{ fontFamily: PS, fontSize: "11px", color: "#39ff14", marginBottom: "14px" }}>
+              <div style={{ fontFamily: PS, fontSize: "11px", color: "#ffb800", marginBottom: "14px" }}>
                 ▶ RECRUITMENT QUEST RESPONSES (7 TRIALS)
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 {Object.entries(selectedCandidate.answers).map(([key, val], i) => (
-                  <div key={key} style={{ background: "rgba(0,0,0,.4)", border: "1px solid #12463f", padding: "12px 14px", borderRadius: "8px" }}>
+                  <div key={key} style={{ background: "rgba(0,0,0,.4)", border: "1px solid #3a3410", padding: "12px 14px", borderRadius: "8px" }}>
                     <div style={{ fontFamily: PS, fontSize: "8px", color: "#7de8ff" }}>QUESTION {i + 1}</div>
-                    <div style={{ fontFamily: VT, fontSize: "18px", color: "#ffe600", marginTop: "4px", lineHeight: 1.4 }}>
+                    <div style={{ fontFamily: VT, fontSize: "18px", color: "#ffb800", marginTop: "4px", lineHeight: 1.4 }}>
                       "{val || "NO ANSWER SUBMITTED"}"
                     </div>
                   </div>
@@ -1065,9 +1065,9 @@ export default function AdminPage() {
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{ width: "100%", maxWidth: "520px", background: "radial-gradient(120% 100% at 50% 0%, #1a1226 0%, #070914 100%)", border: "3px solid #ffe600", borderRadius: "16px", padding: "28px", boxShadow: "0 0 50px rgba(255,230,0,.25)", textAlign: "center" }}
+              style={{ width: "100%", maxWidth: "520px", background: "radial-gradient(120% 100% at 50% 0%, #2a0e18 0%, #070914 100%)", border: "3px solid #ffb800", borderRadius: "16px", padding: "28px", boxShadow: "0 0 50px rgba(255,180,40,.25)", textAlign: "center" }}
             >
-              <div style={{ fontFamily: PS, fontSize: "16px", color: "#ffe600", textShadow: "0 0 12px #ffe600" }}>⚠ CONFIRM PROMOTION</div>
+              <div style={{ fontFamily: PS, fontSize: "16px", color: "#ffb800", textShadow: "0 0 12px #ffb800" }}>⚠ CONFIRM PROMOTION</div>
               <div style={{ fontFamily: VT, fontSize: "20px", color: "#fff", marginTop: "14px" }}>
                 Promote <span style={{ color: "#00f0ff" }}>{confirmPromote.name}</span> (#{confirmPromote.playerNo})?
               </div>
@@ -1078,7 +1078,7 @@ export default function AdminPage() {
                 <span style={{ fontFamily: PS, fontSize: "8px", color: to.color, border: `1px solid ${to.color}`, background: `${to.color}22`, borderRadius: "4px", padding: "6px 9px", whiteSpace: "nowrap", boxShadow: `0 0 12px ${to.color}66` }}>{to.icon} {to.label}</span>
               </div>
 
-              <div style={{ fontFamily: VT, fontSize: "16px", color: hasTask ? "#39ff14" : "#ff7a2b", marginBottom: "6px" }}>
+              <div style={{ fontFamily: VT, fontSize: "16px", color: hasTask ? "#ffb800" : "#ffb800", marginBottom: "6px" }}>
                 {hasTask ? "✓ Task submission on file." : "⚠ No valid task submission on file yet."}
               </div>
               <div style={{ fontFamily: VT, fontSize: "15px", color: "#7de8ff", marginBottom: "22px" }}>
@@ -1088,13 +1088,13 @@ export default function AdminPage() {
               <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
                 <button
                   onClick={() => setConfirmPromote(null)}
-                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff3b30", background: "transparent", border: "2px solid #ff3b30", borderRadius: "8px", padding: "12px 18px" }}
+                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff2bd1", background: "transparent", border: "2px solid #ff2bd1", borderRadius: "8px", padding: "12px 18px" }}
                 >
                   ✕ CANCEL
                 </button>
                 <button
                   onClick={promoteConfirmed}
-                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #eaffb0, #39ff14 60%, #0f8a00)", border: "none", borderRadius: "8px", padding: "12px 20px", boxShadow: "0 5px 0 #0a5200, 0 0 18px rgba(57,255,20,.5)" }}
+                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 60%, #b8a200)", border: "none", borderRadius: "8px", padding: "12px 20px", boxShadow: "0 5px 0 #3a3410, 0 0 18px rgba(255,180,40,.5)" }}
                 >
                   ✓ CONFIRM PROMOTE
                 </button>
@@ -1114,9 +1114,9 @@ export default function AdminPage() {
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{ width: "100%", maxWidth: "560px", background: "radial-gradient(120% 100% at 50% 0%, #2a0e18 0%, #070914 100%)", border: "3px solid #ff3b30", borderRadius: "16px", padding: "28px", boxShadow: "0 0 50px rgba(255,59,48,.25)" }}
+              style={{ width: "100%", maxWidth: "560px", background: "radial-gradient(120% 100% at 50% 0%, #2a0e18 0%, #070914 100%)", border: "3px solid #ff2bd1", borderRadius: "16px", padding: "28px", boxShadow: "0 0 50px rgba(255,43,209,.25)" }}
             >
-              <div style={{ fontFamily: PS, fontSize: "15px", color: "#ff3b30", textShadow: "0 0 12px #ff3b30", textAlign: "center" }}>✕ STOP APPLICANT JOURNEY</div>
+              <div style={{ fontFamily: PS, fontSize: "15px", color: "#ff2bd1", textShadow: "0 0 12px #ff2bd1", textAlign: "center" }}>✕ STOP APPLICANT JOURNEY</div>
               <div style={{ fontFamily: VT, fontSize: "20px", color: "#fff", marginTop: "14px", textAlign: "center" }}>
                 End the recruitment journey for <span style={{ color: "#00f0ff" }}>{confirmReject.name}</span> (#{confirmReject.playerNo})?
               </div>
@@ -1144,7 +1144,7 @@ export default function AdminPage() {
                 </button>
                 <button
                   onClick={rejectConfirmed}
-                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#fff", background: "radial-gradient(circle at 40% 30%, #ff8a80, #ff3b30 60%, #8a0e0e)", border: "none", borderRadius: "8px", padding: "12px 20px", boxShadow: "0 5px 0 #5a1010, 0 0 18px rgba(255,59,48,.5)" }}
+                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#fff", background: "radial-gradient(circle at 40% 30%, #ff9de3, #ff2bd1 60%, #8a0e6d)", border: "none", borderRadius: "8px", padding: "12px 20px", boxShadow: "0 5px 0 #4d063d, 0 0 18px rgba(255,43,209,.5)" }}
                 >
                   ✕ CONFIRM STOP
                 </button>
@@ -1162,17 +1162,17 @@ export default function AdminPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ width: "100%", maxWidth: "500px", background: "radial-gradient(120% 100% at 50% 0%, #2a0e0e 0%, #070914 100%)", border: "3px solid #ff3b30", borderRadius: "16px", padding: "28px", boxShadow: "0 0 50px rgba(255,59,48,.3)", textAlign: "center" }}
+            style={{ width: "100%", maxWidth: "500px", background: "radial-gradient(120% 100% at 50% 0%, #2a0e18 0%, #070914 100%)", border: "3px solid #ff2bd1", borderRadius: "16px", padding: "28px", boxShadow: "0 0 50px rgba(255,43,209,.3)", textAlign: "center" }}
           >
-            <div style={{ fontFamily: PS, fontSize: "15px", color: "#ff3b30", textShadow: "0 0 12px #ff3b30" }}>🗑 DELETE APPLICANT</div>
+            <div style={{ fontFamily: PS, fontSize: "15px", color: "#ff2bd1", textShadow: "0 0 12px #ff2bd1" }}>🗑 DELETE APPLICANT</div>
             <div style={{ fontFamily: VT, fontSize: "20px", color: "#fff", marginTop: "14px" }}>
               Permanently delete <span style={{ color: "#00f0ff" }}>{confirmDelete.name}</span> (#{confirmDelete.playerNo})?
             </div>
-            <div style={{ fontFamily: VT, fontSize: "16px", color: "#ff7a2b", marginTop: "8px" }}>
+            <div style={{ fontFamily: VT, fontSize: "16px", color: "#ffb800", marginTop: "8px" }}>
               This removes their record from Supabase and the site for good. It cannot be undone.
             </div>
             {deleteErr && (
-              <div style={{ fontFamily: VT, fontSize: "15px", color: "#ff3b30", marginTop: "14px", lineHeight: 1.3, wordBreak: "break-word" }}>⚠ {deleteErr}</div>
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#ff2bd1", marginTop: "14px", lineHeight: 1.3, wordBreak: "break-word" }}>⚠ {deleteErr}</div>
             )}
             <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap", marginTop: "22px" }}>
               <button
@@ -1185,7 +1185,7 @@ export default function AdminPage() {
               <button
                 onClick={deleteConfirmed}
                 disabled={deleting}
-                style={{ cursor: deleting ? "not-allowed" : "pointer", fontFamily: PS, fontSize: "9px", color: "#fff", background: deleting ? "#5a1a1a" : "radial-gradient(circle at 40% 30%, #ff8a80, #ff3b30 60%, #8a0e0e)", border: "none", borderRadius: "8px", padding: "12px 20px", boxShadow: deleting ? "none" : "0 5px 0 #5a1010, 0 0 18px rgba(255,59,48,.5)" }}
+                style={{ cursor: deleting ? "not-allowed" : "pointer", fontFamily: PS, fontSize: "9px", color: "#fff", background: deleting ? "#4d063d" : "radial-gradient(circle at 40% 30%, #ff9de3, #ff2bd1 60%, #8a0e6d)", border: "none", borderRadius: "8px", padding: "12px 20px", boxShadow: deleting ? "none" : "0 5px 0 #4d063d, 0 0 18px rgba(255,43,209,.5)" }}
               >
                 {deleting ? "DELETING…" : "🗑 DELETE FOREVER"}
               </button>

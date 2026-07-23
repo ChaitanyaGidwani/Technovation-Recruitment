@@ -39,8 +39,8 @@ button { font-family: 'Press Start 2P', monospace; }
   50%{ text-shadow: 0 0 4px #ff2bd1, 0 0 12px #ff2bd1; }
 }
 @keyframes gameon {
-  0%,100%{ transform: scale(1); color:#39ff14; text-shadow:0 0 12px #39ff14,0 0 40px #39ff14;}
-  50%{ transform: scale(1.06); color:#ffe600; text-shadow:0 0 16px #ffe600,0 0 50px #ffe600;}
+  0%,100%{ transform: scale(1); color:#ffb800; text-shadow:0 0 12px #ffb800,0 0 40px #ffb800;}
+  50%{ transform: scale(1.06); color:#00f0ff; text-shadow:0 0 16px #00f0ff,0 0 50px #00f0ff;}
 }
 @keyframes spin1up { from{transform:rotate(0);} to{transform:rotate(360deg);} }
 @keyframes floaty { 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(-6px);} }

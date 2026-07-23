@@ -20,8 +20,8 @@ import { type CSSProperties, type ReactNode, useRef } from "react";
 // Palette shared with the rest of the arcade (floor / create / pass / HQ).
 const CYAN = "#00f0ff";
 const MAGENTA = "#ff2bd1";
-const YELLOW = "#ffe600";
-const GREEN = "#39ff14";
+const YELLOW = "#ffb800";
+const GREEN = "#ffb800";
 const PS = "'Press Start 2P'";
 const VT = "'VT323'";
 

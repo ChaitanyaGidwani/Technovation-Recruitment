@@ -32,25 +32,25 @@ const DOMAINS = [
     quest: "Design the visuals that make the world stop scrolling.",
   },
   {
-    key: "prod", name: "PRODUCTION", stage: "STAGE MASTER", glyph: "◈", color: "#ffe600", cls: "TANK",
+    key: "prod", name: "PRODUCTION", stage: "STAGE MASTER", glyph: "◈", color: "#00f0ff", cls: "TANK",
     desc: "The Stage Masters are the visual storytellers behind Technovation's video presence. From shooting and editing event recap videos, promo reels, and cinematic teasers to creating YouTube content, podcast visuals, and behind-the-scenes footage — the Production guild brings every moment to life on screen. You'll work with professional editing software, master color grading, sound design, and pacing to produce content that captures attention and tells compelling stories.",
     skills: ["Video Editing & Post-Production", "Cinematography & Shooting", "Color Grading & Sound Design", "Reels, Shorts & YouTube Content", "Scriptwriting & Storyboarding"],
     quest: "Capture the moments — edit the stories that go viral.",
   },
   {
-    key: "events", name: "EVENTS", stage: "BOSS ARENA", glyph: "⚔", color: "#39ff14", cls: "WARRIOR",
+    key: "events", name: "EVENTS", stage: "BOSS ARENA", glyph: "⚔", color: "#ff2bd1", cls: "WARRIOR",
     desc: "The Boss Arena is where unforgettable experiences are forged. Warriors of this guild ideate, curate, and execute the club's marquee events — coding competitions, tech talks, gaming nights, and inter-college showdowns. You'll brainstorm wild concepts, design event formats, build engagement mechanics, and ensure every participant walks away with a story. If you live for the thrill of a packed arena, this is your battleground.",
     skills: ["Event Ideation & Curation", "Competition Design", "Participant Engagement", "Speaker & Guest Coordination", "Community Building"],
     quest: "Create legendary events that people talk about for semesters.",
   },
   {
-    key: "pr", name: "PR/OUTREACH", stage: "BROADCAST TOWER", glyph: "➤", color: "#ff7a2b", cls: "BARD",
+    key: "pr", name: "PR/OUTREACH", stage: "BROADCAST TOWER", glyph: "➤", color: "#00f0ff", cls: "BARD",
     desc: "Bards of the Broadcast Tower amplify Technovation's voice across every channel. From Instagram reels and LinkedIn posts to campus partnerships, email campaigns, and sponsor outreach — this guild builds the club's public presence. You'll craft narratives, negotiate collaborations, manage social media calendars, analyze engagement metrics, and connect the club with the broader tech ecosystem.",
     skills: ["Social Media Strategy", "Content Marketing", "Sponsorship & Partnerships", "Email Campaigns", "Analytics & Growth Hacking"],
     quest: "Broadcast the signal — make Technovation unmissable.",
   },
   {
-    key: "content", name: "CONTENT", stage: "LORE KEEPER", glyph: "✎", color: "#b06bff", cls: "SCRIBE",
+    key: "content", name: "CONTENT", stage: "LORE KEEPER", glyph: "✎", color: "#ff2bd1", cls: "SCRIBE",
     desc: "Scribes of the Lore Keeper chronicle everything Technovation stands for. From blog posts and technical articles to event recaps, newsletters, and scriptwriting — the Content guild is the voice behind the brand. You'll research trending tech topics, interview speakers, document club history, and produce written + multimedia content that educates, entertains, and inspires the community.",
     skills: ["Technical Writing & Blogging", "Copywriting & Scriptwriting", "Newsletter Curation", "Research & Documentation", "Storytelling & Narrative Design"],
     quest: "Write the lore that defines the guild's legacy.",
@@ -120,8 +120,8 @@ function ArcadeButton({
 // deterministic 8x8 mirrored pixel avatar
 // Neon palette — each user gets a unique two-tone scheme derived from their seed.
 const AVATAR_PALETTE = [
-  "#00f0ff", "#ff2bd1", "#ffe600", "#39ff14", "#ff7a2b",
-  "#b06bff", "#ff3b30", "#00ffa3", "#7de8ff", "#ff5edb", "#5b8cff", "#f0f0f0",
+  "#00f0ff", "#ff2bd1", "#ffb800", "#ffb800", "#ffb800",
+  "#ff2bd1", "#ff2bd1", "#ffb800", "#7de8ff", "#ff5edb", "#00f0ff", "#f0f0f0",
 ];
 
 function avatarColors(seed: string): { primary: string; secondary: string } {
@@ -209,7 +209,7 @@ export default function ArcadePage() {
   const [taskLinks, setTaskLinks] = useState<Record<string, string>>({});
   const [taskDone, setTaskDone] = useState<Record<string, boolean>>({});
   const [comms, setComms] = useState<Comm[]>([
-    { id: "c1", icon: "✓", color: "#39ff14", title: "REGISTRATION CONFIRMED", body: "Welcome, Player 1. Your file is locked in. Stand by for screening.", time: "JUST NOW" },
+    { id: "c1", icon: "✓", color: "#ffb800", title: "REGISTRATION CONFIRMED", body: "Welcome, Player 1. Your file is locked in. Stand by for screening.", time: "JUST NOW" },
     { id: "c2", icon: "◉", color: "#00f0ff", title: "SCREENING IN PROGRESS", body: "The guild council is reviewing your player file. ETA 48 hrs.", time: "5 MIN AGO" },
   ]);
 
@@ -358,7 +358,7 @@ export default function ArcadePage() {
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.textBaseline = "top";
-      ctx.fillStyle = "#ffe600";
+      ctx.fillStyle = "#ffb800";
       ctx.font = `20px ${PS}`;
       ctx.fillText("ARCADE TICKET", 44, 46);
       ctx.fillStyle = accent;
@@ -372,16 +372,16 @@ export default function ArcadePage() {
         ctx.font = `14px ${PS}`;
         ctx.fillText(String(val).slice(0, 20), 44, y + 15);
       };
-      fld(118, "PLAYER NAME", name, "#39ff14");
+      fld(118, "PLAYER NAME", name, "#ffb800");
       fld(164, "CLASS", clsName, "#ff2bd1");
       fld(210, "HOME STAGE", cls, accent);
       fld(256, "COMMS", (form.email || "—").toUpperCase(), "#ffffff");
-      fld(302, "BRANCH", (form.branch || "—").toUpperCase(), "#ffe600");
+      fld(302, "BRANCH", (form.branch || "—").toUpperCase(), "#ffb800");
       ctx.fillStyle = "#7de8ff";
       ctx.font = `9px ${PS}`;
       ctx.fillText("AVATAR", px + 44, 54);
       drawAvatar(ctx, px + 40, 76, avatarSeed(), 18, accent);
-      ctx.fillStyle = "#ffe600";
+      ctx.fillStyle = "#ffb800";
       ctx.font = `9px ${PS}`;
       ctx.fillText("PLAYER No.", px + 40, 258);
       ctx.fillStyle = accent;
@@ -568,7 +568,7 @@ export default function ArcadePage() {
             {
               id: "sync" + Date.now(),
               icon: "★",
-              color: "#39ff14",
+              color: "#ffb800",
               title: "STAGE ADVANCED",
               body: `The Guild Council promoted you to ${lbl}.${newStage >= 2 ? " Your domain tasks are now unlocked below." : ""}`,
               time: "JUST NOW",
@@ -800,7 +800,7 @@ export default function ArcadePage() {
 
     const dm = DOMAINS.find((d) => d.key === domainKey);
     setComms((cs) => [
-      { id: "c" + Date.now(), icon: "⚔", color: "#39ff14", title: "TASK SUBMITTED", body: `${dm ? dm.name : "Domain"} task received. The council will judge your work soon. +50 XP`, time: "JUST NOW" },
+      { id: "c" + Date.now(), icon: "⚔", color: "#ffb800", title: "TASK SUBMITTED", body: `${dm ? dm.name : "Domain"} task received. The council will judge your work soon. +50 XP`, time: "JUST NOW" },
       ...cs,
     ]);
   };
@@ -948,8 +948,8 @@ export default function ArcadePage() {
   const term = clamp((p - 0.3) / 0.2, 0, 1);
   const scan = SCANLINES;
   const tintMap: Record<string, string> = {
-    blue: "rgba(40,120,255,.13)",
-    green: "rgba(40,255,120,.12)",
+    blue: "rgba(0,240,255,.13)",
+    green: "rgba(255,180,40,.12)",
     amber: "rgba(255,180,40,.13)",
   };
   const tintColor = tintMap[SCREEN_TINT];
@@ -959,14 +959,14 @@ export default function ArcadePage() {
   const fieldStyle: CSSProperties = {
     width: "100%",
     background: "#050a10",
-    border: "2px solid #12463f",
+    border: "2px solid #3a3410",
     borderRadius: "5px",
-    color: "#39ff14",
+    color: "#ffb800",
     fontFamily: VT,
     fontSize: "clamp(16px,1.8vw,21px)",
     padding: "9px 12px",
-    textShadow: "0 0 6px #39ff14",
-    boxShadow: "inset 0 0 12px rgba(57,255,20,.1)",
+    textShadow: "0 0 6px #ffb800",
+    boxShadow: "inset 0 0 12px rgba(255,180,40,.1)",
   };
   const areaStyle: CSSProperties = { ...fieldStyle, minHeight: "60px", lineHeight: 1.25 };
   const panelBox: CSSProperties = {
@@ -1001,7 +1001,7 @@ export default function ArcadePage() {
     borderRadius: "50%",
     border: "none",
     background: "radial-gradient(circle at 38% 30%, #ff9de3, #ff2bd1 55%, #8a0e6d)",
-    color: "#2a0020",
+    color: "#2a0e18",
     fontFamily: PS,
     fontSize: "clamp(9px,1.2vw,13px)",
     textShadow: "0 1px 0 rgba(255,255,255,.4)",
@@ -1016,8 +1016,8 @@ export default function ArcadePage() {
   const errBase: CSSProperties = {
     fontFamily: PS,
     fontSize: "9px",
-    color: "#ff3b30",
-    textShadow: "0 0 8px #ff3b30",
+    color: "#ff2bd1",
+    textShadow: "0 0 8px #ff2bd1",
     minHeight: "10px",
     animation: error ? "blink 0.5s steps(1) 4" : "none",
   };
@@ -1082,8 +1082,8 @@ export default function ArcadePage() {
   };
   const tagStyle = (kind: "active" | "done" | "locked"): CSSProperties => {
     const map = {
-      active: { c: "#ffe600", b: "rgba(255,230,0,.12)" },
-      done: { c: "#39ff14", b: "rgba(57,255,20,.12)" },
+      active: { c: "#ffb800", b: "rgba(255,180,40,.12)" },
+      done: { c: "#ffb800", b: "rgba(255,180,40,.12)" },
       locked: { c: "#4a5a7a", b: "rgba(74,90,122,.12)" },
     };
     const m = map[kind];
@@ -1101,7 +1101,7 @@ export default function ArcadePage() {
   const taskCard = (locked: boolean): CSSProperties => ({
     padding: "14px",
     borderRadius: "8px",
-    background: locked ? "rgba(255,255,255,.015)" : "rgba(255,230,0,.04)",
+    background: locked ? "rgba(255,255,255,.015)" : "rgba(255,180,40,.04)",
     border: "2px solid " + (locked ? "#1c2540" : "#3a3410"),
     opacity: locked ? 0.65 : 1,
   });
@@ -1177,14 +1177,14 @@ export default function ArcadePage() {
       flex: 1,
       minWidth: 0,
       background: "#050a10",
-      border: "2px solid #12463f",
+      border: "2px solid #3a3410",
       borderRadius: "4px",
-      color: "#39ff14",
+      color: "#ffb800",
       fontFamily: VT,
       fontSize: "clamp(15px,1.8vw,21px)",
       padding: "7px 10px",
-      textShadow: "0 0 6px #39ff14",
-      boxShadow: "inset 0 0 12px rgba(57,255,20,.12)",
+      textShadow: "0 0 6px #ffb800",
+      boxShadow: "inset 0 0 12px rgba(255,180,40,.12)",
     };
 
     return (
@@ -1255,7 +1255,7 @@ export default function ArcadePage() {
               )}
               <button
                 onClick={() => { setLoginEmail(form.email.trim() || loginEmail); setShowLoginModal(true); }}
-                style={{ cursor: "pointer", fontFamily: PS, fontSize: isMobile ? "7px" : "9px", color: "#39ff14", border: "1.5px solid #39ff1466", background: "rgba(57,255,20,.1)", borderRadius: "4px", padding: isMobile ? "5px 8px" : "6px 10px", textShadow: "0 0 8px #39ff14" }}
+                style={{ cursor: "pointer", fontFamily: PS, fontSize: isMobile ? "7px" : "9px", color: "#ffb800", border: "1.5px solid #ffb80066", background: "rgba(255,180,40,.1)", borderRadius: "4px", padding: isMobile ? "5px 8px" : "6px 10px", textShadow: "0 0 8px #ffb800" }}
               >
                 {isMobile ? "🔑 LOGIN" : "🔑 PLAYER LOGIN"}
               </button>
@@ -1284,18 +1284,18 @@ export default function ArcadePage() {
                 {/* BOOT */}
                 <div style={bootStyle}>
                   <div style={{ textAlign: "center", padding: "0 6%" }}>
-                    <div style={{ fontFamily: PS, fontSize: "clamp(20px,4vw,52px)", color: "#00f0ff", textShadow: "2px 0 #ff2bd1, -2px 0 #ffe600, 0 0 24px rgba(0,240,255,.6)", letterSpacing: "3px", lineHeight: 1.3 }}>
+                    <div style={{ fontFamily: PS, fontSize: "clamp(20px,4vw,52px)", color: "#00f0ff", textShadow: "2px 0 #ff2bd1, -2px 0 #ffb800, 0 0 24px rgba(0,240,255,.6)", letterSpacing: "3px", lineHeight: 1.3 }}>
                       {club()}
                     </div>
                     <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.4vw,16px)", color: "#ff2bd1", marginTop: "14px", letterSpacing: "4px", textShadow: "0 0 10px #ff2bd1" }}>
                       ◆ CLUB RECRUITMENT ARCADE ◆
                     </div>
-                    <div style={{ textAlign: "left", display: "inline-block", marginTop: "34px", fontFamily: VT, fontSize: "clamp(16px,2.2vw,26px)", color: "#39ff14", lineHeight: 1.5, textShadow: "0 0 6px rgba(57,255,20,.6)" }}>
+                    <div style={{ textAlign: "left", display: "inline-block", marginTop: "34px", fontFamily: VT, fontSize: "clamp(16px,2.2vw,26px)", color: "#ffb800", lineHeight: 1.5, textShadow: "0 0 6px rgba(255,180,40,.6)" }}>
                       <div>&gt; SYSTEM INITIALIZING<span style={{ animation: "blink 1s steps(1) infinite" }}>...</span></div>
-                      <div>&gt; CLUB NAME: <span style={{ color: "#ffe600" }}>{club()}</span></div>
+                      <div>&gt; CLUB NAME: <span style={{ color: "#ffb800" }}>{club()}</span></div>
                       <div>&gt; WELCOME, PLAYER 1.</div>
                       <div>&gt; 6 GUILD DOMAINS DETECTED.</div>
-                      <div style={{ color: "#ffe600", textShadow: "0 0 12px #ffe600", animation: "blink 1.05s steps(1) infinite", marginTop: "6px" }}>&gt; INSERT COIN OR SCROLL TO START ▮</div>
+                      <div style={{ color: "#ffb800", textShadow: "0 0 12px #ffb800", animation: "blink 1.05s steps(1) infinite", marginTop: "6px" }}>&gt; INSERT COIN OR SCROLL TO START ▮</div>
                     </div>
                     {/* Primary landing action -> the Recruitment Quest briefing */}
                     <div style={{ marginTop: "30px" }}>
@@ -1316,7 +1316,7 @@ export default function ArcadePage() {
 
                 {/* DOMAIN GRID */}
                 <div style={termStyle}>
-                  <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.3vw,14px)", color: "#ffe600", textShadow: "0 0 8px #ffe600", letterSpacing: "1px", marginBottom: "2.5%" }}>
+                  <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.3vw,14px)", color: "#ffb800", textShadow: "0 0 8px #ffb800", letterSpacing: "1px", marginBottom: "2.5%" }}>
                     ▶ EXPLORE OUR DOMAINS — 6 GUILD STAGES
                   </div>
                   <div className="crt-domain-grid">
@@ -1341,7 +1341,7 @@ export default function ArcadePage() {
 
             {/* CONTROL PANEL */}
             <div style={panelStyle}>
-              <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(96deg, #1c150e 0 26px, #241a11 26px 52px)", boxShadow: "inset 0 8px 24px rgba(0,0,0,.6), inset 0 0 0 4px #0e0a06", borderTop: "4px solid #3a2b1a" }} />
+              <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(96deg, #1c150e 0 26px, #241a11 26px 52px)", boxShadow: "inset 0 8px 24px rgba(0,0,0,.6), inset 0 0 0 4px #0e0a06", borderTop: "4px solid #3a3410" }} />
               <div
                 style={{
                   position: "absolute",
@@ -1362,7 +1362,7 @@ export default function ArcadePage() {
                     <div style={{ position: "absolute", bottom: 0, width: "78%", height: "26%", borderRadius: "50%", background: "radial-gradient(circle at 50% 35%, #3a4056, #0c0e18)", boxShadow: "0 8px 18px rgba(0,0,0,.6)" }} />
                     <div style={joyStyle}>
                       <div style={{ width: "22%", height: "64%", margin: "0 auto", background: "linear-gradient(90deg,#5a6072,#c9cfe0 45%,#5a6072)", borderRadius: "6px", boxShadow: "inset 0 0 4px rgba(0,0,0,.4)" }} />
-                      <div style={{ position: "absolute", top: "-2%", left: "50%", transform: "translateX(-50%)", width: "56%", aspectRatio: "1", borderRadius: "50%", background: "radial-gradient(circle at 34% 28%, #ff8a80, #ff3b30 45%, #a11208 100%)", boxShadow: "0 0 18px rgba(255,59,48,.7), inset -6px -8px 14px rgba(0,0,0,.4), inset 6px 6px 12px rgba(255,255,255,.35)" }} />
+                      <div style={{ position: "absolute", top: "-2%", left: "50%", transform: "translateX(-50%)", width: "56%", aspectRatio: "1", borderRadius: "50%", background: "radial-gradient(circle at 34% 28%, #ff9de3, #ff2bd1 45%, #8a0e6d 100%)", boxShadow: "0 0 18px rgba(255,43,209,.7), inset -6px -8px 14px rgba(0,0,0,.4), inset 6px 6px 12px rgba(255,255,255,.35)" }} />
                     </div>
                   </div>
                   <div style={{ fontFamily: PS, fontSize: "8px", color: "#7de8ff", textShadow: "0 0 6px #00f0ff" }}>◄ MOVE ►</div>
@@ -1386,7 +1386,7 @@ export default function ArcadePage() {
                     </ArcadeButton>
                     <button
                       onClick={() => { setLoginEmail(form.email.trim() || loginEmail); setShowLoginModal(true); }}
-                      style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#ffe600", background: "rgba(255,230,0,.1)", border: "1px solid #ffe60066", borderRadius: "4px", padding: "6px 10px", textShadow: "0 0 6px #ffe600" }}
+                      style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#ffb800", background: "rgba(255,180,40,.1)", border: "1px solid #ffb80066", borderRadius: "4px", padding: "6px 10px", textShadow: "0 0 6px #ffb800" }}
                     >
                       RETURNING PLAYER LOGIN ▶
                     </button>
@@ -1432,7 +1432,7 @@ export default function ArcadePage() {
     <div style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: "radial-gradient(140% 90% at 50% -10%, #141a30 0%, #0a0d1a 55%, #05060d 100%)", position: "relative" }}>
       <div style={scanOverlay(0.28)} />
       {answersLocked && (
-        <div style={{ position: "sticky", top: 0, zIndex: 20, background: "rgba(255,230,0,.12)", borderBottom: "2px solid #ffe600", padding: "10px 16px", textAlign: "center", fontFamily: PS, fontSize: "clamp(8px,1.1vw,11px)", color: "#ffe600", textShadow: "0 0 8px #ffe600" }}>
+        <div style={{ position: "sticky", top: 0, zIndex: 20, background: "rgba(255,180,40,.12)", borderBottom: "2px solid #ffb800", padding: "10px 16px", textAlign: "center", fontFamily: PS, fontSize: "clamp(8px,1.1vw,11px)", color: "#ffb800", textShadow: "0 0 8px #ffb800" }}>
           🔒 APPLICATION SUBMITTED — YOUR ANSWERS ARE LOCKED &amp; CANNOT BE CHANGED
         </div>
       )}
@@ -1443,7 +1443,7 @@ export default function ArcadePage() {
         </div>
 
         <div style={{ textAlign: "center", marginTop: "clamp(18px,3vw,34px)" }}>
-          <div style={{ fontFamily: PS, fontSize: "clamp(18px,3.4vw,40px)", color: "#00f0ff", textShadow: "2px 0 #ff2bd1, -2px 0 #ffe600, 0 0 22px rgba(0,240,255,.5)", letterSpacing: "2px" }}>CHARACTER CREATION</div>
+          <div style={{ fontFamily: PS, fontSize: "clamp(18px,3.4vw,40px)", color: "#00f0ff", textShadow: "2px 0 #ff2bd1, -2px 0 #ffb800, 0 0 22px rgba(0,240,255,.5)", letterSpacing: "2px" }}>CHARACTER CREATION</div>
           <div style={{ fontFamily: VT, fontSize: "clamp(16px,2vw,24px)", color: "#ff2bd1", marginTop: "8px" }}>◆ forge your player file, pick your class, prove your worth ◆</div>
         </div>
 
@@ -1540,7 +1540,7 @@ export default function ArcadePage() {
                 );
               })}
               {selectedClasses.length < 2 && (
-                <span style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#ffe600", animation: "blink 1s steps(1) infinite" }}>← PICK {2 - selectedClasses.length} MORE</span>
+                <span style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#ffb800", animation: "blink 1s steps(1) infinite" }}>← PICK {2 - selectedClasses.length} MORE</span>
               )}
             </div>
           )}
@@ -1548,7 +1548,7 @@ export default function ArcadePage() {
 
         {/* Section 3 */}
         <div style={panelBox}>
-          <div style={sectionHdr}><span style={{ color: "#39ff14" }}>03</span> QUEST QUESTIONS <span style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#7de8ff", marginLeft: "8px" }}>— 7 GUILD TRIALS</span></div>
+          <div style={sectionHdr}><span style={{ color: "#ffb800" }}>03</span> QUEST QUESTIONS <span style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#7de8ff", marginLeft: "8px" }}>— 7 GUILD TRIALS</span></div>
           <div style={{ display: "flex", flexDirection: "column", gap: "clamp(16px,2.2vw,24px)" }}>
             {[
               { num: "Q1", q: "What is your biggest strength, and what is one key skill you are actively working to improve?", k: "q1" as const },
@@ -1559,11 +1559,11 @@ export default function ArcadePage() {
               { num: "Q6", q: "When given ownership of a project or task, what steps do you take to ensure it gets completed successfully from start to finish?", k: "q6" as const },
               { num: "Q7", q: "If you could launch one new project, event, or initiative with our club this year, what would it be?", k: "q7" as const },
             ].map((q) => (
-              <div key={q.k} style={{ background: "rgba(255,255,255,.015)", padding: "14px 16px", borderRadius: "8px", border: "1px solid #12463f" }}>
-                <div style={{ ...labelSm, color: "#39ff14", marginBottom: "6px" }}>
+              <div key={q.k} style={{ background: "rgba(255,255,255,.015)", padding: "14px 16px", borderRadius: "8px", border: "1px solid #3a3410" }}>
+                <div style={{ ...labelSm, color: "#ffb800", marginBottom: "6px" }}>
                   {q.num}
                 </div>
-                <div style={{ fontFamily: VT, fontSize: "clamp(16px,1.9vw,22px)", color: "#ffe600", marginBottom: "10px", lineHeight: 1.35 }}>
+                <div style={{ fontFamily: VT, fontSize: "clamp(16px,1.9vw,22px)", color: "#ffb800", marginBottom: "10px", lineHeight: 1.35 }}>
                   "{q.q}"
                 </div>
                 <textarea value={form[q.k]} onChange={setField(q.k)} rows={3} readOnly={answersLocked} placeholder="TYPE YOUR ANSWER..." style={{ ...areaStyle, opacity: answersLocked ? 0.7 : 1, cursor: answersLocked ? "not-allowed" : "text" }} />
@@ -1577,7 +1577,7 @@ export default function ArcadePage() {
         <div style={{ display: "flex", justifyContent: "center", marginTop: "clamp(24px,4vw,40px)" }}>
           {answersLocked ? (
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#ffe600", marginBottom: "12px" }}>
+              <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#ffb800", marginBottom: "12px" }}>
                 🔒 You&apos;ve already submitted. Your answers are final.
               </div>
               <ArcadeButton
@@ -1591,8 +1591,8 @@ export default function ArcadePage() {
           ) : (
             <ArcadeButton
               onClick={onSaveData}
-              style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(11px,1.5vw,16px)", color: "#053200", background: "radial-gradient(circle at 40% 30%, #eaffb0, #39ff14 55%, #0f8a00)", border: "none", borderRadius: "8px", padding: "clamp(16px,2.2vw,22px) clamp(28px,4vw,44px)", boxShadow: "0 10px 0 #0a5200, 0 0 34px rgba(57,255,20,.6), inset 0 3px 8px rgba(255,255,255,.6)", textShadow: "0 1px 0 rgba(255,255,255,.5)" }}
-              activeStyle={{ transform: "translateY(7px)", boxShadow: "0 3px 0 #0a5200, 0 0 18px rgba(57,255,20,.5), inset 0 3px 8px rgba(255,255,255,.6)" }}
+              style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(11px,1.5vw,16px)", color: "#241a11", background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "clamp(16px,2.2vw,22px) clamp(28px,4vw,44px)", boxShadow: "0 10px 0 #3a3410, 0 0 34px rgba(255,180,40,.6), inset 0 3px 8px rgba(255,255,255,.6)", textShadow: "0 1px 0 rgba(255,255,255,.5)" }}
+              activeStyle={{ transform: "translateY(7px)", boxShadow: "0 3px 0 #3a3410, 0 0 18px rgba(255,180,40,.5), inset 0 3px 8px rgba(255,255,255,.6)" }}
             >
               ▶ SAVE PLAYER DATA
             </ArcadeButton>
@@ -1610,7 +1610,7 @@ export default function ArcadePage() {
       <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(16px,2.4vw,26px)", padding: "clamp(28px,5vw,60px) 20px 70px", position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <div style={{ fontFamily: PS, fontSize: "clamp(20px,3.6vw,48px)", animation: "gameon 0.7s infinite" }}>LEVEL CLEAR!</div>
-          <div style={{ fontFamily: PS, fontSize: "clamp(14px,2vw,26px)", color: "#ffe600", textShadow: "0 0 14px #ffe600", animation: "spin1up 3s linear infinite" }}>1UP</div>
+          <div style={{ fontFamily: PS, fontSize: "clamp(14px,2vw,26px)", color: "#ffb800", textShadow: "0 0 14px #ffb800", animation: "spin1up 3s linear infinite" }}>1UP</div>
         </div>
         <div style={{ fontFamily: VT, fontSize: "clamp(16px,2vw,24px)", color: "#7de8ff", textAlign: "center" }}>&gt; PLAYER DATA SAVED · GENERATING ARCADE PASS...</div>
 
@@ -1618,13 +1618,13 @@ export default function ArcadePage() {
 
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
           <ArcadeButton onClick={onDownload} style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: "#00f0ff", border: "none", borderRadius: "5px", padding: "12px 16px", boxShadow: "0 5px 0 #007a8a, 0 0 16px rgba(0,240,255,.5)" }} activeStyle={{ transform: "translateY(3px)", boxShadow: "0 2px 0 #007a8a" }}>⤓ DOWNLOAD PASS</ArcadeButton>
-          <ArcadeButton onClick={onShareWA} style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: "#39ff14", border: "none", borderRadius: "5px", padding: "12px 16px", boxShadow: "0 5px 0 #0a5200, 0 0 16px rgba(57,255,20,.5)" }} activeStyle={{ transform: "translateY(3px)", boxShadow: "0 2px 0 #0a5200" }}>◈ WHATSAPP</ArcadeButton>
+          <ArcadeButton onClick={onShareWA} style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "5px", padding: "12px 16px", boxShadow: "0 5px 0 #3a3410, 0 0 16px rgba(255,180,40,.5)" }} activeStyle={{ transform: "translateY(3px)", boxShadow: "0 2px 0 #3a3410" }}>◈ WHATSAPP</ArcadeButton>
           <ArcadeButton onClick={onShareIG} style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#fff", background: "#ff2bd1", border: "none", borderRadius: "5px", padding: "12px 16px", boxShadow: "0 5px 0 #8a0e6d, 0 0 16px rgba(255,43,209,.5)" }} activeStyle={{ transform: "translateY(3px)", boxShadow: "0 2px 0 #8a0e6d" }}>◉ INSTAGRAM</ArcadeButton>
         </div>
 
         {/* activation */}
         <div style={{ width: "100%", maxWidth: "600px", marginTop: "8px", background: "rgba(10,14,26,.85)", border: "3px solid #1c2540", borderRadius: "12px", padding: "clamp(18px,2.6vw,28px)", boxShadow: "0 0 30px rgba(0,0,0,.5), inset 0 0 22px rgba(0,240,255,.05)" }}>
-          <div style={{ fontFamily: PS, fontSize: "clamp(10px,1.3vw,13px)", color: "#ffe600", textShadow: "0 0 8px #ffe600", letterSpacing: "1px" }}>▶ ACTIVATE ACCOUNT · ENTER PLAYER HQ</div>
+          <div style={{ fontFamily: PS, fontSize: "clamp(10px,1.3vw,13px)", color: "#ffb800", textShadow: "0 0 8px #ffb800", letterSpacing: "1px" }}>▶ ACTIVATE ACCOUNT · ENTER PLAYER HQ</div>
           <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#7de8ff", marginTop: "6px", marginBottom: "14px" }}>Set a secret PIN to track your quest, tasks &amp; interview slots.</div>
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end" }}>
             <div style={{ flex: 1, minWidth: "180px" }}>
@@ -1655,7 +1655,7 @@ export default function ArcadePage() {
         <div style={{ maxWidth: "760px", margin: "0 auto", padding: "clamp(28px,5vw,60px) clamp(16px,4vw,40px) 80px", display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(18px,3vw,26px)" }}>
           {/* identity */}
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <div style={{ width: "64px", height: "64px", borderRadius: "8px", overflow: "hidden", border: "3px solid #ff3b30", boxShadow: "0 0 18px #ff3b3066", flexShrink: 0 }}>
+            <div style={{ width: "64px", height: "64px", borderRadius: "8px", overflow: "hidden", border: "3px solid #ff2bd1", boxShadow: "0 0 18px #ff2bd166", flexShrink: 0 }}>
               <canvas ref={hqAvatarRef} style={{ width: "100%", height: "100%", imageRendering: "pixelated" }} />
             </div>
             <div>
@@ -1666,22 +1666,22 @@ export default function ArcadePage() {
 
           {/* GAME OVER */}
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontFamily: PS, fontSize: "clamp(20px,4vw,40px)", color: "#ff3b30", textShadow: "0 0 18px rgba(255,59,48,.6)", letterSpacing: "2px" }}>GAME OVER</div>
-            <div style={{ fontFamily: VT, fontSize: "clamp(18px,2.2vw,26px)", color: "#7de8ff", marginTop: "12px" }}>Your quest concluded at the <span style={{ color: "#ffe600" }}>{reachedLabel}</span> stage.</div>
+            <div style={{ fontFamily: PS, fontSize: "clamp(20px,4vw,40px)", color: "#ff2bd1", textShadow: "0 0 18px rgba(255,43,209,.6)", letterSpacing: "2px" }}>GAME OVER</div>
+            <div style={{ fontFamily: VT, fontSize: "clamp(18px,2.2vw,26px)", color: "#7de8ff", marginTop: "12px" }}>Your quest concluded at the <span style={{ color: "#ffb800" }}>{reachedLabel}</span> stage.</div>
           </div>
 
           {/* journey tracker (stopped) */}
           <div style={{ ...panelBox, width: "100%", marginTop: 0 }}>
-            <div style={sectionHdr}><span style={{ color: "#ff3b30" }}>▮</span> YOUR JOURNEY</div>
+            <div style={sectionHdr}><span style={{ color: "#ff2bd1" }}>▮</span> YOUR JOURNEY</div>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 0, position: "relative" }}>
               {STAGES.map((s, i) => {
                 const cleared = i < reachedIdx;
                 const stopped = i === reachedIdx;
-                const col = cleared ? "#39ff14" : stopped ? "#ff3b30" : "#2a3350";
+                const col = cleared ? "#ffb800" : stopped ? "#ff2bd1" : "#2a3350";
                 return (
                   <div key={s.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", position: "relative" }}>
-                    <div style={{ position: "absolute", top: "clamp(16px,2.4vw,22px)", left: "-50%", width: "100%", height: "4px", background: i === 0 ? "transparent" : i <= reachedIdx ? "#39ff14" : "#1c2540", zIndex: 0 }} />
-                    <div style={{ position: "relative", zIndex: 1, width: "clamp(34px,4.8vw,48px)", height: "clamp(34px,4.8vw,48px)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: PS, fontSize: "clamp(11px,1.4vw,16px)", color: stopped ? "#04040a" : col, background: stopped ? "#ff3b30" : cleared ? "rgba(57,255,20,.12)" : "rgba(255,255,255,.02)", border: "3px solid " + col, boxShadow: cleared || stopped ? "0 0 16px " + col : "none" }}>{cleared ? "✓" : stopped ? "✕" : s.icon}</div>
+                    <div style={{ position: "absolute", top: "clamp(16px,2.4vw,22px)", left: "-50%", width: "100%", height: "4px", background: i === 0 ? "transparent" : i <= reachedIdx ? "#ffb800" : "#1c2540", zIndex: 0 }} />
+                    <div style={{ position: "relative", zIndex: 1, width: "clamp(34px,4.8vw,48px)", height: "clamp(34px,4.8vw,48px)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: PS, fontSize: "clamp(11px,1.4vw,16px)", color: stopped ? "#04040a" : col, background: stopped ? "#ff2bd1" : cleared ? "rgba(255,180,40,.12)" : "rgba(255,255,255,.02)", border: "3px solid " + col, boxShadow: cleared || stopped ? "0 0 16px " + col : "none" }}>{cleared ? "✓" : stopped ? "✕" : s.icon}</div>
                     <div style={{ fontFamily: PS, fontSize: "clamp(6px,.85vw,9px)", color: col, marginTop: "10px", lineHeight: 1.4, textShadow: cleared || stopped ? "0 0 6px " + col : "none" }}>{s.label}</div>
                   </div>
                 );
@@ -1698,15 +1698,15 @@ export default function ArcadePage() {
           )}
 
           {/* positive message */}
-          <div style={{ width: "100%", background: "rgba(57,255,20,.05)", border: "2px solid #39ff1466", borderRadius: "14px", padding: "clamp(18px,2.4vw,26px)", textAlign: "center" }}>
-            <div style={{ fontFamily: PS, fontSize: "clamp(10px,1.4vw,13px)", color: "#39ff14", textShadow: "0 0 10px #39ff14" }}>▶ 1UP · THIS ISN&apos;T THE END</div>
+          <div style={{ width: "100%", background: "rgba(255,180,40,.05)", border: "2px solid #ffb80066", borderRadius: "14px", padding: "clamp(18px,2.4vw,26px)", textAlign: "center" }}>
+            <div style={{ fontFamily: PS, fontSize: "clamp(10px,1.4vw,13px)", color: "#ffb800", textShadow: "0 0 10px #ffb800" }}>▶ 1UP · THIS ISN&apos;T THE END</div>
             <div style={{ fontFamily: VT, fontSize: "clamp(17px,2vw,22px)", color: "#cfe8ff", marginTop: "12px", lineHeight: 1.4 }}>{positive}</div>
           </div>
 
           {/* actions */}
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
             <ArcadeButton onClick={() => goTo("pass")} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#00f0ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>◄ VIEW MY PASS</ArcadeButton>
-            <ArcadeButton onClick={handleLogout} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff3b30", background: "transparent", border: "2px solid #5a1a1a", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>⏻ LOG OUT</ArcadeButton>
+            <ArcadeButton onClick={handleLogout} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff2bd1", background: "transparent", border: "2px solid #4d063d", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>⏻ LOG OUT</ArcadeButton>
           </div>
         </div>
       </div>
@@ -1743,7 +1743,7 @@ export default function ArcadePage() {
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontFamily: PS, fontSize: "9px", color: "#4a5a7a" }}>PLAYER HQ · COMMAND CENTER</div>
-              <div style={{ fontFamily: PS, fontSize: "clamp(13px,1.6vw,18px)", color: "#39ff14", textShadow: "0 0 10px #39ff14", marginTop: "6px" }}>{scoreStr} <span style={{ fontSize: "8px", color: "#7de8ff" }}>RECRUITS</span></div>
+              <div style={{ fontFamily: PS, fontSize: "clamp(13px,1.6vw,18px)", color: "#ffb800", textShadow: "0 0 10px #ffb800", marginTop: "6px" }}>{scoreStr} <span style={{ fontSize: "8px", color: "#7de8ff" }}>RECRUITS</span></div>
             </div>
           </div>
 
@@ -1754,17 +1754,17 @@ export default function ArcadePage() {
               {STAGES.map((s, i) => {
                 const done = i < stageIdx,
                   isCur = i === stageIdx;
-                const col = done ? "#39ff14" : isCur ? "#ffe600" : "#2a3350";
+                const col = done ? "#ffb800" : isCur ? "#ffb800" : "#2a3350";
                 return (
                   <div key={s.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", position: "relative" }}>
-                    <div style={{ position: "absolute", top: "clamp(16px,2.4vw,22px)", left: "-50%", width: "100%", height: "4px", background: i === 0 ? "transparent" : i <= stageIdx ? "#39ff14" : "#1c2540", zIndex: 0 }} />
-                    <div style={{ position: "relative", zIndex: 1, width: "clamp(34px,4.8vw,48px)", height: "clamp(34px,4.8vw,48px)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: PS, fontSize: "clamp(11px,1.4vw,16px)", color: isCur ? "#04040a" : col, background: isCur ? "#ffe600" : done ? "rgba(57,255,20,.12)" : "rgba(255,255,255,.02)", border: "3px solid " + col, boxShadow: done || isCur ? "0 0 16px " + col : "none", animation: isCur ? "floaty 1.6s ease-in-out infinite" : "none" }}>{s.icon}</div>
+                    <div style={{ position: "absolute", top: "clamp(16px,2.4vw,22px)", left: "-50%", width: "100%", height: "4px", background: i === 0 ? "transparent" : i <= stageIdx ? "#ffb800" : "#1c2540", zIndex: 0 }} />
+                    <div style={{ position: "relative", zIndex: 1, width: "clamp(34px,4.8vw,48px)", height: "clamp(34px,4.8vw,48px)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: PS, fontSize: "clamp(11px,1.4vw,16px)", color: isCur ? "#04040a" : col, background: isCur ? "#ffb800" : done ? "rgba(255,180,40,.12)" : "rgba(255,255,255,.02)", border: "3px solid " + col, boxShadow: done || isCur ? "0 0 16px " + col : "none", animation: isCur ? "floaty 1.6s ease-in-out infinite" : "none" }}>{s.icon}</div>
                     <div style={{ fontFamily: PS, fontSize: "clamp(6px,.85vw,9px)", color: col, marginTop: "10px", lineHeight: 1.4, textShadow: done || isCur ? "0 0 6px " + col : "none" }}>{s.label}</div>
                   </div>
                 );
               })}
             </div>
-            <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#ffe600", marginTop: "16px", textAlign: "center" }}>&gt; CURRENT STAGE: <span style={{ textShadow: "0 0 8px #ffe600" }}>{STAGES[stageIdx].label}</span></div>
+            <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#ffb800", marginTop: "16px", textAlign: "center" }}>&gt; CURRENT STAGE: <span style={{ textShadow: "0 0 8px #ffb800" }}>{STAGES[stageIdx].label}</span></div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "clamp(16px,2.4vw,24px)" }}>
@@ -1786,7 +1786,7 @@ export default function ArcadePage() {
                     return (
                       <div key={d.key} style={taskCard(false)}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
-                          <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: done ? "#39ff14" : "#ffe600" }}>
+                          <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: done ? "#ffb800" : "#ffb800" }}>
                             {i === 0 ? "1ST" : "2ND"} · {d.name} TASK
                           </div>
                           <div style={tagStyle(done ? "done" : "active")}>{done ? "SUBMITTED" : "ACTIVE"}</div>
@@ -1796,11 +1796,11 @@ export default function ArcadePage() {
                         </div>
                         {done ? (
                           <>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px", flexWrap: "wrap", background: "#050a10", border: "2px solid #12463f", borderRadius: "4px", padding: "7px 10px" }}>
-                              <span style={{ fontFamily: PS, fontSize: "8px", color: "#39ff14" }}>🔒</span>
-                              <span style={{ fontFamily: VT, fontSize: "16px", color: "#39ff14", wordBreak: "break-all", flex: 1, minWidth: 0, textShadow: "0 0 6px #39ff14" }}>{taskLinks[d.key]}</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px", flexWrap: "wrap", background: "#050a10", border: "2px solid #3a3410", borderRadius: "4px", padding: "7px 10px" }}>
+                              <span style={{ fontFamily: PS, fontSize: "8px", color: "#ffb800" }}>🔒</span>
+                              <span style={{ fontFamily: VT, fontSize: "16px", color: "#ffb800", wordBreak: "break-all", flex: 1, minWidth: 0, textShadow: "0 0 6px #ffb800" }}>{taskLinks[d.key]}</span>
                             </div>
-                            <div style={{ fontFamily: VT, fontSize: "14px", color: "#39ff14", marginTop: "6px" }}>✓ Submitted &amp; locked — the council will review your {d.name} task. Submissions are final.</div>
+                            <div style={{ fontFamily: VT, fontSize: "14px", color: "#ffb800", marginTop: "6px" }}>✓ Submitted &amp; locked — the council will review your {d.name} task. Submissions are final.</div>
                           </>
                         ) : (
                           <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
@@ -1808,9 +1808,9 @@ export default function ArcadePage() {
                               value={taskLinks[d.key] || ""}
                               onChange={(e) => setTaskLinks((p) => ({ ...p, [d.key]: e.target.value }))}
                               placeholder="PASTE SUBMISSION LINK"
-                              style={{ flex: 1, minWidth: "150px", background: "#050a10", border: "2px solid #12463f", borderRadius: "4px", color: "#39ff14", fontFamily: VT, fontSize: "16px", padding: "6px 9px", textShadow: "0 0 6px #39ff14" }}
+                              style={{ flex: 1, minWidth: "150px", background: "#050a10", border: "2px solid #3a3410", borderRadius: "4px", color: "#ffb800", fontFamily: VT, fontSize: "16px", padding: "6px 9px", textShadow: "0 0 6px #ffb800" }}
                             />
-                            <ArcadeButton onClick={() => submitTaskFor(d.key)} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#053200", background: "#39ff14", border: "none", borderRadius: "4px", padding: "8px 12px", boxShadow: "0 4px 0 #0a5200" }} activeStyle={{ transform: "translateY(2px)", boxShadow: "0 2px 0 #0a5200" }}>SUBMIT</ArcadeButton>
+                            <ArcadeButton onClick={() => submitTaskFor(d.key)} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#241a11", background: "#ffb800", border: "none", borderRadius: "4px", padding: "8px 12px", boxShadow: "0 4px 0 #3a3410" }} activeStyle={{ transform: "translateY(2px)", boxShadow: "0 2px 0 #3a3410" }}>SUBMIT</ArcadeButton>
                           </div>
                         )}
                       </div>
@@ -1831,7 +1831,7 @@ export default function ArcadePage() {
 
             {/* comms */}
             <div style={panelBoxTight}>
-              <div style={sectionHdr}><span style={{ color: "#39ff14" }}>▤</span> COMMS CHANNEL</div>
+              <div style={sectionHdr}><span style={{ color: "#ffb800" }}>▤</span> COMMS CHANNEL</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "420px", overflowY: "auto" }}>
                 {comms.map((c) => (
                   <div key={c.id} style={{ display: "flex", gap: "10px", alignItems: "flex-start", padding: "11px", borderRadius: "6px", background: "rgba(255,255,255,.02)", borderLeft: "3px solid " + c.color }}>
@@ -1849,7 +1849,7 @@ export default function ArcadePage() {
 
           <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "clamp(24px,3.5vw,36px)", flexWrap: "wrap" }}>
             <ArcadeButton onClick={() => goTo("pass")} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#00f0ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>◄ VIEW MY PASS</ArcadeButton>
-            <ArcadeButton onClick={handleLogout} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff3b30", background: "transparent", border: "2px solid #5a1a1a", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>⏻ LOG OUT</ArcadeButton>
+            <ArcadeButton onClick={handleLogout} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff2bd1", background: "transparent", border: "2px solid #4d063d", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>⏻ LOG OUT</ArcadeButton>
           </div>
         </div>
       </div>
@@ -1970,7 +1970,7 @@ export default function ArcadePage() {
 
             {/* Description */}
             <div style={{ marginBottom: "clamp(22px,3vw,32px)" }}>
-              <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: "#ffe600", textShadow: "0 0 8px #ffe600", letterSpacing: "1px", marginBottom: "12px" }}>
+              <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: "#ffb800", textShadow: "0 0 8px #ffb800", letterSpacing: "1px", marginBottom: "12px" }}>
                 ▶ GUILD BRIEFING
               </div>
               <div style={{
@@ -2021,14 +2021,14 @@ export default function ArcadePage() {
               boxShadow: "inset 0 0 20px rgba(0,0,0,.3)",
               marginBottom: "clamp(20px,2.5vw,28px)",
             }}>
-              <div style={{ fontFamily: PS, fontSize: "clamp(8px,.95vw,10px)", color: "#39ff14", textShadow: "0 0 8px #39ff14", letterSpacing: "1px", marginBottom: "8px" }}>
+              <div style={{ fontFamily: PS, fontSize: "clamp(8px,.95vw,10px)", color: "#ffb800", textShadow: "0 0 8px #ffb800", letterSpacing: "1px", marginBottom: "8px" }}>
                 ⚡ PRIMARY QUEST
               </div>
               <div style={{
                 fontFamily: VT,
                 fontSize: "clamp(18px,2.2vw,26px)",
-                color: "#ffe600",
-                textShadow: "0 0 10px rgba(255,230,0,.4)",
+                color: "#ffb800",
+                textShadow: "0 0 10px rgba(255,180,40,.4)",
                 fontStyle: "italic",
                 lineHeight: 1.3,
               }}>
@@ -2050,13 +2050,13 @@ export default function ArcadePage() {
                     fontSize: "clamp(9px,1.1vw,12px)",
                     color: "#04040a",
                     background: selectedClasses.includes(d.key)
-                      ? "radial-gradient(circle at 40% 30%, #ff5555dd, #ff3b30 55%, #ff3b30aa)"
+                      ? "radial-gradient(circle at 40% 30%, #ff5edbdd, #ff2bd1 55%, #ff2bd1aa)"
                       : `radial-gradient(circle at 40% 30%, ${d.color}dd, ${d.color} 55%, ${d.color}aa)`,
                     border: "none",
                     borderRadius: "8px",
                     padding: "clamp(12px,1.8vw,18px) clamp(20px,3vw,32px)",
                     boxShadow: selectedClasses.includes(d.key)
-                      ? `0 6px 0 #aa000055, 0 0 28px #ff3b3066`
+                      ? `0 6px 0 #8a0e6d55, 0 0 28px #ff2bd166`
                       : `0 6px 0 ${d.color}55, 0 0 28px ${d.color}66`,
                     textShadow: "0 1px 0 rgba(255,255,255,.4)",
                     letterSpacing: "1px",
@@ -2126,17 +2126,17 @@ export default function ArcadePage() {
             width: "100%",
             maxWidth: "460px",
             background: "radial-gradient(120% 100% at 50% 0%, #12192e 0%, #070914 100%)",
-            border: `3px solid ${forgotPinMode ? "#ffe600" : "#39ff14"}`,
+            border: `3px solid ${forgotPinMode ? "#ffb800" : "#ffb800"}`,
             borderRadius: "16px",
             padding: "32px 24px",
-            boxShadow: `0 0 50px ${forgotPinMode ? "rgba(255,230,0,.25)" : "rgba(57,255,20,.25)"}`,
+            boxShadow: `0 0 50px ${forgotPinMode ? "rgba(255,180,40,.25)" : "rgba(255,180,40,.25)"}`,
             position: "relative",
             textAlign: "center",
           }}
         >
           <button
             onClick={closeModal}
-            style={{ position: "absolute", top: "14px", right: "16px", cursor: "pointer", background: "transparent", border: "2px solid #ff3b30", color: "#ff3b30", borderRadius: "6px", padding: "4px 8px", fontFamily: PS, fontSize: "8px" }}
+            style={{ position: "absolute", top: "14px", right: "16px", cursor: "pointer", background: "transparent", border: "2px solid #ff2bd1", color: "#ff2bd1", borderRadius: "6px", padding: "4px 8px", fontFamily: PS, fontSize: "8px" }}
           >
             ✕ CLOSE
           </button>
@@ -2144,12 +2144,12 @@ export default function ArcadePage() {
           {!forgotPinMode ? (
             /* ========== LOGIN VIEW ========== */
             <>
-              <div style={{ fontFamily: PS, fontSize: "18px", color: "#39ff14", textShadow: "0 0 12px #39ff14" }}>🔑 PLAYER LOGIN</div>
+              <div style={{ fontFamily: PS, fontSize: "18px", color: "#ffb800", textShadow: "0 0 12px #ffb800" }}>🔑 PLAYER LOGIN</div>
               <div style={{ fontFamily: VT, fontSize: "18px", color: "#7de8ff", marginTop: "8px" }}>Enter your registered email & PIN to open Player HQ</div>
 
               <form onSubmit={handleCandidateLogin} style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "14px", textAlign: "left" }}>
                 <div>
-                  <div style={{ ...labelSm, color: "#39ff14" }}>COLLEGE EMAIL (@ABES.AC.IN)</div>
+                  <div style={{ ...labelSm, color: "#ffb800" }}>COLLEGE EMAIL (@ABES.AC.IN)</div>
                   <input
                     type="email"
                     value={loginEmail}
@@ -2160,7 +2160,7 @@ export default function ArcadePage() {
                 </div>
 
                 <div>
-                  <div style={{ ...labelSm, color: "#ffe600" }}>SECRET PIN (4-6 DIGITS)</div>
+                  <div style={{ ...labelSm, color: "#ffb800" }}>SECRET PIN (4-6 DIGITS)</div>
                   <input
                     type="password"
                     value={loginPin}
@@ -2182,11 +2182,11 @@ export default function ArcadePage() {
                     fontFamily: PS,
                     fontSize: "10px",
                     color: "#04040a",
-                    background: "radial-gradient(circle at 40% 30%, #eaffb0, #39ff14 55%, #0f8a00)",
+                    background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)",
                     border: "none",
                     borderRadius: "8px",
                     padding: "14px",
-                    boxShadow: "0 6px 0 #0a5200, 0 0 20px rgba(57,255,20,.5)",
+                    boxShadow: "0 6px 0 #3a3410, 0 0 20px rgba(255,180,40,.5)",
                     marginTop: "6px",
                   }}
                 >
@@ -2196,7 +2196,7 @@ export default function ArcadePage() {
 
               <button
                 onClick={() => { setForgotPinMode(true); setLoginErr(""); }}
-                style={{ cursor: "pointer", fontFamily: PS, fontSize: "7px", color: "#ffe600", background: "transparent", border: "none", marginTop: "18px", textShadow: "0 0 6px #ffe600", textDecoration: "underline", textUnderlineOffset: "4px" }}
+                style={{ cursor: "pointer", fontFamily: PS, fontSize: "7px", color: "#ffb800", background: "transparent", border: "none", marginTop: "18px", textShadow: "0 0 6px #ffb800", textDecoration: "underline", textUnderlineOffset: "4px" }}
               >
                 FORGOT PIN? RESET HERE ▶
               </button>
@@ -2204,19 +2204,19 @@ export default function ArcadePage() {
           ) : (
             /* ========== FORGOT PIN VIEW ========== */
             <>
-              <div style={{ fontFamily: PS, fontSize: "16px", color: "#ffe600", textShadow: "0 0 12px #ffe600" }}>🔐 RESET PIN</div>
+              <div style={{ fontFamily: PS, fontSize: "16px", color: "#ffb800", textShadow: "0 0 12px #ffb800" }}>🔐 RESET PIN</div>
               <div style={{ fontFamily: VT, fontSize: "18px", color: "#7de8ff", marginTop: "8px" }}>
                 {resetStep === "verify" ? "Verify your identity using email & registered phone" : "Set your new secret PIN"}
               </div>
 
               {resetSuccess ? (
-                <div style={{ fontFamily: PS, fontSize: "10px", color: "#39ff14", textShadow: "0 0 10px #39ff14", marginTop: "24px", padding: "16px", border: "2px solid #39ff14", borderRadius: "8px", background: "rgba(57,255,20,.08)" }}>
+                <div style={{ fontFamily: PS, fontSize: "10px", color: "#ffb800", textShadow: "0 0 10px #ffb800", marginTop: "24px", padding: "16px", border: "2px solid #ffb800", borderRadius: "8px", background: "rgba(255,180,40,.08)" }}>
                   ✓ {resetSuccess}
                 </div>
               ) : resetStep === "verify" ? (
                 <form onSubmit={handleForgotPinVerify} style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "14px", textAlign: "left" }}>
                   <div>
-                    <div style={{ ...labelSm, color: "#ffe600" }}>COLLEGE EMAIL (@ABES.AC.IN)</div>
+                    <div style={{ ...labelSm, color: "#ffb800" }}>COLLEGE EMAIL (@ABES.AC.IN)</div>
                     <input
                       type="email"
                       value={resetEmail}
@@ -2226,7 +2226,7 @@ export default function ArcadePage() {
                     />
                   </div>
                   <div>
-                    <div style={{ ...labelSm, color: "#ff7a2b" }}>REGISTERED PHONE (LAST 4 DIGITS)</div>
+                    <div style={{ ...labelSm, color: "#ffb800" }}>REGISTERED PHONE (LAST 4 DIGITS)</div>
                     <input
                       type="text"
                       value={resetPhone}
@@ -2237,14 +2237,14 @@ export default function ArcadePage() {
                     />
                   </div>
                   {resetErr && <div style={{ ...errBase, textAlign: "center", fontSize: "8px" }}>{resetErr}</div>}
-                  <button type="submit" style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffe600 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "14px", boxShadow: "0 6px 0 #8a7900, 0 0 20px rgba(255,230,0,.4)", marginTop: "6px" }}>
+                  <button type="submit" style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "14px", boxShadow: "0 6px 0 #8a7900, 0 0 20px rgba(255,180,40,.4)", marginTop: "6px" }}>
                     VERIFY IDENTITY ▶
                   </button>
                 </form>
               ) : (
                 <form onSubmit={handleResetPinSubmit} style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "14px", textAlign: "left" }}>
                   <div>
-                    <div style={{ ...labelSm, color: "#39ff14" }}>NEW PIN (4-6 DIGITS)</div>
+                    <div style={{ ...labelSm, color: "#ffb800" }}>NEW PIN (4-6 DIGITS)</div>
                     <input
                       type="password"
                       value={resetNewPin}
@@ -2266,7 +2266,7 @@ export default function ArcadePage() {
                     />
                   </div>
                   {resetErr && <div style={{ ...errBase, textAlign: "center", fontSize: "8px" }}>{resetErr}</div>}
-                  <button type="submit" style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #eaffb0, #39ff14 55%, #0f8a00)", border: "none", borderRadius: "8px", padding: "14px", boxShadow: "0 6px 0 #0a5200, 0 0 20px rgba(57,255,20,.5)", marginTop: "6px" }}>
+                  <button type="submit" style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "14px", boxShadow: "0 6px 0 #3a3410, 0 0 20px rgba(255,180,40,.5)", marginTop: "6px" }}>
                     SET NEW PIN ▶
                   </button>
                 </form>
