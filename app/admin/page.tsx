@@ -20,10 +20,10 @@ const VT = "'VT323', monospace";
 const SANS = "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 // NOTE: there is deliberately no master key in this file any more.
-// It used to be `const MASTER_KEY = "techno21"`, which shipped in the compiled
-// JavaScript — anyone could read it from view-source and take over the panel.
-// The key is now compared against a bcrypt hash inside Postgres; the browser
-// only ever sends what the operator typed.
+// It used to be a hardcoded `const MASTER_KEY = "..."`, which shipped in the
+// compiled JavaScript — anyone could read it from view-source and take over the
+// panel. The key is now compared against a bcrypt hash inside Postgres; the
+// browser only ever sends what the operator typed.
 
 const STAGES = [
   { key: "submitted", label: "FORM SUBMITTED", icon: "✓", color: "#5fb9d6" },

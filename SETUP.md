@@ -178,6 +178,78 @@ Delete the test applicant from the admin panel when done.
 
 ---
 
+## Resetting users
+
+Run these in Supabase → SQL Editor.
+
+### Wipe everything (fresh start before recruitment opens)
+
+```sql
+delete from candidates;
+delete from auth_throttle;
+```
+
+Player numbers restart at **1001** automatically — the next one is
+`max(player_no) + 1` over an now-empty table.
+
+Optional: applicants who used *Forgot PIN* also have a Supabase Auth account.
+Those are harmless to leave, but to clear them too:
+
+```sql
+delete from auth.users;   -- only OTP-reset accounts live here
+```
+
+### Delete one applicant
+
+Easiest is the 🗑 button in the admin panel (goes through the same checks).
+By SQL:
+
+```sql
+delete from candidates    where email = 'someone@abes.ac.in';
+delete from auth_throttle where id    = 'login:someone@abes.ac.in';
+```
+
+### Unlock someone who's rate-limited
+
+Five wrong PINs locks an account for 15 minutes.
+
+```sql
+delete from auth_throttle;                                    -- everyone
+delete from auth_throttle where id = 'login:someone@abes.ac.in';  -- one person
+delete from auth_throttle where id = 'admin';                 -- admin lockout
+```
+
+A successful *Forgot PIN* also clears the lock, so applicants can self-serve.
+
+### Reset progress but keep the applications
+
+Sends everyone back to Screening, clearing scores, submissions and rejections:
+
+```sql
+update candidates set
+  stage_idx = 1, task_score = null, interview_score = null,
+  rejected = false, rejected_at_stage = null, rejection_feedback = null,
+  sub_link_1 = null, sub_link_2 = null;
+```
+
+### Let someone re-register from scratch (keeping their player number)
+
+```sql
+update candidates set pin_hash = '' where email = 'someone@abes.ac.in';
+```
+
+With no PIN set, the registration form accepts them again and overwrites their
+answers. (If they simply forgot their PIN, they don't need this — Forgot PIN
+handles it.)
+
+> **Deleting server-side does not clear the applicant's browser.** Their device
+> still holds `tech_session` and a cached copy of their own row, so the landing
+> page keeps offering "RESUME AS …" and HQ shows stale data until they press
+> **LOG OUT**. Anything they try to do will fail against the server. If this
+> matters during recruitment, ask for the stale-session check to be added.
+
+---
+
 ## Where things live
 
 | Thing | Where |
