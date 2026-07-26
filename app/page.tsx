@@ -1307,8 +1307,7 @@ export default function ArcadePage() {
     });
   };
   const onShareWA = () => {
-    const t = `I just joined ${club()} as a ${selLabel()}! Player #${String(playerNo || 1).padStart(4, "0")}. Insert coin & join the arcade!`;
-    window.open("https://wa.me/?text=" + encodeURIComponent(t), "_blank");
+    window.open("https://chat.whatsapp.com/Cx4pjOV9cBQGWUNBuUeEKn?mode=gi_t", "_blank");
   };
   const onShareIG = () => window.open("https://www.instagram.com/abes_technovation/", "_blank");
 
@@ -2321,6 +2320,7 @@ export default function ArcadePage() {
 
           <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "clamp(24px,3.5vw,36px)", flexWrap: "wrap" }}>
             <ArcadeButton onClick={() => goTo("pass")} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#00f0ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>◄ VIEW MY PASS</ArcadeButton>
+            <ArcadeButton onClick={onShareWA} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#25d366", background: "transparent", border: "2px solid #1d5732", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>◈ WHATSAPP GROUP</ArcadeButton>
             {/* Read-only view of the submitted application. The create form
                 locks itself once the account is activated, so nothing here is
                 editable — it exists so applicants can re-read what they sent. */}
