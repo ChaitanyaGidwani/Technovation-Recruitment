@@ -78,11 +78,73 @@ end $$;
 --    Fine for an internal club tool, but the data is NOT private from someone
 --    who inspects the site. Harden later via SECURITY DEFINER RPCs if needed.
 alter table candidates enable row level security;
-drop policy if exists "app can read"   on candidates;
-drop policy if exists "app can insert" on candidates;
-drop policy if exists "app can update" on candidates;
-drop policy if exists "app can delete" on candidates;
+
+-- Drop EVERY existing policy on the table by name, whatever it's called.
+-- (Dropping by hardcoded name breaks the moment a policy was created with
+--  different spacing/casing, which aborts the whole script.)
+do $$
+declare pol record;
+begin
+  for pol in
+    select policyname from pg_policies
+    where schemaname = 'public' and tablename = 'candidates'
+  loop
+    execute format('drop policy %I on public.candidates', pol.policyname);
+  end loop;
+end $$;
+
 create policy "app can read"   on candidates for select using (true);
 create policy "app can insert" on candidates for insert with check (true);
 create policy "app can update" on candidates for update using (true) with check (true);
 create policy "app can delete" on candidates for delete using (true);
+
+-- 7. Readable view — every applicant field with the 7 questionnaire answers
+--    flattened out of the `answers` JSON into real columns. The table itself
+--    still stores them as jsonb (that's what the app reads/writes); this view
+--    is purely for browsing and exporting from the Supabase dashboard.
+--    Open it under Table Editor → candidates_full, or "Export to CSV" there.
+-- Dropped first: "create or replace view" refuses to run if any column name
+-- changed since last time, which would abort the script.
+drop view if exists candidates_full;
+create view candidates_full as
+select
+  c.player_no                          as "PlayerNo",
+  c.app_id                             as "AppID",
+  c.name                               as "Name",
+  c.email                              as "Email",
+  c.phone                              as "Phone",
+  c.branch                             as "Branch",
+  c.section                            as "Section",
+  c.college_id                         as "AdmissionNo",
+  c.domains[1]                         as "Domain1",
+  c.domains[2]                         as "Domain2",
+  case
+    when c.rejected then 'REJECTED / STOPPED'
+    when c.stage_idx = 0 then 'FORM SUBMITTED'
+    when c.stage_idx = 1 then 'SCREENING'
+    when c.stage_idx = 2 then 'TASK ROUND'
+    when c.stage_idx = 3 then 'INTERVIEW'
+    when c.stage_idx = 4 then 'RECRUITED'
+    when c.stage_idx = 5 then 'BENCH / ON HOLD'
+    else 'UNKNOWN'
+  end                                  as "Stage",
+  c.stage_idx                          as "StageIdx",
+  c.task_score                         as "TaskScore",
+  c.interview_score                    as "InterviewScore",
+  (c.task_score + c.interview_score)   as "TotalScore",
+  c.sub_link_1                         as "SubLink1",
+  c.sub_link_2                         as "SubLink2",
+  c.rejected                           as "Rejected",
+  c.rejected_at_stage                  as "RejectedAtStage",
+  c.rejection_feedback                 as "RejectionFeedback",
+  c.notes                              as "ReviewerNotes",
+  c.updated_at                         as "Updated",
+  c.answers ->> 'q1'                   as "Q1 Biggest strength & skill improving",
+  c.answers ->> 'q2'                   as "Q2 Why this club / what excites you",
+  c.answers ->> 'q3'                   as "Q3 Skills & talents you bring",
+  c.answers ->> 'q4'                   as "Q4 Goals to achieve this year",
+  c.answers ->> 'q5'                   as "Q5 Handling challenges in a group",
+  c.answers ->> 'q6'                   as "Q6 Owning a task start to finish",
+  c.answers ->> 'q7'                   as "Q7 One project you would launch"
+from candidates c
+order by c.player_no;

@@ -29,6 +29,18 @@ const STAGES = [
   { key: "rejected", label: "BENCH / ON HOLD", icon: "✕", color: "#ff5c6a" },
 ];
 
+// The 7 quest questions, in the same order the applicant answers them.
+// Used to give every answer its own column in all exports.
+const QUESTIONS: { key: string; label: string }[] = [
+  { key: "q1", label: "Q1 Biggest strength & skill improving" },
+  { key: "q2", label: "Q2 Why this club / what excites you" },
+  { key: "q3", label: "Q3 Skills & talents you bring" },
+  { key: "q4", label: "Q4 Goals to achieve this year" },
+  { key: "q5", label: "Q5 Handling challenges in a group" },
+  { key: "q6", label: "Q6 Owning a task start to finish" },
+  { key: "q7", label: "Q7 One project you would launch" },
+];
+
 const DOMAINS = [
   { key: "tech", name: "TECHNICAL", color: "#00f0ff", glyph: "Ψ" },
   { key: "graphics", name: "GRAPHICS", color: "#ff2bd1", glyph: "✦" },
@@ -330,28 +342,63 @@ export default function AdminPage() {
     return [l1, l2];
   };
 
+  // ---------------------------------------------------------------
+  //  ONE canonical export schema — every applicant field plus all 7
+  //  questionnaire answers, each in its own column. CSV, Excel and the
+  //  Google Sheet all render from this, so the three can never drift.
+  // ---------------------------------------------------------------
+  const FULL_HEADERS = [
+    "PlayerNo", "AppID", "Name", "Email", "Phone", "Branch", "Section", "AdmissionNo",
+    "Domain1", "Domain2", "Stage", "StageIdx",
+    "TaskScore", "InterviewScore", "TotalScore",
+    "SubLink1", "SubLink2",
+    "Rejected", "RejectedAtStage", "RejectionFeedback",
+    "ReviewerNotes", "Updated",
+    ...QUESTIONS.map((q) => q.label),
+  ];
+
+  const domName = (key?: string) => (key ? DOMAINS.find((d) => d.key === key)?.name || key : "");
+
+  const fullRow = (c: Candidate): (string | number)[] => {
+    const [l1, l2] = subLinksFor(c);
+    const ans = c.answers || {};
+    return [
+      c.playerNo ?? "",
+      c.id ?? "",
+      c.name ?? "",
+      c.email ?? "",
+      c.phone ?? "",
+      c.branch ?? "",
+      c.section ?? "",
+      c.collegeId ?? "",
+      domName((c.domains || [])[0]),
+      domName((c.domains || [])[1]),
+      c.rejected ? "REJECTED / STOPPED" : STAGES[c.stageIdx]?.label || "UNKNOWN",
+      c.stageIdx ?? "",
+      c.taskScore ?? "",
+      c.interviewScore ?? "",
+      c.taskScore != null && c.interviewScore != null ? c.taskScore + c.interviewScore : "",
+      l1,
+      l2,
+      c.rejected ? "YES" : "NO",
+      c.rejectedAtStage != null ? STAGES[c.rejectedAtStage]?.label || c.rejectedAtStage : "",
+      c.rejectionFeedback ?? "",
+      c.notes ?? "",
+      c.updatedAt ?? "",
+      ...QUESTIONS.map((q) => ans[q.key] ?? ""),
+    ];
+  };
+
   const exportCSV = () => {
-    const headers = ["PlayerNo", "Name", "Email", "Branch", "Phone", "Domains", "Stage", "TaskScore", "InterviewScore", "TotalScore", "SubLink1", "SubLink2", "Updated"];
-    const rows = candidates.map((c) => {
-      const [l1, l2] = subLinksFor(c);
-      return [
-        c.playerNo,
-        `"${c.name}"`,
-        `"${c.email}"`,
-        `"${c.branch}"`,
-        `"${c.phone}"`,
-        `"${c.domains.join(" + ")}"`,
-        `"${STAGES[c.stageIdx]?.label || "UNKNOWN"}"`,
-        c.taskScore != null ? c.taskScore : "",
-        c.interviewScore != null ? c.interviewScore : "",
-        c.taskScore != null && c.interviewScore != null ? c.taskScore + c.interviewScore : "",
-        `"${l1.replace(/"/g, "'")}"`,
-        `"${l2.replace(/"/g, "'")}"`,
-        `"${c.updatedAt}"`,
-      ];
-    });
-    const content = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob([content], { type: "text/csv" });
+    // RFC-4180 quoting — answers are free text and may contain commas,
+    // quotes or newlines, all of which must survive the round-trip.
+    const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const content = [
+      FULL_HEADERS.map(cell).join(","),
+      ...candidates.map((c) => fullRow(c).map(cell).join(",")),
+    ].join("\r\n");
+    // BOM so Excel opens UTF-8 answers correctly.
+    const blob = new Blob(["﻿" + content], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -364,45 +411,30 @@ export default function AdminPage() {
   // an Office-flavoured HTML table saved with an .xls extension.
   const exportXLSX = () => {
     const esc = (v: unknown) =>
-      String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    // Mirror the Supabase `candidates` table exactly (same column names & order).
-    const cols = [
-      "email", "app_id", "player_no", "name", "branch", "section", "phone",
-      "college_id", "domains", "answers", "stage_idx",
-      "sub_link_1", "sub_link_2", "task_score", "interview_score",
-      "rejected", "rejected_at_stage", "rejection_feedback", "notes", "updated_at",
-    ];
-    const head = `<tr>${cols.map((c) => `<th style="background:#1c2540;color:#fff">${esc(c)}</th>`).join("")}</tr>`;
+      String(v == null ? "" : v)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/\r?\n/g, "<br>");
+    const head = `<tr>${FULL_HEADERS.map(
+      (h) => `<th style="background:#1c2540;color:#fff;white-space:nowrap">${esc(h)}</th>`
+    ).join("")}</tr>`;
+    // Answer columns get room to breathe and wrap instead of running off-screen.
+    const firstAnswerCol = FULL_HEADERS.length - QUESTIONS.length;
     const body = candidates
       .map((c) => {
-        const [l1, l2] = subLinksFor(c);
-        const vals = [
-          c.email,
-          c.id ?? "",
-          c.playerNo ?? "",
-          c.name ?? "",
-          c.branch ?? "",
-          c.section ?? "",
-          c.phone ?? "",
-          c.collegeId ?? "",
-          `{${(c.domains || []).join(",")}}`,
-          JSON.stringify(c.answers || {}),
-          c.stageIdx ?? "",
-          l1,
-          l2,
-          c.taskScore ?? "",
-          c.interviewScore ?? "",
-          c.rejected ? "true" : "false",
-          c.rejectedAtStage ?? "",
-          c.rejectionFeedback ?? "",
-          c.notes ?? "",
-          c.updatedAt ?? "",
-        ];
-        return `<tr>${vals.map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`;
+        const vals = fullRow(c);
+        return `<tr>${vals
+          .map((v, i) => {
+            const wide = i >= firstAnswerCol;
+            const style = wide
+              ? ' style="width:420px;vertical-align:top;mso-number-format:\\@"'
+              : ' style="vertical-align:top;mso-number-format:\\@"';
+            return `<td${style}>${esc(v)}</td>`;
+          })
+          .join("")}</tr>`;
       })
       .join("");
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1">${head}${body}</table></body></html>`;
-    const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>td,th{border:1px solid #ccc;padding:4px;font-family:Calibri,Arial,sans-serif;font-size:11pt}</style></head><body><table border="1">${head}${body}</table></body></html>`;
+    const blob = new Blob(["﻿" + html], { type: "application/vnd.ms-excel;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -412,20 +444,9 @@ export default function AdminPage() {
   };
 
   // -------- Google Sheets live sync --------
-  const SHEET_HEADERS = ["PlayerNo", "Name", "Email", "Branch", "Section", "Phone", "Domains", "Stage", "TaskScore", "InterviewScore", "TotalScore", "SubLink1", "SubLink2", "ReviewerNotes", "Updated"];
-  const rosterRows = () =>
-    candidates.map((c) => {
-      const total = c.taskScore != null && c.interviewScore != null ? c.taskScore + c.interviewScore : "";
-      const [l1, l2] = subLinksFor(c);
-      const row = [
-        c.playerNo, c.name, c.email, c.branch, c.section, c.phone,
-        (c.domains || []).join(" + "),
-        c.rejected ? "REJECTED / STOPPED" : STAGES[c.stageIdx]?.label || "UNKNOWN",
-        c.taskScore ?? "", c.interviewScore ?? "", total,
-        l1, l2, c.notes || "", c.updatedAt,
-      ];
-      return row.map((v) => (v == null ? "" : v));
-    });
+  // Google Sheets receives the exact same columns as CSV / Excel.
+  const SHEET_HEADERS = FULL_HEADERS;
+  const rosterRows = () => candidates.map((c) => fullRow(c).map((v) => (v == null ? "" : v)));
 
   const syncNow = () => {
     if (!webhookUrl) return;
