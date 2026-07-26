@@ -91,7 +91,7 @@ Run these against the real project once:
 
 1. **Login** — existing applicant, existing PIN. Old PINs still work; they are
    silently re-hashed to bcrypt on first successful login.
-2. **Wrong PIN ×5** — should lock that account for 15 minutes.
+2. **Wrong PIN ×5** — should lock that account for 5 minutes.
 3. **Forgot PIN** — full cycle: request code → receive email → enter code →
    set new PIN → log in with it.
 4. **Admin** — log in with the new key, promote someone, confirm it persists
@@ -115,5 +115,5 @@ Run these against the real project once:
 | Admin key `techno21` shipped in the JS bundle | Key compared to a bcrypt hash inside Postgres |
 | PIN hashed with unsalted 32-bit FNV-1a (instant to brute-force) | bcrypt, verified server-side, auto-upgraded on login |
 | Reset needed only email + last 4 phone digits — both publicly readable | Reset requires a code delivered to the college inbox |
-| No limit on login attempts | 5 failures → 15-minute lockout, enforced in the database |
+| No limit on login attempts | 5 failures → 5-minute lockout, enforced in the database |
 | Every visitor's browser cached the full roster in localStorage | Applicants cache only their own row; admin holds data in memory |

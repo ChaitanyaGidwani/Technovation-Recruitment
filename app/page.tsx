@@ -704,6 +704,28 @@ export default function ArcadePage() {
   };
 
   /**
+   * Wipe every applicant key from both stores.
+   *
+   * Prefix scan rather than a fixed list, so a key added later is covered
+   * automatically instead of quietly becoming a leak. `tech_sheet_webhook` is
+   * kept: it's the ADMIN's Google Sheets config on their own machine, not this
+   * applicant's data. Shared by logout and by the fresh-tab reset.
+   */
+  const clearAppStorage = useCallback(() => {
+    try {
+      const KEEP = new Set(["tech_sheet_webhook"]);
+      for (const store of [window.localStorage, window.sessionStorage]) {
+        const doomed: string[] = [];
+        for (let i = 0; i < store.length; i++) {
+          const k = store.key(i);
+          if (k && k.startsWith("tech_") && !KEEP.has(k)) doomed.push(k);
+        }
+        doomed.forEach((k) => store.removeItem(k));
+      }
+    } catch { /* storage may be unavailable in private mode */ }
+  }, []);
+
+  /**
    * Pull this applicant's current record from the server and re-hydrate the
    * whole UI from it — stage, task unlocks, submissions, rejection state.
    *
@@ -748,23 +770,7 @@ export default function ArcadePage() {
     // End any Supabase Auth session (created by a Forgot PIN flow).
     await apiSignOut();
 
-    try {
-      // Prefix scan rather than a fixed list, so keys added later are covered
-      // automatically and can't be forgotten here.
-      // tech_sheet_webhook is kept: it's the ADMIN's Google Sheets config on
-      // their own machine, not this applicant's data.
-      const KEEP = new Set(["tech_sheet_webhook"]);
-      for (const store of [window.localStorage, window.sessionStorage]) {
-        const doomed: string[] = [];
-        for (let i = 0; i < store.length; i++) {
-          const k = store.key(i);
-          if (k && k.startsWith("tech_") && !KEEP.has(k)) doomed.push(k);
-        }
-        doomed.forEach((k) => store.removeItem(k));
-      }
-    } catch {
-      /* ignore — storage may be unavailable in private mode */
-    }
+    clearAppStorage();
 
     // Hard navigation to a clean URL. A state reset could leave something
     // behind in a ref or a pending timer; a fresh document cannot.
@@ -780,6 +786,33 @@ export default function ArcadePage() {
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // ---- FRESH-TAB RESET -------------------------------------------------
+  // A login is scoped to the browser TAB. sessionStorage survives a refresh but
+  // not a tab close, so:
+  //   • same tab + refresh      -> marker present  -> session kept, drafts kept
+  //   • new tab / reopened app  -> marker missing  -> everything wiped, fresh site
+  //   • email on file but no PIN in this tab -> stale login -> wiped
+  // This is what stops a shared lab machine handing the next person a logged-in
+  // session, without punishing someone who accidentally hits refresh mid-form.
+  //
+  // Declared BEFORE the session-restore effect below so it runs first — the
+  // restore then reads already-cleared storage and shows a first-time site.
+  useEffect(() => {
+    try {
+      const sameTab = sessionStorage.getItem("tech_tab") === "1";
+      const staleLogin =
+        !!localStorage.getItem("tech_session") && !sessionStorage.getItem("tech_pin");
+
+      if (!sameTab || staleLogin) {
+        clearAppStorage();
+        setResumeInfo(null);
+        setPin("");
+      }
+      sessionStorage.setItem("tech_tab", "1");
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Remember a prior session — but DON'T hijack the landing page. Pre-load the

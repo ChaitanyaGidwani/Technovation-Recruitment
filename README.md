@@ -36,8 +36,8 @@ exists *after* screening — applicants are promoted into it, not through it.
 ## Features
 
 **Arcade floor** — scroll-driven CRT reveal of the 6 guild cabinets, terminal
-boot sequence, cursor-following joystick, live registration counter (read from
-the server, so every device shows the same number), quick-hook form.
+boot sequence, cursor-following joystick, quick-hook form, and a prominent
+Player Login for returning applicants.
 
 **Character creation** — player file, 2-of-6 domain selection, 7 quest
 questions. Locks itself read-only once submitted; applicants can re-read it any
@@ -90,7 +90,7 @@ them.
   database reads the account from the verified token, not from the request.
 - The admin key is compared to a bcrypt hash in the database. **No secret ships
   in the JavaScript bundle.**
-- 5 failed attempts → 15-minute lockout, enforced in the database.
+- 5 failed attempts → 5-minute lockout, enforced in the database.
 - Applicants can only ever write their own task links and unlocked answers —
   never stage, scores, or notes.
 

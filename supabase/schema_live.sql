@@ -193,7 +193,7 @@ begin
     returning fails into n;
   if n >= 5 then
     update auth_throttle
-      set locked_until = now() + interval '15 minutes', fails = 0
+      set locked_until = now() + interval '5 minutes', fails = 0
       where id = p_id;
   end if;
 end $$;
@@ -252,7 +252,7 @@ returns jsonb language sql immutable set search_path = public, extensions as $$
 $$;
 
 -- 8e. Applicant login. Returns the row on success, null on failure.
---     Locks the account for 15 min after 5 consecutive failures.
+--     Locks the account for 5 min after 5 consecutive failures.
 create or replace function app_login(p_email text, p_pin text)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare c candidates%rowtype; k text; em text;

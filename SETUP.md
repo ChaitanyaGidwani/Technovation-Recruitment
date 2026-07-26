@@ -81,7 +81,7 @@ select app_set_admin_key('pick-something-long-and-random');
 ```
 
 Only the bcrypt hash is stored. The key never reaches the browser; `/admin`
-verifies it inside Postgres. Five wrong attempts locks admin for 15 minutes.
+verifies it inside Postgres. Five wrong attempts locks admin for 5 minutes.
 
 ---
 
@@ -160,7 +160,7 @@ Run all six against the real deployed site:
 
 1. **Register** a test applicant end to end.
 2. **Log in** with that PIN, then log out and back in.
-3. **Wrong PIN ×5** → account locks for 15 minutes.
+3. **Wrong PIN ×5** → account locks for 5 minutes.
 4. **Forgot PIN** → request code → email arrives with a *code, not a link* →
    enter it → set new PIN → log in with it.
 5. **Admin** → log in with your new key → promote the test applicant →
@@ -211,7 +211,7 @@ delete from auth_throttle where id    = 'login:someone@abes.ac.in';
 
 ### Unlock someone who's rate-limited
 
-Five wrong PINs locks an account for 15 minutes.
+Five wrong PINs locks an account for 5 minutes.
 
 ```sql
 delete from auth_throttle;                                    -- everyone
@@ -272,5 +272,5 @@ handles it.)
 | Reset email has a link, not a code | `{{ .Token }}` missing from **Confirm signup** |
 | No reset email at all | SMTP not connected, or hourly cap hit |
 | Admin key rejected | Run `app_set_admin_key(...)` again |
-| Locked out of admin | Wait 15 min, or `delete from auth_throttle where id = 'admin';` |
+| Locked out of admin | Wait 5 min, or `delete from auth_throttle where id = 'admin';` |
 | Live count shows 0 | `app_stats()` missing — re-run the schema |
