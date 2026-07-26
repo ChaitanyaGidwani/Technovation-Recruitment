@@ -10,7 +10,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { login as apiLogin, stats as apiStats, sendResetCode, verifyResetCode, resetPin, ApiError } from "@/lib/api";
+import {
+  login as apiLogin,
+  register as apiRegister,
+  save as apiSave,
+  stats as apiStats,
+  sendResetCode,
+  verifyResetCode,
+  resetPin,
+  ApiError,
+} from "@/lib/api";
 import { candFromRow } from "@/lib/cloud-sync";
 
 
@@ -347,6 +356,8 @@ export default function ArcadePage() {
   const [resetSuccess, setResetSuccess] = useState("");
   const [loginErr, setLoginErr] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
+  const [enterBusy, setEnterBusy] = useState(false);
+  const [taskErr, setTaskErr] = useState("");
   // A remembered session shows a one-tap "Resume" on the landing page
   // (instead of force-navigating there).
   const [resumeInfo, setResumeInfo] = useState<{ email: string; name: string } | null>(null);
@@ -816,7 +827,11 @@ export default function ArcadePage() {
       return;
     }
 
-    // Save to real candidate store (tech_candidates_admin)
+    // LOCAL DRAFT ONLY — intentionally does not touch the server.
+    // The row can't be created yet: app_register writes the record and its PIN
+    // together, and the PIN is collected on the next screen. onEnterHQ builds
+    // its payload from React state (form / selectedClasses), not from this
+    // draft, so nothing is lost if localStorage is empty on another device.
     try {
       const existingRaw = localStorage.getItem("tech_candidates_admin");
       const list = existingRaw ? JSON.parse(existingRaw) : [];
@@ -884,58 +899,90 @@ export default function ArcadePage() {
     setPage("pass");
   };
 
-  const onEnterHQ = () => {
-    if (pin.length < 4) {
+  // Creates the applicant's row ON THE SERVER. This is the only place it is
+  // created, because the row and its PIN must be written together.
+  //
+  // Previously this only wrote to localStorage and relied on the old cloud-sync
+  // to mirror it up. That mirror was removed with the security work, so
+  // registrations stopped reaching Supabase entirely and those applicants could
+  // never log in again — their account existed in one browser and nowhere else.
+  const onEnterHQ = async () => {
+    if (!/^\d{4,6}$/.test(pin)) {
       setError("PIN MUST BE 4-6 DIGITS");
       return;
     }
+    if (enterBusy) return;
 
-    // Save the hashed PIN to the candidate record
+    setEnterBusy(true);
+    setError("");
+    const email = form.email.trim();
     try {
-      const existingRaw = localStorage.getItem("tech_candidates_admin");
-      if (existingRaw) {
-        const list = JSON.parse(existingRaw);
-        const updated = list.map((c: any) => {
-          if (c.email.toLowerCase() === form.email.trim().toLowerCase()) {
-            return { ...c, pinHash: hashPin(pin) };
-          }
-          return c;
-        });
-        localStorage.setItem("tech_candidates_admin", JSON.stringify(updated));
+      const row = await apiRegister(email, pin, {
+        app_id: `cand-${Date.now()}`,
+        name: form.name.trim(),
+        branch: form.branch.trim(),
+        section: form.section.trim(),
+        phone: form.phone.trim(),
+        college_id: form.college.trim(),
+        domains: selectedClasses,
+        answers: {
+          q1: form.q1.trim(), q2: form.q2.trim(), q3: form.q3.trim(),
+          q4: form.q4.trim(), q5: form.q5.trim(), q6: form.q6.trim(),
+          q7: form.q7.trim(),
+        },
+      });
 
-        // Also sync stage
-        const match = updated.find((c: any) => c.email.toLowerCase() === form.email.trim().toLowerCase());
-        if (match) {
-          setStageIdx(match.stageIdx || 1);
-          if (match.submissionLink) {
-            setTaskSubmitted(true);
-            setTaskInput(match.submissionLink);
-          }
-        }
+      // The server owns the player number, so two devices can't be handed the same one.
+      const cand = candFromRow(row);
+      setPlayerNo(cand.playerNo || 1001);
+      setStageIdx(cand.stageIdx || 1);
+      try {
+        localStorage.setItem("tech_candidates_admin", JSON.stringify([cand]));
+      } catch { /* ignore */ }
+      void apiStats().then((s) => setRegistrationCount(s.registrations));
+
+      saveSession(email);
+      goTo("hq");
+    } catch (err) {
+      const code = (err as ApiError)?.code || "ERROR";
+      if (code === "ALREADY_REGISTERED") {
+        setLoginEmail(email);
+        setLoginErr("YOU'VE ALREADY APPLIED WITH THIS EMAIL — ENTER YOUR PIN TO LOG IN.");
+        setShowLoginModal(true);
+      } else if (code === "BAD_EMAIL_DOMAIN") {
+        setError("PLEASE USE YOUR COLLEGE EMAIL (@ABES.AC.IN)");
+      } else if (code === "BAD_PIN_FORMAT") {
+        setError("PIN MUST BE 4-6 DIGITS");
+      } else if (code === "OFFLINE") {
+        setError("CANNOT REACH THE SERVER — CHECK YOUR CONNECTION AND RETRY");
+      } else {
+        setError("COULD NOT COMPLETE REGISTRATION. PLEASE TRY AGAIN.");
       }
-    } catch {
-      /* fallback */
+    } finally {
+      setEnterBusy(false);
     }
-
-    saveSession(form.email.trim());
-    goTo("hq");
   };
 
   // Submit the task for one specific department. Stage is NOT self-advanced —
   // only the Guild Council admin promotes candidates between rounds.
-  const submitTaskFor = (domainKey: string) => {
+  const submitTaskFor = async (domainKey: string) => {
     if (taskDone[domainKey]) return; // submissions are final — no resubmit
     const link = (taskLinks[domainKey] || "").trim();
     if (!link) return;
     setTaskDone((p) => ({ ...p, [domainKey]: true }));
 
-    // Persist per-department submissions to the shared candidate store.
+    const email = form.email.trim();
+    // Which server column this domain maps to: 1st enlisted domain -> sub_link_1.
+    const idx = selectedClasses.indexOf(domainKey);
+    const col = idx === 1 ? "sub_link_2" : "sub_link_1";
+
+    // Persist locally first so the UI stays responsive...
     try {
       const existingRaw = localStorage.getItem("tech_candidates_admin");
       if (existingRaw) {
         const list = JSON.parse(existingRaw);
         const updated = list.map((c: any) => {
-          if (c.email.toLowerCase() === form.email.trim().toLowerCase()) {
+          if (c.email.toLowerCase() === email.toLowerCase()) {
             const submissions = { ...(c.submissions || {}), [domainKey]: link };
             const firstLink = Object.values(submissions).find(Boolean) as string | undefined;
             return { ...c, submissions, submissionLink: firstLink || c.submissionLink, updatedAt: "JUST NOW" };
@@ -948,8 +995,17 @@ export default function ArcadePage() {
       /* fallback */
     }
 
-    // No comms entry to push — the feed reads taskDone directly and will show
-    // the "task received" message on this render.
+    // ...then push to the server. Without this the admin panel, the exports and
+    // the Google Sheet never see the submission — it stayed in the applicant's
+    // own browser.
+    try {
+      await apiSave(email, pin, { [col]: link });
+      setTaskErr("");
+    } catch {
+      // Roll the tick back so the applicant knows it didn't land and can retry.
+      setTaskDone((p) => ({ ...p, [domainKey]: false }));
+      setTaskErr("COULDN'T SAVE THAT LINK — CHECK YOUR CONNECTION AND SUBMIT AGAIN.");
+    }
   };
 
   const handleCandidateLogin = async (e: React.FormEvent) => {
@@ -1815,7 +1871,7 @@ export default function ArcadePage() {
               <div style={labelSm}>SET SECRET PIN</div>
               <input value={pin} onChange={(e) => { setPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setError(""); }} type="password" maxLength={6} placeholder="4-6 DIGIT PIN" style={fieldStyle} />
             </div>
-            <ArcadeButton onClick={onEnterHQ} style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(9px,1.2vw,12px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "6px", padding: "14px 18px", boxShadow: "0 6px 0 #006074, 0 0 20px rgba(0,240,255,.5)", textShadow: "0 1px 0 rgba(255,255,255,.4)" }} activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #006074" }}>ENTER HQ ▶</ArcadeButton>
+            <ArcadeButton onClick={onEnterHQ} style={{ cursor: enterBusy ? "wait" : "pointer", opacity: enterBusy ? 0.7 : 1, fontFamily: PS, fontSize: "clamp(9px,1.2vw,12px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "6px", padding: "14px 18px", boxShadow: "0 6px 0 #006074, 0 0 20px rgba(0,240,255,.5)", textShadow: "0 1px 0 rgba(255,255,255,.4)" }} activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #006074" }}>{enterBusy ? "SAVING…" : "ENTER HQ ▶"}</ArcadeButton>
           </div>
           <div style={{ ...errBase, marginTop: "12px" }}>{error}</div>
         </div>
@@ -1994,7 +2050,12 @@ export default function ArcadePage() {
                               placeholder="PASTE SUBMISSION LINK"
                               style={{ flex: 1, minWidth: "150px", background: "#050a10", border: "2px solid #3a3410", borderRadius: "4px", color: "#ffb800", fontFamily: VT, fontSize: "16px", padding: "6px 9px", textShadow: "0 0 6px #ffb800" }}
                             />
-                            <ArcadeButton onClick={() => submitTaskFor(d.key)} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#241a11", background: "#ffb800", border: "none", borderRadius: "4px", padding: "8px 12px", boxShadow: "0 4px 0 #3a3410" }} activeStyle={{ transform: "translateY(2px)", boxShadow: "0 2px 0 #3a3410" }}>SUBMIT</ArcadeButton>
+                            <ArcadeButton onClick={() => void submitTaskFor(d.key)} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#241a11", background: "#ffb800", border: "none", borderRadius: "4px", padding: "8px 12px", boxShadow: "0 4px 0 #3a3410" }} activeStyle={{ transform: "translateY(2px)", boxShadow: "0 2px 0 #3a3410" }}>SUBMIT</ArcadeButton>
+                          </div>
+                        )}
+                        {taskErr && !taskDone[d.key] && (
+                          <div style={{ fontFamily: VT, fontSize: "15px", color: "#ff2bd1", marginTop: "8px", lineHeight: 1.3 }}>
+                            ⚠ {taskErr}
                           </div>
                         )}
                       </div>

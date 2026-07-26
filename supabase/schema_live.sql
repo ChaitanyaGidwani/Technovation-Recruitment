@@ -243,9 +243,12 @@ begin
 end $$;
 
 -- 8d. Row shape returned to the applicant — pin_hash is never exposed.
+--     `has_pin` says only WHETHER a PIN is set (never its value), which the UI
+--     needs to know the account is activated so it can lock the answers.
 create or replace function _cand_public(c candidates)
 returns jsonb language sql immutable as $$
-  select to_jsonb(c) - 'pin_hash';
+  select (to_jsonb(c) - 'pin_hash')
+      || jsonb_build_object('has_pin', (c.pin_hash is not null and c.pin_hash <> ''));
 $$;
 
 -- 8e. Applicant login. Returns the row on success, null on failure.

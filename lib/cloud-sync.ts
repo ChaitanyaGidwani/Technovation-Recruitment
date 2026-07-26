@@ -63,7 +63,10 @@ function candFromRow(r: Cand): Cand {
     collegeId: r.college_id || "",
     domains: r.domains || [],
     answers: r.answers || {},
-    pinHash: r.pin_hash || "",
+    // The server strips the real hash and sends `has_pin` instead. The sentinel
+    // keeps the "account activated?" checks (which only test truthiness) working
+    // without the hash ever reaching the browser.
+    pinHash: r.pin_hash || (r.has_pin ? "set" : ""),
     stageIdx: r.stage_idx ?? 1,
     submissions: (() => {
       const doms: string[] = r.domains || [];
