@@ -41,7 +41,7 @@ const TIMELINE = [
 const ROUNDS = [
   {
     level: "LEVEL 1",
-    title: "CHARACTER SCREENING",
+    title: "PERSONALITY TEST",
     glyph: "🜂",
     color: CYAN,
     desc: "Personality & Mindset Check. Showcase your passion, drive, and compatibility with the TECHNOVATION culture.",
