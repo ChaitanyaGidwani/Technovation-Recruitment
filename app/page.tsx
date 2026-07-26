@@ -684,21 +684,37 @@ export default function ArcadePage() {
 
   // Returning from /process — land on domain/class selection with the
   // name & email the player entered on the arcade floor still filled in.
+  //
+  // The ?step=create parameter is CONSUMED ONCE and then stripped from the URL.
+  // Without that, the param lingered in the address bar for the whole session
+  // (this is a state-driven SPA — the URL never changes again), so pressing
+  // refresh anywhere, even from HQ, threw the applicant back to a blank
+  // registration form. Stripping it means a refresh lands on the arcade floor,
+  // where "RESUME AS <name>" takes them back to their dashboard.
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("step") === "create") {
-        const raw = sessionStorage.getItem("tech_hook");
-        if (raw) {
-          const h = JSON.parse(raw);
-          setForm((s) => ({
-            ...s,
-            name: h.name ?? s.name,
-            email: h.email ?? s.email,
-          }));
-        }
-        setPage("create");
+      if (params.get("step") !== "create") return;
+
+      // Clear it immediately so a later refresh can't replay this.
+      window.history.replaceState(null, "", window.location.pathname);
+
+      // Already registered? Never send them back into the form — their
+      // application is final. Leave them on the floor to resume or log in.
+      const savedEmail = localStorage.getItem("tech_session");
+      if (savedEmail) {
+        const raw = localStorage.getItem("tech_candidates_admin");
+        const list = raw ? JSON.parse(raw) : [];
+        const m = list.find((c: any) => c.email?.toLowerCase() === savedEmail.toLowerCase());
+        if (m && m.pinHash) return;
       }
+
+      const hook = sessionStorage.getItem("tech_hook");
+      if (hook) {
+        const h = JSON.parse(hook);
+        setForm((s) => ({ ...s, name: h.name ?? s.name, email: h.email ?? s.email }));
+      }
+      setPage("create");
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1679,7 +1695,9 @@ export default function ArcadePage() {
       <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "clamp(24px,4vw,56px) clamp(16px,4vw,40px) 80px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
           <ArcadeButton onClick={() => goTo("floor")} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#7de8ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "5px", padding: "9px 12px" }} activeStyle={{ transform: "translateY(2px)" }}>◄ ARCADE FLOOR</ArcadeButton>
-          <div style={{ fontFamily: PS, fontSize: "9px", color: "#4a5a7a" }}>STEP 2 / 4 · CHARACTER CREATION</div>
+          <div style={{ fontFamily: PS, fontSize: "9px", color: "#4a5a7a" }}>
+            {answersLocked ? "VIEWING YOUR SUBMITTED APPLICATION · READ ONLY" : "STEP 2 / 4 · CHARACTER CREATION"}
+          </div>
         </div>
 
         <div style={{ textAlign: "center", marginTop: "clamp(18px,3vw,34px)" }}>
@@ -2096,6 +2114,10 @@ export default function ArcadePage() {
 
           <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "clamp(24px,3.5vw,36px)", flexWrap: "wrap" }}>
             <ArcadeButton onClick={() => goTo("pass")} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#00f0ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>◄ VIEW MY PASS</ArcadeButton>
+            {/* Read-only view of the submitted application. The create form
+                locks itself once the account is activated, so nothing here is
+                editable — it exists so applicants can re-read what they sent. */}
+            <ArcadeButton onClick={() => goTo("create")} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ffb800", background: "transparent", border: "2px solid #3a3410", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>&#128196; MY APPLICATION</ArcadeButton>
             <ArcadeButton onClick={handleLogout} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff2bd1", background: "transparent", border: "2px solid #4d063d", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>⏻ LOG OUT</ArcadeButton>
           </div>
         </div>

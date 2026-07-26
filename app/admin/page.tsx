@@ -1127,6 +1127,41 @@ export default function AdminPage() {
         const from = STAGES[confirmPromote.stageIdx] || STAGES[0];
         const to = STAGES[Math.min(confirmPromote.stageIdx + 1, 4)];
         const hasTask = !!sanitizeUrl(confirmPromote.submissionLink);
+
+        // What matters at this step depends on the stage being left.
+        // Screening is decided on the questionnaire — the domain task doesn't
+        // exist until AFTER screening, so warning about a missing submission
+        // there was noise that made a normal promotion look like a problem.
+        const answered = QUESTIONS.filter(
+          (q) => ((confirmPromote.answers || {})[q.key] || "").trim() !== ""
+        ).length;
+
+        let readiness: { text: string; color: string };
+        if (confirmPromote.stageIdx <= 1) {
+          // Form Submitted / Screening → judged on answers only.
+          readiness =
+            answered === QUESTIONS.length
+              ? { text: `✓ All ${QUESTIONS.length} questionnaire answers submitted.`, color: "#2ee88c" }
+              : { text: `⚠ Only ${answered} of ${QUESTIONS.length} questions answered.`, color: "#ff5c6a" };
+        } else if (confirmPromote.stageIdx === 2) {
+          // Task Round → Interview: the submission is the thing being judged.
+          readiness = hasTask
+            ? { text: "✓ Task submission on file.", color: "#2ee88c" }
+            : { text: "⚠ No valid task submission on file yet.", color: "#ff5c6a" };
+        } else {
+          // Interview → Recruited: scores are what matter here.
+          const t = confirmPromote.taskScore;
+          const iv = confirmPromote.interviewScore;
+          readiness =
+            t != null && iv != null
+              ? { text: `✓ Scored — Task ${t}/100 · Interview ${iv}/100 (total ${t + iv}/200).`, color: "#2ee88c" }
+              : { text: "⚠ Scores not recorded yet for this applicant.", color: "#ff5c6a" };
+        }
+
+        const hint =
+          confirmPromote.stageIdx <= 1
+            ? "Screening is judged on the questionnaire — open the Dossier to read the answers. No task submission is expected at this stage."
+            : "This action advances the applicant to the next stage. Please re-confirm.";
         return (
           <div
             onClick={() => setConfirmPromote(null)}
@@ -1147,11 +1182,11 @@ export default function AdminPage() {
                 <span style={{ fontFamily: VT, fontSize: "14px", color: to.color, border: `1px solid ${to.color}66`, background: `${to.color}22`, borderRadius: "6px", padding: "5px 11px", whiteSpace: "nowrap" }}>{to.icon} {to.label}</span>
               </div>
 
-              <div style={{ fontFamily: VT, fontSize: "16px", color: hasTask ? "#2ee88c" : "#ff5c6a", marginBottom: "6px" }}>
-                {hasTask ? "✓ Task submission on file." : "⚠ No valid task submission on file yet."}
+              <div style={{ fontFamily: VT, fontSize: "16px", color: readiness.color, marginBottom: "6px" }}>
+                {readiness.text}
               </div>
-              <div style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688", marginBottom: "22px" }}>
-                This action advances the applicant to the next stage. Please re-confirm.
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688", marginBottom: "22px", lineHeight: 1.4 }}>
+                {hint}
               </div>
 
               <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
