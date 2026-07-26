@@ -79,6 +79,24 @@ export async function stats(): Promise<{ registrations: number; recruited: numbe
 
 /* ------------------------------ applicant ------------------------------ */
 
+/**
+ * Has this email already completed registration?
+ *
+ * Checked against the server before starting the form, because the old check
+ * read localStorage — which is empty on any other device, so a returning
+ * applicant was walked through the entire application again only to be
+ * rejected at the very last step.
+ *
+ * Returns a bare boolean: no name, answers or hash.
+ */
+export async function isRegistered(email: string): Promise<boolean> {
+  try {
+    return !!(await rpc<boolean>("app_is_registered", { p_email: email }));
+  } catch {
+    return false; // never block a genuine new applicant on a network blip
+  }
+}
+
 /** Verify a PIN. Returns the applicant's own row, or null if wrong. */
 export async function login(email: string, pin: string): Promise<Json | null> {
   return rpc<Json | null>("app_login", { p_email: email, p_pin: pin });

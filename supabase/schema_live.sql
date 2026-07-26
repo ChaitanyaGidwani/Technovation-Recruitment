@@ -57,7 +57,7 @@ end $$;
 
 -- 4. Keep updated_at fresh on every write.
 create or replace function touch_candidates_updated_at()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = public, extensions as $$
 begin new.updated_at = now(); return new; end;
 $$;
 drop trigger if exists trg_touch_candidates on candidates;
@@ -209,7 +209,7 @@ end $$;
 --     in milliseconds. These helpers recognise an old hash so a returning
 --     applicant can still log in once, and are then silently upgraded to bcrypt.
 create or replace function _to_base36(n bigint)
-returns text language plpgsql immutable as $$
+returns text language plpgsql immutable set search_path = public, extensions as $$
 declare d text := '0123456789abcdefghijklmnopqrstuvwxyz'; r text := ''; v bigint := n;
 begin
   if v = 0 then return '0'; end if;
@@ -221,7 +221,7 @@ begin
 end $$;
 
 create or replace function _legacy_pin_hash(p_pin text)
-returns text language plpgsql immutable as $$
+returns text language plpgsql immutable set search_path = public, extensions as $$
 declare h bigint := 2166136261; i integer;
 begin
   for i in 1..coalesce(length(p_pin), 0) loop
@@ -246,7 +246,7 @@ end $$;
 --     `has_pin` says only WHETHER a PIN is set (never its value), which the UI
 --     needs to know the account is activated so it can lock the answers.
 create or replace function _cand_public(c candidates)
-returns jsonb language sql immutable as $$
+returns jsonb language sql immutable set search_path = public, extensions as $$
   select (to_jsonb(c) - 'pin_hash')
       || jsonb_build_object('has_pin', (c.pin_hash is not null and c.pin_hash <> ''));
 $$;
@@ -390,6 +390,20 @@ returns jsonb language sql security definer set search_path = public, extensions
   );
 $$;
 
+-- 8h-ter. "Has this email already applied?" — asked BEFORE the form starts, so
+--     a returning applicant is sent to the PIN prompt instead of retyping their
+--     whole application only to be rejected at the last step. Returns a bare
+--     boolean: no name, answers or hash.
+create or replace function app_is_registered(p_email text)
+returns boolean language sql security definer set search_path = public, extensions as $$
+  select exists (
+    select 1 from candidates
+    where email = lower(trim(p_email))
+      and pin_hash is not null
+      and pin_hash <> ''
+  );
+$$;
+
 -- 8i. Admin access. The key is compared against a bcrypt hash stored here,
 --     so no admin secret is shipped in the JavaScript bundle.
 create or replace function _admin_ok(p_key text)
@@ -490,13 +504,22 @@ revoke all on auth_throttle from anon, authenticated;
 revoke all on candidates_full from anon, authenticated;
 
 -- Internal helpers are not callable from the browser.
+--
+-- Revoke from public AND from the roles by name. Two separate defaults conspire
+-- here: Postgres grants EXECUTE to PUBLIC on every new function, and Supabase
+-- additionally grants it to anon/authenticated explicitly. Revoking only from
+-- `anon` left app_set_admin_key callable by any visitor (admin takeover) and
+-- _throttle_clear callable too (wipe your own lockout, then brute-force a
+-- 4-digit PIN freely). Both defaults re-apply on every CREATE OR REPLACE, so
+-- these revokes must stay at the END of this file.
 revoke all on function _throttle_guard(text), _throttle_fail(text), _throttle_clear(text),
                        _legacy_pin_hash(text), _to_base36(bigint), _pin_matches(text, text),
-                       _admin_ok(text), app_set_admin_key(text)
-  from anon, authenticated;
+                       _cand_public(candidates), _admin_ok(text), app_set_admin_key(text)
+  from public, anon, authenticated;
 
 -- Only these entry points are exposed.
 grant execute on function app_stats()                           to anon, authenticated;
+grant execute on function app_is_registered(text)                to anon, authenticated;
 grant execute on function app_login(text, text)                 to anon, authenticated;
 grant execute on function app_register(text, text, jsonb)       to anon, authenticated;
 grant execute on function app_save(text, text, jsonb)           to anon, authenticated;

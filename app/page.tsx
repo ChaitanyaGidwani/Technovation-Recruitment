@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { useRouter } from "next/navigation";
 import {
   login as apiLogin,
+  isRegistered as apiIsRegistered,
   register as apiRegister,
   save as apiSave,
   stats as apiStats,
@@ -102,6 +103,64 @@ const hashPin = (pin: string): string => {
   }
   return (h >>> 0).toString(36);
 };
+
+/**
+ * PIN field with a show/hide toggle.
+ *
+ * Typing a PIN blind on a phone is easy to get wrong, and a wrong PIN costs an
+ * attempt against the 5-try lockout — so letting people check what they typed
+ * prevents real lockouts. Starts hidden; the toggle is per-field.
+ */
+function PinField({
+  value,
+  onChange,
+  placeholder,
+  style,
+  maxLength = 6,
+}: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  style?: CSSProperties;
+  maxLength?: number;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: "relative", width: "100%" }}>
+      <input
+        type={show ? "text" : "password"}
+        inputMode="numeric"
+        autoComplete="off"
+        value={value}
+        onChange={onChange}
+        maxLength={maxLength}
+        placeholder={placeholder}
+        style={{ ...style, paddingRight: "44px" }}
+      />
+      <button
+        type="button"
+        onClick={() => setShow((s) => !s)}
+        aria-label={show ? "Hide PIN" : "Show PIN"}
+        title={show ? "Hide PIN" : "Show PIN"}
+        style={{
+          position: "absolute",
+          right: "6px",
+          top: "50%",
+          transform: "translateY(-50%)",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          padding: "6px",
+          fontSize: "15px",
+          lineHeight: 1,
+          opacity: show ? 1 : 0.65,
+        }}
+      >
+        {show ? "🙈" : "👁"}
+      </button>
+    </div>
+  );
+}
 
 // ---- tactile 3D button (reproduces the design's press effect) ----
 function ArcadeButton({
@@ -357,6 +416,7 @@ export default function ArcadePage() {
   const [loginErr, setLoginErr] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
   const [enterBusy, setEnterBusy] = useState(false);
+  const [startBusy, setStartBusy] = useState(false);
   const [taskErr, setTaskErr] = useState("");
   // A remembered session shows a one-tap "Resume" on the landing page
   // (instead of force-navigating there).
@@ -795,7 +855,7 @@ export default function ArcadePage() {
     setForm((s) => ({ ...s, [k]: v }));
   };
 
-  const onPressStart = () => {
+  const onPressStart = async () => {
     if (!form.name.trim() || !form.email.trim()) {
       setError("ENTER NAME & EMAIL TO PRESS START");
       return;
@@ -804,6 +864,25 @@ export default function ArcadePage() {
       setError("PLEASE USE YOUR COLLEGE EMAIL (@ABES.AC.IN)");
       return;
     }
+    if (startBusy) return;
+
+    // Ask the SERVER whether this email has already applied, before sending
+    // anyone into the form. The check used to read localStorage, which is empty
+    // on any other device — so a returning applicant re-typed their whole
+    // application and was only turned away at the final step.
+    setStartBusy(true);
+    try {
+      if (await apiIsRegistered(form.email.trim())) {
+        setLoginEmail(form.email.trim());
+        setLoginErr("YOU'VE ALREADY APPLIED WITH THIS EMAIL — ENTER YOUR PIN TO CONTINUE.");
+        setShowLoginModal(true);
+        setError("");
+        return;
+      }
+    } finally {
+      setStartBusy(false);
+    }
+
     // Route through the Recruitment Quest briefing before domain selection.
     try {
       sessionStorage.setItem(
@@ -821,7 +900,7 @@ export default function ArcadePage() {
     const max = Math.max(1, sc.scrollHeight - sc.clientHeight);
     sc.scrollTo({ top: max * 0.72, behavior: "smooth" });
   };
-  const onSaveData = () => {
+  const onSaveData = async () => {
     if (!form.name.trim() || !form.email.trim() || !form.branch.trim() || !form.section.trim() || !form.phone.trim() || !form.college.trim()) {
       setError("!! ALL PLAYER FILE FIELDS ARE REQUIRED");
       return;
@@ -855,8 +934,9 @@ export default function ArcadePage() {
       const existing = list.find((c: any) => c.email.toLowerCase() === emailKey);
 
       // Already applied AND activated → never re-submit. Route to login instead,
-      // preserving all their existing progress.
-      if (existing && existing.pinHash) {
+      // preserving all their existing progress. Checked against the server as
+      // well as this device, since localStorage is empty on a new browser.
+      if ((existing && existing.pinHash) || (await apiIsRegistered(form.email.trim()))) {
         setLoginEmail(form.email.trim());
         setLoginErr("YOU'VE ALREADY APPLIED WITH THIS EMAIL — ENTER YOUR PIN TO LOG IN.");
         setShowLoginModal(true);
@@ -1660,7 +1740,7 @@ export default function ArcadePage() {
                 {/* PRESS START */}
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
                   <ArcadeButton
-                    onClick={onPressStart}
+                    onClick={() => void onPressStart()}
                     style={startBtnStyle}
                     activeStyle={{ transform: "translateY(9px)", boxShadow: "0 3px 0 #4d063d, 0 0 18px rgba(255,43,209,.6), inset 0 4px 8px rgba(255,255,255,.6)" }}
                   >
@@ -1856,7 +1936,7 @@ export default function ArcadePage() {
             </div>
           ) : (
             <ArcadeButton
-              onClick={onSaveData}
+              onClick={() => void onSaveData()}
               style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(11px,1.5vw,16px)", color: "#241a11", background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "clamp(16px,2.2vw,22px) clamp(28px,4vw,44px)", boxShadow: "0 10px 0 #3a3410, 0 0 34px rgba(255,180,40,.6), inset 0 3px 8px rgba(255,255,255,.6)", textShadow: "0 1px 0 rgba(255,255,255,.5)" }}
               activeStyle={{ transform: "translateY(7px)", boxShadow: "0 3px 0 #3a3410, 0 0 18px rgba(255,180,40,.5), inset 0 3px 8px rgba(255,255,255,.6)" }}
             >
@@ -1895,7 +1975,7 @@ export default function ArcadePage() {
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end" }}>
             <div style={{ flex: 1, minWidth: "180px" }}>
               <div style={labelSm}>SET SECRET PIN</div>
-              <input value={pin} onChange={(e) => { setPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setError(""); }} type="password" maxLength={6} placeholder="4-6 DIGIT PIN" style={fieldStyle} />
+              <PinField value={pin} onChange={(e) => { setPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setError(""); }} placeholder="4-6 DIGIT PIN" style={fieldStyle} />
             </div>
             <ArcadeButton onClick={onEnterHQ} style={{ cursor: enterBusy ? "wait" : "pointer", opacity: enterBusy ? 0.7 : 1, fontFamily: PS, fontSize: "clamp(9px,1.2vw,12px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "6px", padding: "14px 18px", boxShadow: "0 6px 0 #006074, 0 0 20px rgba(0,240,255,.5)", textShadow: "0 1px 0 rgba(255,255,255,.4)" }} activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #006074" }}>{enterBusy ? "SAVING…" : "ENTER HQ ▶"}</ArcadeButton>
           </div>
@@ -2438,11 +2518,9 @@ export default function ArcadePage() {
 
                 <div>
                   <div style={{ ...labelSm, color: "#ffb800" }}>SECRET PIN (4-6 DIGITS)</div>
-                  <input
-                    type="password"
+                  <PinField
                     value={loginPin}
                     onChange={(e) => { setLoginPin(e.target.value.replace(/[^0-9]/g, "")); setLoginErr(""); }}
-                    maxLength={6}
                     placeholder="ENTER PIN"
                     style={fieldStyle}
                   />
@@ -2543,22 +2621,18 @@ export default function ArcadePage() {
                 <form onSubmit={handleResetPinSubmit} style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "14px", textAlign: "left" }}>
                   <div>
                     <div style={{ ...labelSm, color: "#ffb800" }}>NEW PIN (4-6 DIGITS)</div>
-                    <input
-                      type="password"
+                    <PinField
                       value={resetNewPin}
                       onChange={(e) => { setResetNewPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setResetErr(""); }}
-                      maxLength={6}
                       placeholder="NEW PIN"
                       style={fieldStyle}
                     />
                   </div>
                   <div>
                     <div style={{ ...labelSm, color: "#00f0ff" }}>CONFIRM NEW PIN</div>
-                    <input
-                      type="password"
+                    <PinField
                       value={resetConfirmPin}
                       onChange={(e) => { setResetConfirmPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setResetErr(""); }}
-                      maxLength={6}
                       placeholder="RE-ENTER PIN"
                       style={fieldStyle}
                     />
