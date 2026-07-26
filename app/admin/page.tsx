@@ -11,7 +11,7 @@
  * 5. Full Audit Trail & Real-time Candidate Stage Management
  */
 
-import { useEffect, useState, useMemo, type CSSProperties } from "react";
+import { useCallback, useEffect, useState, useMemo, type CSSProperties } from "react";
 import Link from "next/link";
 import { adminAll, adminWrite, adminDelete, ApiError } from "@/lib/api";
 import { candFromRow } from "@/lib/cloud-sync";
@@ -213,15 +213,25 @@ export default function AdminPage() {
     return () => clearInterval(timer);
   }, [lockoutTime]);
 
+  /** Drop the key AND the roster from memory — not just the auth flag. */
+  const adminSignOut = useCallback(() => {
+    setIsAuthenticated(false);
+    setAdminKey("");
+    setCandidates([]);
+    setSelectedCandidate(null);
+    setInputKey("");
+    try { localStorage.removeItem("tech_candidates_admin"); } catch { /* ignore */ }
+  }, []);
+
   // Auto session expiry after 30 mins
   useEffect(() => {
     if (!isAuthenticated) return;
     const timeout = setTimeout(() => {
-      setIsAuthenticated(false);
+      adminSignOut();
       setAuthError("SESSION EXPIRED FOR SECURITY. PLEASE LOG IN AGAIN.");
     }, 30 * 60 * 1000);
     return () => clearTimeout(timeout);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, adminSignOut]);
 
   // The key is verified in Postgres. A correct key also returns the roster in
   // the same round-trip, so there is no way to reach applicant data without it.
@@ -648,7 +658,7 @@ export default function AdminPage() {
               {webhookUrl ? "● " : "○ "}Sheet sync
             </button>
             <button
-              onClick={() => setIsAuthenticated(false)}
+              onClick={adminSignOut}
               style={{ cursor: "pointer", fontFamily: VT, fontSize: "16px", color: "#ff5c6a", background: "transparent", border: "1px solid rgba(255,92,106,.35)", borderRadius: "8px", padding: "9px 16px" }}
             >
               Logout

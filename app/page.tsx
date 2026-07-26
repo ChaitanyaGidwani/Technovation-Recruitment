@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import {
   login as apiLogin,
   isRegistered as apiIsRegistered,
+  signOut as apiSignOut,
   register as apiRegister,
   save as apiSave,
   sendResetCode,
@@ -688,10 +689,39 @@ export default function ArcadePage() {
     try { localStorage.removeItem("tech_session"); } catch { /* ignore */ }
   };
 
-  const handleLogout = () => {
-    clearSession();
-    setResumeInfo(null);
-    goTo("floor");
+  /**
+   * Full sign-out: leaves the browser exactly as a first-time visitor's.
+   *
+   * This used to clear only `tech_session`, so the applicant's cached record —
+   * name, phone, admission number, all 7 answers — stayed in localStorage after
+   * logging out. On a shared lab or library machine the next person could still
+   * find it, and the app would treat the device as "already applied".
+   */
+  const handleLogout = async () => {
+    // End any Supabase Auth session (created by a Forgot PIN flow).
+    await apiSignOut();
+
+    try {
+      // Prefix scan rather than a fixed list, so keys added later are covered
+      // automatically and can't be forgotten here.
+      // tech_sheet_webhook is kept: it's the ADMIN's Google Sheets config on
+      // their own machine, not this applicant's data.
+      const KEEP = new Set(["tech_sheet_webhook"]);
+      for (const store of [window.localStorage, window.sessionStorage]) {
+        const doomed: string[] = [];
+        for (let i = 0; i < store.length; i++) {
+          const k = store.key(i);
+          if (k && k.startsWith("tech_") && !KEEP.has(k)) doomed.push(k);
+        }
+        doomed.forEach((k) => store.removeItem(k));
+      }
+    } catch {
+      /* ignore — storage may be unavailable in private mode */
+    }
+
+    // Hard navigation to a clean URL. A state reset could leave something
+    // behind in a ref or a pending timer; a fresh document cannot.
+    window.location.replace("/");
   };
 
   const router = useRouter();
@@ -2095,7 +2125,7 @@ export default function ArcadePage() {
           {/* actions */}
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
             <ArcadeButton onClick={() => goTo("pass")} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#00f0ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>◄ VIEW MY PASS</ArcadeButton>
-            <ArcadeButton onClick={handleLogout} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff2bd1", background: "transparent", border: "2px solid #4d063d", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>⏻ LOG OUT</ArcadeButton>
+            <ArcadeButton onClick={() => void handleLogout()} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff2bd1", background: "transparent", border: "2px solid #4d063d", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>⏻ LOG OUT</ArcadeButton>
           </div>
         </div>
       </div>
@@ -2248,7 +2278,7 @@ export default function ArcadePage() {
                 locks itself once the account is activated, so nothing here is
                 editable — it exists so applicants can re-read what they sent. */}
             <ArcadeButton onClick={() => goTo("create")} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ffb800", background: "transparent", border: "2px solid #3a3410", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>&#128196; MY APPLICATION</ArcadeButton>
-            <ArcadeButton onClick={handleLogout} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff2bd1", background: "transparent", border: "2px solid #4d063d", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>⏻ LOG OUT</ArcadeButton>
+            <ArcadeButton onClick={() => void handleLogout()} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#ff2bd1", background: "transparent", border: "2px solid #4d063d", borderRadius: "5px", padding: "11px 15px" }} activeStyle={{ transform: "translateY(2px)" }}>⏻ LOG OUT</ArcadeButton>
           </div>
         </div>
       </div>

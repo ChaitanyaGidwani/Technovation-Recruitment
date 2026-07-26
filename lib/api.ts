@@ -149,6 +149,18 @@ export async function resetPin(newPin: string): Promise<void> {
   if (supabase) await supabase.auth.signOut(); // recovery session isn't needed after this
 }
 
+/**
+ * Drop any Supabase Auth session. One is created whenever an applicant uses
+ * Forgot PIN, and it would otherwise outlive a logout.
+ */
+export async function signOut(): Promise<void> {
+  try {
+    if (supabase) await supabase.auth.signOut();
+  } catch {
+    /* nothing useful to do — the local clear below is what matters */
+  }
+}
+
 /* -------------------------------- admin -------------------------------- */
 
 export async function adminAll(key: string): Promise<Json[]> {
