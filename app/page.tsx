@@ -8,7 +8,7 @@
  * canvas ticket rendering.
  */
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 
 
@@ -234,6 +234,11 @@ export default function ArcadePage() {
   const [isMobile, setIsMobile] = useState(false);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  // Smoothed scroll progress: the raw scrollTop is chunky (wheel/trackpad
+  // deliver large discrete deltas), so we ease the rendered value toward it.
+  const progTarget = useRef(0);
+  const progCur = useRef(0);
+  const progRaf = useRef<number | null>(null);
   const ticketRef = useRef<HTMLCanvasElement | null>(null);
   const hqAvatarRef = useRef<HTMLCanvasElement | null>(null);
   const mt = useRef({ rx: 0, ry: 0 });
@@ -316,8 +321,36 @@ export default function ArcadePage() {
     };
   }, []);
 
+  // Ease the rendered progress toward the latest scroll position. Runs only
+  // while there's distance left to cover, then parks itself.
+  const stepProgress = useCallback(() => {
+    const target = progTarget.current;
+    const delta = target - progCur.current;
+    if (Math.abs(delta) < 0.0006) {
+      progCur.current = target;
+      setProgress(target);
+      progRaf.current = null;
+      return;
+    }
+    progCur.current += delta * 0.16; // ~critically damped glide
+    setProgress(progCur.current);
+    progRaf.current = requestAnimationFrame(stepProgress);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (progRaf.current !== null) cancelAnimationFrame(progRaf.current);
+    };
+  }, []);
+
   // reset scroll on page change
   useEffect(() => {
+    if (progRaf.current !== null) {
+      cancelAnimationFrame(progRaf.current);
+      progRaf.current = null;
+    }
+    progTarget.current = 0;
+    progCur.current = 0;
     setProgress(0);
     if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
   }, [page]);
@@ -640,9 +673,13 @@ export default function ArcadePage() {
     } catch { /* ignore */ }
     router.push("/process");
   };
+  // Jump past the reveal to the fully-open cabinet (measured against the real
+  // scrollable distance, so it stays correct if the track height changes).
   const onScrollDomains = () => {
     const sc = scrollerRef.current;
-    if (sc) sc.scrollTo({ top: sc.scrollHeight * 0.62, behavior: "smooth" });
+    if (!sc) return;
+    const max = Math.max(1, sc.scrollHeight - sc.clientHeight);
+    sc.scrollTo({ top: max * 0.72, behavior: "smooth" });
   };
   const onSaveData = () => {
     if (!form.name.trim() || !form.email.trim() || !form.branch.trim() || !form.section.trim() || !form.phone.trim() || !form.college.trim()) {
@@ -944,8 +981,10 @@ export default function ArcadePage() {
 
   // ---- computed reveal values (floor) ----
   const p = progress;
-  const reveal = clamp((p - 0.12) / 0.42, 0, 1);
-  const term = clamp((p - 0.3) / 0.2, 0, 1);
+  // Reveal responds almost immediately and finishes in the first half of the
+  // track, so a single trackpad swipe visibly moves the cabinet forward.
+  const reveal = clamp((p - 0.03) / 0.44, 0, 1);
+  const term = clamp((p - 0.16) / 0.2, 0, 1);
   const scan = SCANLINES;
   const tintMap: Record<string, string> = {
     blue: "rgba(0,240,255,.13)",
@@ -1193,11 +1232,14 @@ export default function ArcadePage() {
         onScroll={(e) => {
           const sc = e.currentTarget;
           const max = Math.max(1, sc.scrollHeight - sc.clientHeight);
-          setProgress(clamp(sc.scrollTop / max, 0, 1));
+          progTarget.current = clamp(sc.scrollTop / max, 0, 1);
+          if (progRaf.current === null) {
+            progRaf.current = requestAnimationFrame(stepProgress);
+          }
         }}
         style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: "#04040a", position: "relative" }}
       >
-        <div style={{ height: "320vh", position: "relative" }}>
+        <div style={{ height: "190vh", position: "relative" }}>
           <div
             style={{
               position: "sticky",
