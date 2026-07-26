@@ -2035,15 +2035,38 @@ export default function ArcadePage() {
   };
 
   // ================= PASS =================
-  const renderPass = () => (
+  const renderPass = () => {
+    // Already activated (a PIN is on file)? Then this is the "VIEW MY PASS"
+    // route from HQ, not the end of registration — so the account-activation
+    // panel has nothing left to do and is only confusing. Show the ticket alone.
+    const alreadyActivated = (() => {
+      try {
+        const raw = localStorage.getItem("tech_candidates_admin");
+        const list = raw ? JSON.parse(raw) : [];
+        const m = list.find(
+          (c: any) => c.email?.toLowerCase() === (form.email || "").trim().toLowerCase()
+        );
+        return !!(m && m.pinHash);
+      } catch {
+        return false;
+      }
+    })();
+
+    return (
     <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(130% 90% at 50% 0%, #101830 0%, #080a16 60%, #05060d 100%)", position: "relative" }}>
       <div style={scanOverlay(0.3)} />
       <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(16px,2.4vw,26px)", padding: "clamp(28px,5vw,60px) 20px 70px", position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div style={{ fontFamily: PS, fontSize: "clamp(20px,3.6vw,48px)", animation: "gameon 0.7s infinite" }}>LEVEL CLEAR!</div>
-          <div style={{ fontFamily: PS, fontSize: "clamp(14px,2vw,26px)", color: "#ffb800", textShadow: "0 0 14px #ffb800", animation: "spin1up 3s linear infinite" }}>1UP</div>
+          <div style={{ fontFamily: PS, fontSize: "clamp(20px,3.6vw,48px)", animation: alreadyActivated ? "none" : "gameon 0.7s infinite", color: alreadyActivated ? "#00f0ff" : undefined, textShadow: alreadyActivated ? "0 0 16px #00f0ff" : undefined }}>
+            {alreadyActivated ? "ARCADE PASS" : "LEVEL CLEAR!"}
+          </div>
+          {!alreadyActivated && (
+            <div style={{ fontFamily: PS, fontSize: "clamp(14px,2vw,26px)", color: "#ffb800", textShadow: "0 0 14px #ffb800", animation: "spin1up 3s linear infinite" }}>1UP</div>
+          )}
         </div>
-        <div style={{ fontFamily: VT, fontSize: "clamp(16px,2vw,24px)", color: "#7de8ff", textAlign: "center" }}>&gt; PLAYER DATA SAVED · GENERATING ARCADE PASS...</div>
+        <div style={{ fontFamily: VT, fontSize: "clamp(16px,2vw,24px)", color: "#7de8ff", textAlign: "center" }}>
+          {alreadyActivated ? "> YOUR PLAYER ID PASS" : "> PLAYER DATA SAVED · GENERATING ARCADE PASS..."}
+        </div>
 
         <canvas ref={ticketRef} style={{ width: "100%", maxWidth: "600px", imageRendering: "pixelated", borderRadius: "6px", boxShadow: "0 0 40px rgba(0,240,255,.4)" }} />
 
@@ -2053,22 +2076,34 @@ export default function ArcadePage() {
           <ArcadeButton onClick={onShareIG} style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#fff", background: "#ff2bd1", border: "none", borderRadius: "5px", padding: "12px 16px", boxShadow: "0 5px 0 #8a0e6d, 0 0 16px rgba(255,43,209,.5)" }} activeStyle={{ transform: "translateY(3px)", boxShadow: "0 2px 0 #8a0e6d" }}>◉ INSTAGRAM</ArcadeButton>
         </div>
 
-        {/* activation */}
-        <div style={{ width: "100%", maxWidth: "600px", marginTop: "8px", background: "rgba(10,14,26,.85)", border: "3px solid #1c2540", borderRadius: "12px", padding: "clamp(18px,2.6vw,28px)", boxShadow: "0 0 30px rgba(0,0,0,.5), inset 0 0 22px rgba(0,240,255,.05)" }}>
-          <div style={{ fontFamily: PS, fontSize: "clamp(10px,1.3vw,13px)", color: "#ffb800", textShadow: "0 0 8px #ffb800", letterSpacing: "1px" }}>▶ ACTIVATE ACCOUNT · ENTER PLAYER HQ</div>
-          <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#7de8ff", marginTop: "6px", marginBottom: "14px" }}>Set a secret PIN to track your quest, tasks &amp; interview slots.</div>
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end" }}>
-            <div style={{ flex: 1, minWidth: "180px" }}>
-              <div style={labelSm}>SET SECRET PIN</div>
-              <PinField value={pin} onChange={(e) => { setPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setError(""); }} placeholder="4-6 DIGIT PIN" style={fieldStyle} />
+        {/* Activation — first-time registration only. Once the account exists
+            this whole panel is gone; the pass is just a pass. */}
+        {alreadyActivated ? (
+          <ArcadeButton
+            onClick={() => goTo("hq")}
+            style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(9px,1.2vw,12px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "6px", padding: "14px 20px", boxShadow: "0 6px 0 #006074, 0 0 20px rgba(0,240,255,.5)", textShadow: "0 1px 0 rgba(255,255,255,.4)", marginTop: "4px" }}
+            activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #006074" }}
+          >
+            ◄ BACK TO PLAYER HQ
+          </ArcadeButton>
+        ) : (
+          <div style={{ width: "100%", maxWidth: "600px", marginTop: "8px", background: "rgba(10,14,26,.85)", border: "3px solid #1c2540", borderRadius: "12px", padding: "clamp(18px,2.6vw,28px)", boxShadow: "0 0 30px rgba(0,0,0,.5), inset 0 0 22px rgba(0,240,255,.05)" }}>
+            <div style={{ fontFamily: PS, fontSize: "clamp(10px,1.3vw,13px)", color: "#ffb800", textShadow: "0 0 8px #ffb800", letterSpacing: "1px" }}>▶ ACTIVATE ACCOUNT · ENTER PLAYER HQ</div>
+            <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#7de8ff", marginTop: "6px", marginBottom: "14px" }}>Set a secret PIN to track your quest, tasks &amp; interview slots.</div>
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div style={{ flex: 1, minWidth: "180px" }}>
+                <div style={labelSm}>SET SECRET PIN</div>
+                <PinField value={pin} onChange={(e) => { setPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setError(""); }} placeholder="4-6 DIGIT PIN" style={fieldStyle} />
+              </div>
+              <ArcadeButton onClick={onEnterHQ} style={{ cursor: enterBusy ? "wait" : "pointer", opacity: enterBusy ? 0.7 : 1, fontFamily: PS, fontSize: "clamp(9px,1.2vw,12px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "6px", padding: "14px 18px", boxShadow: "0 6px 0 #006074, 0 0 20px rgba(0,240,255,.5)", textShadow: "0 1px 0 rgba(255,255,255,.4)" }} activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #006074" }}>{enterBusy ? "SAVING…" : "ENTER HQ ▶"}</ArcadeButton>
             </div>
-            <ArcadeButton onClick={onEnterHQ} style={{ cursor: enterBusy ? "wait" : "pointer", opacity: enterBusy ? 0.7 : 1, fontFamily: PS, fontSize: "clamp(9px,1.2vw,12px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "6px", padding: "14px 18px", boxShadow: "0 6px 0 #006074, 0 0 20px rgba(0,240,255,.5)", textShadow: "0 1px 0 rgba(255,255,255,.4)" }} activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #006074" }}>{enterBusy ? "SAVING…" : "ENTER HQ ▶"}</ArcadeButton>
+            <div style={{ ...errBase, marginTop: "12px" }}>{error}</div>
           </div>
-          <div style={{ ...errBase, marginTop: "12px" }}>{error}</div>
-        </div>
+        )}
       </div>
     </div>
-  );
+    );
+  };
 
   // ================= HQ =================
   // ---- Journey stopped (rejection) outcome screen ----
