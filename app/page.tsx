@@ -8,7 +8,7 @@
  * canvas ticket rendering.
  */
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 
 
@@ -71,7 +71,9 @@ interface Comm {
   color: string;
   title: string;
   body: string;
-  time: string;
+  /** Plain status chip ("DONE" / "IN PROGRESS" / "YOUR TURN") — replaces the
+   *  old fake relative timestamps, which contradicted each other. */
+  status: string;
 }
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -208,10 +210,123 @@ export default function ArcadePage() {
   // Per-department task submissions (keyed by domain key).
   const [taskLinks, setTaskLinks] = useState<Record<string, string>>({});
   const [taskDone, setTaskDone] = useState<Record<string, boolean>>({});
-  const [comms, setComms] = useState<Comm[]>([
-    { id: "c1", icon: "✓", color: "#ffb800", title: "REGISTRATION CONFIRMED", body: "Welcome, Player 1. Your file is locked in. Stand by for screening.", time: "JUST NOW" },
-    { id: "c2", icon: "◉", color: "#00f0ff", title: "SCREENING IN PROGRESS", body: "The guild council is reviewing your player file. ETA 48 hrs.", time: "5 MIN AGO" },
-  ]);
+  // ---- COMMS CHANNEL ----------------------------------------------------
+  // Derived from the applicant's real state rather than kept as an append-only
+  // log. A stored log drifts: it kept showing "SCREENING IN PROGRESS" while the
+  // progress bar already read TASK ROUND. Deriving it means the feed can never
+  // contradict the current stage. Ordered newest-first, so whatever needs the
+  // applicant's attention is always the first thing they read.
+  const comms = useMemo<Comm[]>(() => {
+    const DONE = { icon: "✓", color: "#ffb800", status: "DONE" };
+    const NOW = { icon: "◉", color: "#00f0ff", status: "IN PROGRESS" };
+    const ACT = { icon: "⚔", color: "#00f0ff", status: "YOUR TURN" };
+
+    const reg: Comm = {
+      id: "reg",
+      ...DONE,
+      title: "REGISTRATION CONFIRMED",
+      body: `You're registered as Player #${String(playerNo || 1).padStart(4, "0")}. Your details and answers are saved.`,
+    };
+
+    // Journey stopped — show only what's true, never a "in progress" message
+    // alongside a closed application.
+    if (rejected) {
+      const reachedLbl = STAGES[Math.min(Math.max(rejectedAtStage, 0), 4)]?.label || "SCREENING";
+      const fb = (rejectionFeedback || "").trim();
+      return [
+        {
+          id: "closed",
+          icon: "✕",
+          color: "#ff2bd1",
+          status: "CLOSED",
+          title: "APPLICATION CLOSED",
+          body:
+            `Your application isn't moving forward this season. You reached the ${reachedLbl} stage.` +
+            (fb ? ` Feedback from the team: "${fb}"` : "") +
+            " Thanks for applying — you're welcome to try again next season.",
+        },
+        reg,
+      ];
+    }
+
+    const doms = selectedClasses
+      .map((k) => DOMAINS.find((d) => d.key === k))
+      .filter((d): d is (typeof DOMAINS)[number] => !!d);
+    const submitted = doms.filter((d) => !!taskDone[d.key]);
+    const pending = doms.filter((d) => !taskDone[d.key]);
+    const names = (list: typeof doms) => list.map((d) => d.name).join(" and ");
+
+    // Oldest first while building; reversed at the end.
+    const log: Comm[] = [reg];
+
+    if (stageIdx >= 2) {
+      log.push({
+        id: "screen",
+        ...DONE,
+        title: "SCREENING CLEARED",
+        body: "Your application was accepted. You've moved on to the task round.",
+      });
+    } else {
+      log.push({
+        id: "screen",
+        ...NOW,
+        title: "SCREENING IN PROGRESS",
+        body: "We're reviewing your application and answers. Nothing for you to do right now — this feed updates as soon as there's a decision.",
+      });
+    }
+
+    if (stageIdx >= 2) {
+      if (submitted.length) {
+        log.push({
+          id: "submitted",
+          ...DONE,
+          title: submitted.length > 1 ? "TASKS RECEIVED" : "TASK RECEIVED",
+          body: `We've got your ${names(submitted)} submission${submitted.length > 1 ? "s" : ""}. Submissions are final and can't be edited.`,
+        });
+      }
+      if (pending.length) {
+        log.push({
+          id: "task",
+          ...ACT,
+          title: "SUBMIT YOUR TASK",
+          body: `Add your work link for ${names(pending)} in the Quest Log on the left, then press Submit. Double-check it first — submissions are final.`,
+        });
+      } else if (stageIdx === 2) {
+        log.push({
+          id: "review",
+          ...NOW,
+          title: "TASKS UNDER REVIEW",
+          body: "Everything's submitted. The team is reviewing your work now — nothing for you to do at this point.",
+        });
+      }
+    }
+
+    if (stageIdx === 3) {
+      log.push({
+        id: "interview",
+        ...NOW,
+        title: "INTERVIEW ROUND",
+        body: "You cleared the task round. We'll reach out on your registered email and phone to set up a short interview, so keep an eye on your inbox.",
+      });
+    } else if (stageIdx >= 4) {
+      log.push({
+        id: "interview",
+        ...DONE,
+        title: "INTERVIEW CLEARED",
+        body: "You've cleared the interview round.",
+      });
+      log.push({
+        id: "selected",
+        icon: "★",
+        color: "#ffb800",
+        status: "SELECTED",
+        title: "YOU'RE IN — WELCOME TO TECHNOVATION",
+        body: "You've been selected. Onboarding details are on their way to your registered email.",
+      });
+    }
+
+    return log.reverse();
+  }, [stageIdx, taskDone, selectedClasses, rejected, rejectedAtStage, rejectionFeedback, playerNo]);
 
   // Returning Candidate Login state
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -593,21 +708,9 @@ export default function ArcadePage() {
         if (!match) return;
 
         const newStage = match.stageIdx || 1;
+        // The comms feed is derived from stageIdx, so advancing the stage
+        // rewrites it automatically — nothing to append here.
         if (lastSyncStageRef.current === null) {
-          lastSyncStageRef.current = newStage;
-        } else if (newStage > lastSyncStageRef.current && newStage <= 4) {
-          const lbl = STAGES[Math.min(newStage, STAGES.length - 1)]?.label || "NEXT STAGE";
-          setComms((cs) => [
-            {
-              id: "sync" + Date.now(),
-              icon: "★",
-              color: "#ffb800",
-              title: "STAGE ADVANCED",
-              body: `The Guild Council promoted you to ${lbl}.${newStage >= 2 ? " Your domain tasks are now unlocked below." : ""}`,
-              time: "JUST NOW",
-            },
-            ...cs,
-          ]);
           lastSyncStageRef.current = newStage;
         } else {
           lastSyncStageRef.current = newStage;
@@ -835,11 +938,8 @@ export default function ArcadePage() {
       /* fallback */
     }
 
-    const dm = DOMAINS.find((d) => d.key === domainKey);
-    setComms((cs) => [
-      { id: "c" + Date.now(), icon: "⚔", color: "#ffb800", title: "TASK SUBMITTED", body: `${dm ? dm.name : "Domain"} task received. The council will judge your work soon. +50 XP`, time: "JUST NOW" },
-      ...cs,
-    ]);
+    // No comms entry to push — the feed reads taskDone directly and will show
+    // the "task received" message on this render.
   };
 
   const handleCandidateLogin = (e: React.FormEvent) => {
@@ -1879,9 +1979,11 @@ export default function ArcadePage() {
                   <div key={c.id} style={{ display: "flex", gap: "10px", alignItems: "flex-start", padding: "11px", borderRadius: "6px", background: "rgba(255,255,255,.02)", borderLeft: "3px solid " + c.color }}>
                     <div style={{ fontFamily: PS, fontSize: "12px", color: c.color, textShadow: "0 0 8px " + c.color }}>{c.icon}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: PS, fontSize: "8px", color: c.color }}>{c.title}</div>
-                      <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", lineHeight: 1.2, marginTop: "3px" }}>{c.body}</div>
-                      <div style={{ fontFamily: VT, fontSize: "13px", color: "#4a5a7a", marginTop: "3px" }}>{c.time}</div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap" }}>
+                        <div style={{ fontFamily: PS, fontSize: "8px", color: c.color }}>{c.title}</div>
+                        <div style={{ fontFamily: PS, fontSize: "7px", color: c.color, border: `1px solid ${c.color}66`, background: `${c.color}14`, borderRadius: "3px", padding: "3px 6px", whiteSpace: "nowrap" }}>{c.status}</div>
+                      </div>
+                      <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", lineHeight: 1.3, marginTop: "5px" }}>{c.body}</div>
                     </div>
                   </div>
                 ))}
