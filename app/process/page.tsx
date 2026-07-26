@@ -34,9 +34,8 @@ const STATS = [
 const TIMELINE = [
   { phase: "PHASE 1", title: "REGISTRATION WINDOW", when: "27 JUL – 2 AUG 2026 · 5:00 PM", glyph: "▶", color: CYAN },
   { phase: "PHASE 2", title: "DOMAIN TASK CHALLENGE", when: "3 AUG – 5 AUG 2026", glyph: "⚔", color: MAGENTA },
-  { phase: "PHASE 3", title: "EVALUATION PHASE", when: "6 AUG 2026", glyph: "◉", color: YELLOW },
-  { phase: "PHASE 4", title: "INTERVIEW BOSS ROUND", when: "7 AUG – 9 AUG 2026", glyph: "☎", color: GREEN },
-  { phase: "PHASE 5", title: "FINAL GUILD ROSTER DROP", when: "12 AUGUST 2026", glyph: "★", color: CYAN },
+  { phase: "PHASE 3", title: "INTERVIEW ROUND", when: "7 AUG – 9 AUG 2026", glyph: "☎", color: GREEN },
+  { phase: "PHASE 4", title: "RESULT DECLARATION", when: "12 AUGUST 2026", glyph: "★", color: CYAN },
 ];
 
 const ROUNDS = [
