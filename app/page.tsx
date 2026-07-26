@@ -1098,12 +1098,20 @@ export default function ArcadePage() {
       setResetStep("code");
       setResetSuccess("CODE SENT — CHECK YOUR COLLEGE INBOX (AND SPAM).");
     } catch (err) {
-      const code = (err as ApiError)?.code || "ERROR";
-      setResetErr(
-        code === "RATE_LIMITED"
-          ? "TOO MANY REQUESTS. WAIT A MINUTE AND TRY AGAIN."
-          : "COULD NOT SEND THE CODE. CHECK THE ADDRESS AND TRY AGAIN."
-      );
+      const e = err as ApiError;
+      const detail = (e?.detail || "").toLowerCase();
+      // Distinguish the real causes instead of showing one catch-all message —
+      // "check the address" sent people hunting for a typo when the actual
+      // problem was SMTP or a provider rate limit.
+      if (e?.code === "RATE_LIMITED" || detail.includes("rate limit") || detail.includes("too many")) {
+        setResetErr("TOO MANY REQUESTS — WAIT A FEW MINUTES AND TRY AGAIN.");
+      } else if (detail.includes("smtp") || detail.includes("sending") || detail.includes("email")) {
+        setResetErr("EMAIL SERVICE ISN'T SET UP YET. PLEASE CONTACT THE TECHNOVATION TEAM.");
+      } else if (e?.code === "OFFLINE") {
+        setResetErr("CANNOT REACH THE SERVER — CHECK YOUR CONNECTION.");
+      } else {
+        setResetErr("COULDN'T SEND THE CODE. PLEASE TRY AGAIN IN A MOMENT.");
+      }
     } finally {
       setResetBusy(false);
     }

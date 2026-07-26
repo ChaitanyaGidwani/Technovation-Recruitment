@@ -39,17 +39,25 @@ export class ApiError extends Error {
   code: string;
   /** Seconds remaining, when code is RATE_LIMITED. */
   retryIn: number;
-  constructor(code: string) {
-    super(code);
+  /** The raw provider message. Mapping everything to a generic code made real
+   *  failures (bad SMTP, un-allow-listed redirect URL, provider limits) look
+   *  identical in the UI and impossible to diagnose. */
+  detail: string;
+  constructor(code: string, detail = "") {
+    super(detail || code);
     this.code = code.split(":")[0];
     this.retryIn = Number(code.split(":")[1] || 0);
+    this.detail = detail;
   }
 }
 
 async function rpc<T>(fn: string, args: Json): Promise<T> {
   if (!isSupabaseConfigured || !supabase) throw new ApiError("OFFLINE");
   const { data, error } = await supabase.rpc(fn, args);
-  if (error) throw new ApiError(codeOf(error));
+  if (error) {
+    console.error(`[api] ${fn} failed:`, error);
+    throw new ApiError(codeOf(error), error.message || String(error));
+  }
   return data as T;
 }
 
@@ -97,9 +105,17 @@ export async function sendResetCode(email: string): Promise<void> {
   if (!isSupabaseConfigured || !supabase) throw new ApiError("OFFLINE");
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim().toLowerCase(),
+    // Deliberately NO emailRedirectTo. Supabase rejects the whole request if the
+    // URL isn't in the project's Redirect URLs allow-list, and this flow never
+    // follows a link — the applicant types the 6-digit code. Passing it only
+    // created a way for sending to fail. Fix the emailed link, if any, via
+    // Authentication -> URL Configuration -> Site URL instead.
     options: { shouldCreateUser: true },
   });
-  if (error) throw new ApiError(codeOf(error));
+  if (error) {
+    console.error("[api] signInWithOtp failed:", error);
+    throw new ApiError(codeOf(error), error.message || String(error));
+  }
 }
 
 /** Step 2 — exchange the emailed code for a verified session. */
@@ -110,7 +126,10 @@ export async function verifyResetCode(email: string, token: string): Promise<voi
     token: token.trim(),
     type: "email",
   });
-  if (error) throw new ApiError(codeOf(error));
+  if (error) {
+    console.error("[api] verifyOtp failed:", error);
+    throw new ApiError(codeOf(error), error.message || String(error));
+  }
 }
 
 /**
