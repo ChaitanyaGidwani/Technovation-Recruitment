@@ -835,6 +835,23 @@ export default function ArcadePage() {
     setForm((s) => ({ ...s, [k]: v }));
   };
 
+  /**
+   * INSERT COIN — the primary landing action.
+   *
+   * No email has been typed at this point, so there's nothing to look up on the
+   * server. What we CAN tell is whether this browser already has an applicant
+   * session: if so, starting a fresh application is never what they want. It
+   * used to push straight to /process, which walked a registered applicant
+   * through the briefing and into a blank, locked form.
+   */
+  const onInsertCoin = () => {
+    if (resumeInfo) {
+      goTo("hq");
+      return;
+    }
+    router.push("/process");
+  };
+
   const onPressStart = async () => {
     if (!form.name.trim() || !form.email.trim()) {
       setError("ENTER NAME & EMAIL TO PRESS START");
@@ -1757,6 +1774,47 @@ export default function ArcadePage() {
         return false;
       }
     })();
+
+    // Locked, but their application isn't actually loaded into the form. That
+    // produced the worst of both worlds: a blank form they couldn't type into.
+    // Send them somewhere useful instead of rendering an empty read-only shell.
+    const lockedButEmpty =
+      answersLocked && !["q1", "q2", "q3", "q4", "q5", "q6", "q7"]
+        .some((k) => (form[k as keyof typeof form] || "").toString().trim() !== "");
+
+    if (lockedButEmpty) {
+      return (
+        <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(140% 90% at 50% -10%, #141a30 0%, #0a0d1a 55%, #05060d 100%)", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div style={scanOverlay(0.28)} />
+          <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: "560px", textAlign: "center", background: "rgba(10,14,26,.85)", border: "3px solid #ffb800", borderRadius: "14px", padding: "clamp(26px,4vw,40px)", boxShadow: "0 0 40px rgba(255,180,40,.2)" }}>
+            <div style={{ fontFamily: PS, fontSize: "clamp(12px,1.8vw,17px)", color: "#ffb800", textShadow: "0 0 12px #ffb800" }}>
+              🔒 YOU&apos;VE ALREADY APPLIED
+            </div>
+            <div style={{ fontFamily: VT, fontSize: "clamp(16px,2vw,20px)", color: "#a9c3d6", marginTop: "14px", lineHeight: 1.4 }}>
+              This email already has a submitted application, so the form is closed.
+              Log in with your PIN to see your answers and track your progress.
+            </div>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap", marginTop: "26px" }}>
+              <ArcadeButton
+                onClick={() => { setLoginEmail(form.email.trim()); setShowLoginModal(true); goTo("floor"); }}
+                style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#241a11", background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "14px 22px", boxShadow: "0 6px 0 #8a7900, 0 0 20px rgba(255,180,40,.5)" }}
+                activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #8a7900" }}
+              >
+                🔑 LOG IN WITH PIN
+              </ArcadeButton>
+              <ArcadeButton
+                onClick={() => goTo("floor")}
+                style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#7de8ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "8px", padding: "14px 18px" }}
+                activeStyle={{ transform: "translateY(2px)" }}
+              >
+                ◄ ARCADE FLOOR
+              </ArcadeButton>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
     <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(140% 90% at 50% -10%, #141a30 0%, #0a0d1a 55%, #05060d 100%)", position: "relative" }}>
       <div style={scanOverlay(0.28)} />
