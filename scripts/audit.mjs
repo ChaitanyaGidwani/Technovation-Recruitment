@@ -45,13 +45,17 @@ console.log("\nB. Local writes have a server counterpart");
 const ALLOWLIST = {
   onSaveData: "local draft; the row is created by onEnterHQ once the PIN exists",
   handleCandidateLogin: "caches the row the SERVER just returned — a read path, not a write",
+  refreshMe: "caches the row the SERVER just returned — a read path, not a write",
 };
 
 const src = pages.find((f) => f.p === "app/page.tsx").src.split("\n");
 // Exactly two spaces of indent = a handler declared in the component body.
 // (A looser pattern also matches locals like `const link = (x || "").trim()`,
 //  which silently mis-attributes the enclosing function.)
-const DECL = /^ {2}const (\w+) = (?:async )?\(/;
+// Matches handlers declared in the component body, including hook-wrapped ones
+// (`const x = useCallback(async () => {`). Missing the useCallback form made the
+// audit attribute a write to the *previous* handler and report the wrong name.
+const DECL = /^ {2}const (\w+) = (?:useCallback\()?(?:async )?\(/;
 const enclosing = (lineIdx) => {
   for (let i = lineIdx; i >= 0; i--) {
     const m = src[i].match(DECL);
