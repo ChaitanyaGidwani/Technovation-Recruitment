@@ -15,7 +15,6 @@ import {
   isRegistered as apiIsRegistered,
   register as apiRegister,
   save as apiSave,
-  stats as apiStats,
   sendResetCode,
   verifyResetCode,
   resetPin,
@@ -248,7 +247,6 @@ export default function ArcadePage() {
   const [jx, setJx] = useState(0);
   const [jy, setJy] = useState(0);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
-  const [registrationCount, setRegistrationCount] = useState(0);
   const [playerNo, setPlayerNo] = useState(0);
   const [hover, setHover] = useState("");
   const [error, setError] = useState("");
@@ -491,26 +489,8 @@ export default function ArcadePage() {
     };
   }, []);
 
-  // Sync real candidate registration count
-  useEffect(() => {
-    // The live count comes from the server, not from localStorage. Reading
-    // localStorage.length meant every device reported its own private number —
-    // a phone that had never registered anyone showed 0 while a laptop showed 13.
-    let alive = true;
-    const syncCount = async () => {
-      const s = await apiStats();
-      if (alive) setRegistrationCount(s.registrations);
-    };
-    void syncCount();
-    const onFocus = () => { void syncCount(); };
-    window.addEventListener("focus", onFocus);
-    const timer = setInterval(syncCount, 15000);
-    return () => {
-      alive = false;
-      window.removeEventListener("focus", onFocus);
-      clearInterval(timer);
-    };
-  }, []);
+  // (The live registration counter was removed from the UI, so there is no
+  //  longer a poll here. app_stats() still exists server-side if it returns.)
 
   // Ease the rendered progress toward the latest scroll position. Runs only
   // while there's distance left to cover, then parks itself.
@@ -964,7 +944,6 @@ export default function ArcadePage() {
         const merged = list.map((c: any) => (c.email.toLowerCase() === emailKey ? updatedCand : c));
         localStorage.setItem("tech_candidates_admin", JSON.stringify(merged));
         setPlayerNo(existing.playerNo || 1001);
-        void apiStats().then((s) => setRegistrationCount(s.registrations));
       } else {
         const newPlayerNo = 1000 + list.length + 1;
         const newCand = {
@@ -985,7 +964,6 @@ export default function ArcadePage() {
         list.unshift(newCand);
         localStorage.setItem("tech_candidates_admin", JSON.stringify(list));
         setPlayerNo(newPlayerNo);
-        void apiStats().then((s) => setRegistrationCount(s.registrations));
       }
     } catch {
       setPlayerNo(1001);
@@ -1035,7 +1013,6 @@ export default function ArcadePage() {
       try {
         localStorage.setItem("tech_candidates_admin", JSON.stringify([cand]));
       } catch { /* ignore */ }
-      void apiStats().then((s) => setRegistrationCount(s.registrations));
 
       saveSession(email);
       goTo("hq");
@@ -1289,7 +1266,6 @@ export default function ArcadePage() {
     amber: "rgba(255,180,40,.13)",
   };
   const tintColor = tintMap[SCREEN_TINT];
-  const scoreStr = String(registrationCount).padStart(6, "0");
 
   // ---- shared style objects ----
   const fieldStyle: CSSProperties = {
@@ -1597,17 +1573,26 @@ export default function ArcadePage() {
                   {isMobile ? "▶ RESUME" : `▶ RESUME AS ${resumeInfo.name.toUpperCase().slice(0, 14)}`}
                 </button>
               )}
+              {/* Returning applicants land here, so this is a primary action —
+                  sized to be findable rather than tucked into the corner. */}
               <button
                 onClick={() => { setLoginEmail(form.email.trim() || loginEmail); setShowLoginModal(true); }}
-                style={{ cursor: "pointer", fontFamily: PS, fontSize: isMobile ? "7px" : "9px", color: "#ffb800", border: "1.5px solid #ffb80066", background: "rgba(255,180,40,.1)", borderRadius: "4px", padding: isMobile ? "5px 8px" : "6px 10px", textShadow: "0 0 8px #ffb800" }}
+                style={{
+                  cursor: "pointer",
+                  fontFamily: PS,
+                  fontSize: isMobile ? "10px" : "13px",
+                  color: "#241a11",
+                  border: "none",
+                  background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)",
+                  borderRadius: "6px",
+                  padding: isMobile ? "11px 16px" : "14px 24px",
+                  letterSpacing: "1px",
+                  boxShadow: "0 5px 0 #8a7900, 0 0 20px rgba(255,180,40,.55)",
+                  textShadow: "0 1px 0 rgba(255,255,255,.45)",
+                }}
               >
                 {isMobile ? "🔑 LOGIN" : "🔑 PLAYER LOGIN"}
               </button>
-            </div>
-
-            <div style={{ position: "absolute", top: isMobile ? "44px" : "8.2%", right: isMobile ? "2%" : "2.5%", zIndex: 7, textAlign: "right", fontFamily: PS, lineHeight: 1.5 }}>
-              <div style={{ fontSize: isMobile ? "6px" : "9px", color: "#ffb800", textShadow: "0 0 8px #ffb800" }}>LIVE REGISTRATIONS</div>
-              <div style={{ fontSize: isMobile ? "12px" : "clamp(14px,1.8vw,22px)", color: "#ffb800", textShadow: "0 0 10px #ffb800", letterSpacing: "2px" }}>{scoreStr}</div>
             </div>
 
             {/* CRT */}
@@ -1644,7 +1629,7 @@ export default function ArcadePage() {
                     {/* Primary landing action -> the Recruitment Quest briefing */}
                     <div style={{ marginTop: "30px" }}>
                       <ArcadeButton
-                        onClick={() => router.push("/process")}
+                        onClick={onInsertCoin}
                         style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(10px,1.5vw,15px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "8px", padding: "15px 24px", boxShadow: "0 8px 0 #006074, 0 0 28px rgba(0,240,255,.6), inset 0 3px 8px rgba(255,255,255,.5)", letterSpacing: "1px", textShadow: "0 1px 0 rgba(255,255,255,.4)" }}
                         activeStyle={{ transform: "translateY(6px)", boxShadow: "0 2px 0 #006074, 0 0 18px rgba(0,240,255,.5), inset 0 3px 8px rgba(255,255,255,.5)" }}
                       >
@@ -2089,7 +2074,6 @@ export default function ArcadePage() {
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontFamily: PS, fontSize: "9px", color: "#4a5a7a" }}>PLAYER HQ · COMMAND CENTER</div>
-              <div style={{ fontFamily: PS, fontSize: "clamp(13px,1.6vw,18px)", color: "#ffb800", textShadow: "0 0 10px #ffb800", marginTop: "6px" }}>{scoreStr} <span style={{ fontSize: "8px", color: "#7de8ff" }}>RECRUITS</span></div>
             </div>
           </div>
 

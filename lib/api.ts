@@ -61,23 +61,12 @@ async function rpc<T>(fn: string, args: Json): Promise<T> {
   return data as T;
 }
 
-/* ------------------------------- counters ------------------------------ */
-
-/**
- * Aggregate counts only — safe to call without any credentials. This is the
- * single source of truth for the "LIVE REGISTRATIONS" figure, so every device
- * shows the same number.
- */
-export async function stats(): Promise<{ registrations: number; recruited: number }> {
-  try {
-    const d = await rpc<{ registrations: number; recruited: number }>("app_stats", {});
-    return { registrations: d?.registrations ?? 0, recruited: d?.recruited ?? 0 };
-  } catch {
-    return { registrations: 0, recruited: 0 };
-  }
-}
-
 /* ------------------------------ applicant ------------------------------ */
+
+// NOTE: there was a stats() helper here backing the "LIVE REGISTRATIONS"
+// counter. The counter was removed from the UI, so the wrapper went with it
+// rather than sitting unused. The app_stats() function still exists in the
+// database — re-add a thin wrapper here if the counter ever comes back.
 
 /**
  * Has this email already completed registration?
