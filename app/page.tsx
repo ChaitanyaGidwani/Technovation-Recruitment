@@ -621,6 +621,10 @@ export default function ArcadePage() {
   const goTo = (p: typeof page) => {
     setError("");
     setPage(p);
+    // Returning to the arcade floor re-pulls everything from the server, so the
+    // site the applicant comes back to is current rather than a stale snapshot
+    // from whenever they logged in.
+    if (p === "floor" || p === "hq") void refreshMe();
   };
 
   // ---- Session persistence helpers ----
@@ -681,13 +685,56 @@ export default function ArcadePage() {
 
   // Session persists across browser restarts so a returning applicant lands
   // straight on their HQ without logging in again.
-  const saveSession = (email: string) => {
-    try { localStorage.setItem("tech_session", email); } catch { /* ignore */ }
+  const saveSession = (email: string, pinValue?: string) => {
+    try {
+      localStorage.setItem("tech_session", email);
+      // The PIN is kept in sessionStorage (this tab only, gone when the tab
+      // closes, wiped by logout). Every server call is PIN-gated, so without it
+      // a page refresh left the applicant unable to submit a task or pull a
+      // fresh stage — the app had their email but no way to authenticate.
+      if (pinValue) sessionStorage.setItem("tech_pin", pinValue);
+    } catch { /* ignore */ }
   };
 
   const clearSession = () => {
-    try { localStorage.removeItem("tech_session"); } catch { /* ignore */ }
+    try {
+      localStorage.removeItem("tech_session");
+      sessionStorage.removeItem("tech_pin");
+    } catch { /* ignore */ }
   };
+
+  /**
+   * Pull this applicant's current record from the server and re-hydrate the
+   * whole UI from it — stage, task unlocks, submissions, rejection state.
+   *
+   * The dashboard used to "sync" by re-reading localStorage, but nothing writes
+   * the server's state there any more (the old whole-table mirror was removed
+   * for security). So an admin promotion never reached the applicant: their
+   * stage bar, quest log and comms stayed frozen until they logged out and in.
+   */
+  const refreshMe = useCallback(async (): Promise<boolean> => {
+    let email = "";
+    let livePin = "";
+    try {
+      email = localStorage.getItem("tech_session") || "";
+      livePin = sessionStorage.getItem("tech_pin") || "";
+    } catch { /* ignore */ }
+    if (!email || !livePin) return false;
+
+    try {
+      const row = await apiLogin(email, livePin);
+      if (!row) return false;
+      const cand = candFromRow(row);
+      try {
+        localStorage.setItem("tech_candidates_admin", JSON.stringify([cand]));
+      } catch { /* ignore */ }
+      loadCandidateByEmail(email);
+      return true;
+    } catch {
+      return false; // offline or rate-limited — keep showing what we have
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * Full sign-out: leaves the browser exactly as a first-time visitor's.
@@ -739,6 +786,11 @@ export default function ArcadePage() {
   // candidate's data and offer a one-tap "Resume" on the floor instead.
   useEffect(() => {
     try {
+      // Restore the PIN into state too, so task submission still works after a
+      // refresh (app_save is PIN-gated and would otherwise fail with AUTH_FAILED).
+      const savedPin = sessionStorage.getItem("tech_pin");
+      if (savedPin) setPin(savedPin);
+
       const savedEmail = localStorage.getItem("tech_session");
       if (savedEmail && loadCandidateByEmail(savedEmail)) {
         const raw = localStorage.getItem("tech_candidates_admin");
@@ -804,61 +856,21 @@ export default function ArcadePage() {
       "";
     if (!email) return;
 
-    const sync = () => {
-      try {
-        const raw = localStorage.getItem("tech_candidates_admin");
-        if (!raw) return;
-        const list = JSON.parse(raw);
-        const match = list.find(
-          (c: any) => c.email?.toLowerCase() === email.toLowerCase()
-        );
-        if (!match) return;
-
-        const newStage = match.stageIdx || 1;
-        // The comms feed is derived from stageIdx, so advancing the stage
-        // rewrites it automatically — nothing to append here.
-        if (lastSyncStageRef.current === null) {
-          lastSyncStageRef.current = newStage;
-        } else {
-          lastSyncStageRef.current = newStage;
-        }
-
-        setStageIdx(newStage);
-        setRejected(!!match.rejected);
-        if (typeof match.rejectedAtStage === "number") setRejectedAtStage(match.rejectedAtStage);
-        setRejectionFeedback(match.rejectionFeedback || "");
-
-        const subs = match.submissions || {};
-        if (Object.keys(subs).length) {
-          setTaskDone((p) => {
-            const n = { ...p };
-            Object.keys(subs).forEach((k) => { if (subs[k]) n[k] = true; });
-            return n;
-          });
-          setTaskLinks((p) => {
-            const n = { ...p };
-            Object.keys(subs).forEach((k) => { if (subs[k]) n[k] = subs[k]; });
-            return n;
-          });
-        }
-      } catch {
-        /* ignore */
-      }
-    };
+    // Goes to the SERVER now, not to localStorage. 20s rather than the old
+    // 2.5s because this is a real network round-trip; focus still forces an
+    // immediate pull, so switching back to the tab feels instant.
+    const sync = () => { void refreshMe(); };
 
     sync();
-    const iv = setInterval(sync, 2500);
-    const onStorage = (e: StorageEvent) => { if (e.key === "tech_candidates_admin") sync(); };
+    const iv = setInterval(sync, 20000);
     const onFocus = () => sync();
-    window.addEventListener("storage", onStorage);
     window.addEventListener("focus", onFocus);
     return () => {
       clearInterval(iv);
-      window.removeEventListener("storage", onStorage);
       window.removeEventListener("focus", onFocus);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, form.email]);
+  }, [page, form.email, refreshMe]);
 
   const setField = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const v = e.target.value;
@@ -1061,7 +1073,7 @@ export default function ArcadePage() {
         localStorage.setItem("tech_candidates_admin", JSON.stringify([cand]));
       } catch { /* ignore */ }
 
-      saveSession(email);
+      saveSession(email, pin);
       goTo("hq");
     } catch (err) {
       const code = (err as ApiError)?.code || "ERROR";
@@ -1160,7 +1172,7 @@ export default function ArcadePage() {
       setPin(loginPin);
       setShowLoginModal(false);
       setLoginErr("");
-      saveSession(loginEmail.trim());
+      saveSession(loginEmail.trim(), loginPin);
       goTo("hq");
     } catch (err) {
       const code = (err as ApiError)?.code || "ERROR";
