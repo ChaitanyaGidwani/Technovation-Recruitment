@@ -3,9 +3,9 @@ import "./globals.css";
 import CloudSync from "./cloud-sync";
 
 export const metadata: Metadata = {
-  title: "Club Recruitment Arcade — Insert Coin",
+  title: "Technovation Recruitment",
   description:
-    "An 8-bit arcade recruitment experience. Pick your domain, forge your character, and join the guild.",
+    "Recruitment portal for TECHNOVATION, the Networking Club of ABES Engineering College. Pick your domain, complete the quest, and join the guild.",
 };
 
 export default function RootLayout({

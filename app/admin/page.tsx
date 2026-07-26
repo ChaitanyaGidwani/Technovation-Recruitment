@@ -35,15 +35,45 @@ const STAGES = [
 ];
 
 // The 7 quest questions, in the same order the applicant answers them.
-// Used to give every answer its own column in all exports.
-const QUESTIONS: { key: string; label: string }[] = [
-  { key: "q1", label: "Q1 Biggest strength & skill improving" },
-  { key: "q2", label: "Q2 Why this club / what excites you" },
-  { key: "q3", label: "Q3 Skills & talents you bring" },
-  { key: "q4", label: "Q4 Goals to achieve this year" },
-  { key: "q5", label: "Q5 Handling challenges in a group" },
-  { key: "q6", label: "Q6 Owning a task start to finish" },
-  { key: "q7", label: "Q7 One project you would launch" },
+//   `label` — short header for spreadsheet columns (CSV / Excel / Sheets)
+//   `text`  — the full question, shown above each answer in the dossier.
+// Must stay in sync with the question list in app/page.tsx.
+const QUESTIONS: { key: string; label: string; text: string }[] = [
+  {
+    key: "q1",
+    label: "Q1 Biggest strength & skill improving",
+    text: "What is your biggest strength, and what is one key skill you are actively working to improve?",
+  },
+  {
+    key: "q2",
+    label: "Q2 Why this club / what excites you",
+    text: "What specifically drew you to our club, and what excites you most about becoming a member?",
+  },
+  {
+    key: "q3",
+    label: "Q3 Skills & talents you bring",
+    text: "What core skills or talents (e.g., coding, creative design, video editing, event management, public speaking) do you want to bring to our team?",
+  },
+  {
+    key: "q4",
+    label: "Q4 Goals to achieve this year",
+    text: "What specific goals or skills do you hope to achieve and master through your journey with us this year?",
+  },
+  {
+    key: "q5",
+    label: "Q5 Handling challenges in a group",
+    text: "When working on a group project or event, how do you approach challenges when a task isn't going as planned?",
+  },
+  {
+    key: "q6",
+    label: "Q6 Owning a task start to finish",
+    text: "When given ownership of a project or task, what steps do you take to ensure it gets completed successfully from start to finish?",
+  },
+  {
+    key: "q7",
+    label: "Q7 One project you would launch",
+    text: "If you could launch one new project, event, or initiative with our club this year, what would it be?",
+  },
 ];
 
 const DOMAINS = [
@@ -1034,15 +1064,38 @@ export default function AdminPage() {
               <div style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688", marginBottom: "14px", textTransform: "uppercase", letterSpacing: "1px" }}>
                 Recruitment quest responses (7 trials)
               </div>
+              {/* Driven by QUESTIONS rather than Object.entries(answers): all 7
+                  always appear, in the right order, even if an answer is blank
+                  or a key is missing from the stored record. */}
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {Object.entries(selectedCandidate.answers).map(([key, val], i) => (
-                  <div key={key} style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.07)", padding: "12px 14px", borderRadius: "10px" }}>
-                    <div style={{ fontFamily: VT, fontSize: "14px", color: "#6b7688" }}>Question {i + 1}</div>
-                    <div style={{ fontFamily: VT, fontSize: "18px", color: "#c9cfe0", marginTop: "4px", lineHeight: 1.4 }}>
-                      "{val || "No answer submitted"}"
+                {QUESTIONS.map((q, i) => {
+                  const val = (selectedCandidate.answers || {})[q.key] || "";
+                  return (
+                    <div key={q.key} style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.07)", padding: "13px 15px", borderRadius: "10px" }}>
+                      <div style={{ fontFamily: VT, fontSize: "14px", color: "#6b7688", textTransform: "uppercase", letterSpacing: "1px" }}>
+                        Question {i + 1}
+                      </div>
+                      <div style={{ fontFamily: VT, fontSize: "16px", color: "#8a93a5", marginTop: "3px", lineHeight: 1.4 }}>
+                        {q.text}
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: VT,
+                          fontSize: "18px",
+                          color: val ? "#e8ecf3" : "#5a6172",
+                          marginTop: "9px",
+                          paddingTop: "9px",
+                          borderTop: "1px solid rgba(255,255,255,.07)",
+                          lineHeight: 1.45,
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {val || "— No answer submitted"}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
