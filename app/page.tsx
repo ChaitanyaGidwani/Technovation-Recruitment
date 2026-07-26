@@ -10,6 +10,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import { login as apiLogin, stats as apiStats, sendResetCode, verifyResetCode, resetPin, ApiError } from "@/lib/api";
+import { candFromRow } from "@/lib/cloud-sync";
 
 
 // ---- config (edit freely) ----
@@ -336,13 +338,15 @@ export default function ArcadePage() {
   // Forgot PIN state
   const [forgotPinMode, setForgotPinMode] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
-  const [resetPhone, setResetPhone] = useState("");
+  const [resetCode, setResetCode] = useState("");
   const [resetNewPin, setResetNewPin] = useState("");
   const [resetConfirmPin, setResetConfirmPin] = useState("");
-  const [resetStep, setResetStep] = useState<"verify" | "newpin">("verify");
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetStep, setResetStep] = useState<"verify" | "code" | "newpin">("verify");
   const [resetErr, setResetErr] = useState("");
   const [resetSuccess, setResetSuccess] = useState("");
   const [loginErr, setLoginErr] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
   // A remembered session shows a one-tap "Resume" on the landing page
   // (instead of force-navigating there).
   const [resumeInfo, setResumeInfo] = useState<{ email: string; name: string } | null>(null);
@@ -418,20 +422,21 @@ export default function ArcadePage() {
 
   // Sync real candidate registration count
   useEffect(() => {
-    const syncCount = () => {
-      try {
-        const raw = localStorage.getItem("tech_candidates_admin");
-        const list = raw ? JSON.parse(raw) : [];
-        setRegistrationCount(list.length);
-      } catch {
-        setRegistrationCount(0);
-      }
+    // The live count comes from the server, not from localStorage. Reading
+    // localStorage.length meant every device reported its own private number —
+    // a phone that had never registered anyone showed 0 while a laptop showed 13.
+    let alive = true;
+    const syncCount = async () => {
+      const s = await apiStats();
+      if (alive) setRegistrationCount(s.registrations);
     };
-    syncCount();
-    window.addEventListener("storage", syncCount);
-    const timer = setInterval(syncCount, 1500);
+    void syncCount();
+    const onFocus = () => { void syncCount(); };
+    window.addEventListener("focus", onFocus);
+    const timer = setInterval(syncCount, 15000);
     return () => {
-      window.removeEventListener("storage", syncCount);
+      alive = false;
+      window.removeEventListener("focus", onFocus);
       clearInterval(timer);
     };
   }, []);
@@ -443,12 +448,17 @@ export default function ArcadePage() {
     const delta = target - progCur.current;
     if (Math.abs(delta) < 0.0006) {
       progCur.current = target;
-      setProgress(target);
+      setProgress((p) => (Math.abs(p - target) < 0.0005 ? p : target));
       progRaf.current = null;
       return;
     }
     progCur.current += delta * 0.16; // ~critically damped glide
-    setProgress(progCur.current);
+    // Quantise before committing to state. This whole page re-renders on every
+    // progress change, so pushing raw float deltas meant a full re-render per
+    // frame while scrolling — the main source of stutter on phones. 400 steps
+    // is finer than the eye can resolve here but cuts the render count sharply.
+    const q = Math.round(progCur.current * 400) / 400;
+    setProgress((p) => (p === q ? p : q));
     progRaf.current = requestAnimationFrame(stepProgress);
   }, []);
 
@@ -843,7 +853,7 @@ export default function ArcadePage() {
         const merged = list.map((c: any) => (c.email.toLowerCase() === emailKey ? updatedCand : c));
         localStorage.setItem("tech_candidates_admin", JSON.stringify(merged));
         setPlayerNo(existing.playerNo || 1001);
-        setRegistrationCount(merged.length);
+        void apiStats().then((s) => setRegistrationCount(s.registrations));
       } else {
         const newPlayerNo = 1000 + list.length + 1;
         const newCand = {
@@ -864,7 +874,7 @@ export default function ArcadePage() {
         list.unshift(newCand);
         localStorage.setItem("tech_candidates_admin", JSON.stringify(list));
         setPlayerNo(newPlayerNo);
-        setRegistrationCount(list.length);
+        void apiStats().then((s) => setRegistrationCount(s.registrations));
       }
     } catch {
       setPlayerNo(1001);
@@ -942,7 +952,7 @@ export default function ArcadePage() {
     // the "task received" message on this render.
   };
 
-  const handleCandidateLogin = (e: React.FormEvent) => {
+  const handleCandidateLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginEmail.trim() || !loginPin.trim()) {
       setLoginErr("ENTER BOTH REGISTERED EMAIL & PIN");
@@ -953,79 +963,105 @@ export default function ArcadePage() {
       return;
     }
 
+    // The PIN is checked in Postgres, not here. A client-side comparison was
+    // meaningless: the hash it compared against came from a table any visitor
+    // could read, and the check itself could be skipped from the console.
+    setLoginBusy(true);
+    setLoginErr("");
     try {
-      const raw = localStorage.getItem("tech_candidates_admin");
-      const list = raw ? JSON.parse(raw) : [];
-      const match = list.find((c: any) => c.email.toLowerCase() === loginEmail.trim().toLowerCase());
-
-      if (!match) {
-        setLoginErr("NO APPLICANT FILE FOUND FOR THAT EMAIL. REGISTER FIRST.");
+      const row = await apiLogin(loginEmail.trim(), loginPin);
+      if (!row) {
+        setLoginErr("INCORRECT EMAIL OR PIN. TRY AGAIN OR USE FORGOT PIN.");
         return;
       }
 
-      // Verify PIN against stored hash
-      if (!match.pinHash) {
-        setLoginErr("ACCOUNT NOT ACTIVATED. COMPLETE REGISTRATION FIRST.");
-        return;
-      }
-      if (hashPin(loginPin) !== match.pinHash) {
-        setLoginErr("INCORRECT PIN. TRY AGAIN OR USE FORGOT PIN.");
-        return;
-      }
+      // Cache only this applicant's own record for the session.
+      try {
+        localStorage.setItem("tech_candidates_admin", JSON.stringify([candFromRow(row)]));
+      } catch { /* ignore */ }
 
-      // PIN verified — load candidate data
       loadCandidateByEmail(loginEmail.trim());
       setPin(loginPin);
-
       setShowLoginModal(false);
       setLoginErr("");
       saveSession(loginEmail.trim());
       goTo("hq");
-    } catch {
-      setLoginErr("SYSTEM ERROR ACCESSING PLAYER FILE");
+    } catch (err) {
+      const code = (err as ApiError)?.code || "ERROR";
+      if (code === "RATE_LIMITED") {
+        const mins = Math.ceil(((err as ApiError).retryIn || 900) / 60);
+        setLoginErr(`TOO MANY FAILED ATTEMPTS. TRY AGAIN IN ${mins} MIN.`);
+      } else if (code === "OFFLINE") {
+        setLoginErr("CANNOT REACH THE SERVER RIGHT NOW.");
+      } else {
+        setLoginErr("SYSTEM ERROR ACCESSING PLAYER FILE");
+      }
+    } finally {
+      setLoginBusy(false);
     }
   };
 
-  const handleForgotPinVerify = (e: React.FormEvent) => {
+  // ---- PIN RESET (email one-time code) ---------------------------------
+  // This used to accept email + last 4 digits of phone. Both of those were
+  // readable by anyone via the public table, so any applicant could reset
+  // someone else's PIN and take over their account. Recovery now requires
+  // receiving a code in the college mailbox, which an attacker can't do.
+
+  /** Step 1 — send the code. */
+  const handleForgotPinVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetEmail.trim() || !resetPhone.trim()) {
-      setResetErr("ENTER BOTH EMAIL & PHONE TO VERIFY IDENTITY");
+    const em = resetEmail.trim().toLowerCase();
+    if (!em) {
+      setResetErr("ENTER YOUR REGISTERED COLLEGE EMAIL");
       return;
     }
-    if (!resetEmail.trim().toLowerCase().endsWith("@abes.ac.in")) {
+    if (!em.endsWith("@abes.ac.in")) {
       setResetErr("PLEASE ENTER YOUR COLLEGE EMAIL (@ABES.AC.IN)");
       return;
     }
-
+    setResetBusy(true);
+    setResetErr("");
     try {
-      const raw = localStorage.getItem("tech_candidates_admin");
-      const list = raw ? JSON.parse(raw) : [];
-      const match = list.find((c: any) => c.email.toLowerCase() === resetEmail.trim().toLowerCase());
-
-      if (!match) {
-        setResetErr("NO APPLICANT FILE FOUND FOR THAT EMAIL.");
-        return;
-      }
-
-      // Verify phone number matches (last 4 digits for security)
-      const storedPhone = (match.phone || "").replace(/\D/g, "");
-      const inputPhone = resetPhone.replace(/\D/g, "");
-      if (storedPhone.length < 4 || inputPhone.length < 4 || storedPhone.slice(-4) !== inputPhone.slice(-4)) {
-        setResetErr("PHONE VERIFICATION FAILED. LAST 4 DIGITS DON'T MATCH.");
-        return;
-      }
-
-      // Identity verified — proceed to new PIN step
-      setResetErr("");
-      setResetStep("newpin");
-    } catch {
-      setResetErr("SYSTEM ERROR");
+      await sendResetCode(em);
+      setResetStep("code");
+      setResetSuccess("CODE SENT — CHECK YOUR COLLEGE INBOX (AND SPAM).");
+    } catch (err) {
+      const code = (err as ApiError)?.code || "ERROR";
+      setResetErr(
+        code === "RATE_LIMITED"
+          ? "TOO MANY REQUESTS. WAIT A MINUTE AND TRY AGAIN."
+          : "COULD NOT SEND THE CODE. CHECK THE ADDRESS AND TRY AGAIN."
+      );
+    } finally {
+      setResetBusy(false);
     }
   };
 
-  const handleResetPinSubmit = (e: React.FormEvent) => {
+  /** Step 2 — verify the emailed code. */
+  const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (resetNewPin.length < 4) {
+    if (!resetCode.trim()) {
+      setResetErr("ENTER THE 6-DIGIT CODE FROM YOUR EMAIL");
+      return;
+    }
+    setResetBusy(true);
+    setResetErr("");
+    try {
+      await verifyResetCode(resetEmail.trim(), resetCode.trim());
+      setResetSuccess("");
+      setResetStep("newpin");
+    } catch {
+      setResetErr("THAT CODE ISN'T VALID OR HAS EXPIRED. REQUEST A NEW ONE.");
+    } finally {
+      setResetBusy(false);
+    }
+  };
+
+  /** Step 3 — set the new PIN. The server identifies the account from the
+   *  verified session, not from anything this form sends. */
+  const handleResetPinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^\d{4,6}$/.test(resetNewPin)) {
       setResetErr("NEW PIN MUST BE 4-6 DIGITS");
       return;
     }
@@ -1034,31 +1070,32 @@ export default function ArcadePage() {
       return;
     }
 
+    setResetBusy(true);
     try {
-      const raw = localStorage.getItem("tech_candidates_admin");
-      const list = raw ? JSON.parse(raw) : [];
-      const updated = list.map((c: any) => {
-        if (c.email.toLowerCase() === resetEmail.trim().toLowerCase()) {
-          return { ...c, pinHash: hashPin(resetNewPin) };
-        }
-        return c;
-      });
-      localStorage.setItem("tech_candidates_admin", JSON.stringify(updated));
-
+      await resetPin(resetNewPin);
       setResetErr("");
       setResetSuccess("PIN RESET SUCCESSFUL! YOU CAN NOW LOG IN.");
       setTimeout(() => {
         setForgotPinMode(false);
         setResetStep("verify");
         setResetEmail("");
-        setResetPhone("");
+        setResetCode("");
         setResetNewPin("");
         setResetConfirmPin("");
         setResetSuccess("");
         setResetErr("");
       }, 2500);
-    } catch {
-      setResetErr("SYSTEM ERROR RESETTING PIN");
+    } catch (err) {
+      const code = (err as ApiError)?.code || "ERROR";
+      setResetErr(
+        code === "NOT_VERIFIED"
+          ? "VERIFICATION EXPIRED. START THE RESET AGAIN."
+          : code === "NO_SUCH_APPLICANT"
+          ? "NO APPLICANT REGISTERED WITH THAT EMAIL."
+          : "COULD NOT RESET THE PIN. TRY AGAIN."
+      );
+    } finally {
+      setResetBusy(false);
     }
   };
   const onDownload = () => {
@@ -1161,6 +1198,8 @@ export default function ArcadePage() {
     animation: error ? "blink 0.5s steps(1) 4" : "none",
   };
 
+  // NOTE: pair this with className="gpu-layer" so the fixed overlay composites
+  // on its own layer instead of repainting the full page on every scroll frame.
   const scanOverlay = (opacity: number): CSSProperties => ({
     position: "fixed",
     inset: 0,
@@ -1168,6 +1207,8 @@ export default function ArcadePage() {
     opacity,
     zIndex: 50,
     background: "repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.5) 2px 4px)",
+    transform: "translateZ(0)",
+    backfaceVisibility: "hidden",
   });
 
   const labelSm: CSSProperties = {
@@ -1300,6 +1341,7 @@ export default function ArcadePage() {
       mixBlendMode: "soft-light",
       animation: FLICKER ? "crtflicker 4s infinite" : "none",
       opacity: 0.05,
+      transform: "translateZ(0)",
     };
     const joyStyle: CSSProperties = {
       position: "relative",
@@ -1337,14 +1379,14 @@ export default function ArcadePage() {
             progRaf.current = requestAnimationFrame(stepProgress);
           }
         }}
-        style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: "#04040a", position: "relative" }}
+        className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "#04040a", position: "relative" }}
       >
-        <div style={{ height: "190vh", position: "relative" }}>
+        <div className="track-h" style={{ position: "relative" }}>
           <div
+            className="screen-h"
             style={{
               position: "sticky",
               top: 0,
-              height: "100vh",
               overflow: "hidden",
               background: "radial-gradient(140% 90% at 50% -10%, #1a1f36 0%, #0b0d17 45%, #05060d 100%)",
             }}
@@ -1404,8 +1446,8 @@ export default function ArcadePage() {
             </div>
 
             <div style={{ position: "absolute", top: isMobile ? "44px" : "8.2%", right: isMobile ? "2%" : "2.5%", zIndex: 7, textAlign: "right", fontFamily: PS, lineHeight: 1.5 }}>
-              <div style={{ fontSize: isMobile ? "6px" : "9px", color: "#ffe600", textShadow: "0 0 8px #ffe600" }}>LIVE REGISTRATIONS</div>
-              <div style={{ fontSize: isMobile ? "12px" : "clamp(14px,1.8vw,22px)", color: "#39ff14", textShadow: "0 0 10px #39ff14", letterSpacing: "2px" }}>{scoreStr}</div>
+              <div style={{ fontSize: isMobile ? "6px" : "9px", color: "#ffb800", textShadow: "0 0 8px #ffb800" }}>LIVE REGISTRATIONS</div>
+              <div style={{ fontSize: isMobile ? "12px" : "clamp(14px,1.8vw,22px)", color: "#ffb800", textShadow: "0 0 10px #ffb800", letterSpacing: "2px" }}>{scoreStr}</div>
             </div>
 
             {/* CRT */}
@@ -1475,7 +1517,7 @@ export default function ArcadePage() {
                 </div>
 
                 <div style={scanStyle} />
-                <div style={flickerStyle} />
+                <div className="crt-flicker gpu-layer" style={flickerStyle} />
                 <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "linear-gradient(115deg, rgba(255,255,255,.07) 0%, transparent 30%, transparent 70%, rgba(255,255,255,.03) 100%)", borderRadius: "22px" }} />
                 <div style={{ position: "absolute", inset: 0, pointerEvents: "none", borderRadius: "22px", boxShadow: "inset 0 0 90px 12px rgba(0,0,0,.85)" }} />
               </div>
@@ -1571,7 +1613,7 @@ export default function ArcadePage() {
       }
     })();
     return (
-    <div style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: "radial-gradient(140% 90% at 50% -10%, #141a30 0%, #0a0d1a 55%, #05060d 100%)", position: "relative" }}>
+    <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(140% 90% at 50% -10%, #141a30 0%, #0a0d1a 55%, #05060d 100%)", position: "relative" }}>
       <div style={scanOverlay(0.28)} />
       {answersLocked && (
         <div style={{ position: "sticky", top: 0, zIndex: 20, background: "rgba(255,180,40,.12)", borderBottom: "2px solid #ffb800", padding: "10px 16px", textAlign: "center", fontFamily: PS, fontSize: "clamp(8px,1.1vw,11px)", color: "#ffb800", textShadow: "0 0 8px #ffb800" }}>
@@ -1747,7 +1789,7 @@ export default function ArcadePage() {
 
   // ================= PASS =================
   const renderPass = () => (
-    <div style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: "radial-gradient(130% 90% at 50% 0%, #101830 0%, #080a16 60%, #05060d 100%)", position: "relative" }}>
+    <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(130% 90% at 50% 0%, #101830 0%, #080a16 60%, #05060d 100%)", position: "relative" }}>
       <div style={scanOverlay(0.3)} />
       <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(16px,2.4vw,26px)", padding: "clamp(28px,5vw,60px) 20px 70px", position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -1792,7 +1834,7 @@ export default function ArcadePage() {
       `Every great player has a stack of "Game Over" screens behind them. Keep building, keep shipping, ` +
       `and drop another coin next season. TECHNOVATION would love to see you back. 🎮`;
     return (
-      <div style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: "radial-gradient(120% 80% at 50% -5%, #2a0e18 0%, #0a0e1c 55%, #05060d 100%)", position: "relative" }}>
+      <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(120% 80% at 50% -5%, #2a0e18 0%, #0a0e1c 55%, #05060d 100%)", position: "relative" }}>
         <div style={scanOverlay(0.22)} />
         <div style={{ maxWidth: "760px", margin: "0 auto", padding: "clamp(28px,5vw,60px) clamp(16px,4vw,40px) 80px", display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(18px,3vw,26px)" }}>
           {/* identity */}
@@ -1868,7 +1910,7 @@ export default function ArcadePage() {
       .filter((d): d is (typeof DOMAINS)[number] => !!d);
 
     return (
-      <div style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: "radial-gradient(120% 80% at 80% -5%, #12203a 0%, #0a0e1c 55%, #05060d 100%)", position: "relative" }}>
+      <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(120% 80% at 80% -5%, #12203a 0%, #0a0e1c 55%, #05060d 100%)", position: "relative" }}>
         <div style={scanOverlay(0.22)} />
         <div style={{ maxWidth: "1080px", margin: "0 auto", padding: "clamp(22px,3.5vw,44px) clamp(16px,4vw,40px) 80px" }}>
           {/* header */}
@@ -2241,7 +2283,7 @@ export default function ArcadePage() {
       setForgotPinMode(false);
       setResetStep("verify");
       setResetEmail("");
-      setResetPhone("");
+      setResetCode("");
       setResetNewPin("");
       setResetConfirmPin("");
       setResetErr("");
@@ -2350,7 +2392,11 @@ export default function ArcadePage() {
             <>
               <div style={{ fontFamily: PS, fontSize: "16px", color: "#ffb800", textShadow: "0 0 12px #ffb800" }}>🔐 RESET PIN</div>
               <div style={{ fontFamily: VT, fontSize: "18px", color: "#7de8ff", marginTop: "8px" }}>
-                {resetStep === "verify" ? "Verify your identity using email & registered phone" : "Set your new secret PIN"}
+                {resetStep === "verify"
+                  ? "We'll email a one-time code to your college address"
+                  : resetStep === "code"
+                  ? "Enter the 6-digit code we just emailed you"
+                  : "Set your new secret PIN"}
               </div>
 
               {resetSuccess ? (
@@ -2369,20 +2415,37 @@ export default function ArcadePage() {
                       style={fieldStyle}
                     />
                   </div>
-                  <div>
-                    <div style={{ ...labelSm, color: "#ffb800" }}>REGISTERED PHONE (LAST 4 DIGITS)</div>
-                    <input
-                      type="text"
-                      value={resetPhone}
-                      onChange={(e) => { setResetPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, 4)); setResetErr(""); }}
-                      maxLength={4}
-                      placeholder="LAST 4 DIGITS"
-                      style={fieldStyle}
-                    />
+                  <div style={{ fontFamily: VT, fontSize: "15px", color: "#7de8ff", lineHeight: 1.35 }}>
+                    Only the person who can open this inbox can reset the PIN.
                   </div>
                   {resetErr && <div style={{ ...errBase, textAlign: "center", fontSize: "8px" }}>{resetErr}</div>}
-                  <button type="submit" style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "14px", boxShadow: "0 6px 0 #8a7900, 0 0 20px rgba(255,180,40,.4)", marginTop: "6px" }}>
-                    VERIFY IDENTITY ▶
+                  <button type="submit" disabled={resetBusy} style={{ cursor: resetBusy ? "not-allowed" : "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: resetBusy ? "#4a5a7a" : "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "14px", boxShadow: resetBusy ? "none" : "0 6px 0 #8a7900, 0 0 20px rgba(255,180,40,.4)", marginTop: "6px" }}>
+                    {resetBusy ? "SENDING…" : "EMAIL ME A CODE ▶"}
+                  </button>
+                </form>
+              ) : resetStep === "code" ? (
+                <form onSubmit={handleVerifyCode} style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "14px", textAlign: "left" }}>
+                  <div>
+                    <div style={{ ...labelSm, color: "#ffb800" }}>6-DIGIT CODE</div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={resetCode}
+                      onChange={(e) => { setResetCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setResetErr(""); }}
+                      maxLength={6}
+                      placeholder="000000"
+                      style={{ ...fieldStyle, textAlign: "center", letterSpacing: "6px" }}
+                    />
+                  </div>
+                  <div style={{ fontFamily: VT, fontSize: "15px", color: "#7de8ff" }}>
+                    Sent to {resetEmail.trim().toLowerCase()} — check spam if it hasn&apos;t arrived.
+                  </div>
+                  {resetErr && <div style={{ ...errBase, textAlign: "center", fontSize: "8px" }}>{resetErr}</div>}
+                  <button type="submit" disabled={resetBusy} style={{ cursor: resetBusy ? "not-allowed" : "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: resetBusy ? "#4a5a7a" : "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "14px", boxShadow: resetBusy ? "none" : "0 6px 0 #8a7900, 0 0 20px rgba(255,180,40,.4)", marginTop: "6px" }}>
+                    {resetBusy ? "CHECKING…" : "VERIFY CODE ▶"}
+                  </button>
+                  <button type="button" onClick={() => { setResetStep("verify"); setResetCode(""); setResetErr(""); setResetSuccess(""); }} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#7de8ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "6px", padding: "10px" }}>
+                    ◄ USE A DIFFERENT EMAIL
                   </button>
                 </form>
               ) : (
@@ -2430,7 +2493,7 @@ export default function ArcadePage() {
   };
 
   return (
-    <div style={{ width: "100%", height: "100vh", background: "#04040a" }}>
+    <div className="screen-h" style={{ width: "100%", background: "#04040a" }}>
       {page === "floor" && renderFloor()}
       {page === "create" && renderCreate()}
       {page === "pass" && renderPass()}

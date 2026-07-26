@@ -13,12 +13,17 @@
 
 import { useEffect, useState, useMemo, type CSSProperties } from "react";
 import Link from "next/link";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { adminAll, adminWrite, adminDelete, ApiError } from "@/lib/api";
+import { candFromRow } from "@/lib/cloud-sync";
 
 const VT = "'VT323', monospace";
 const SANS = "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
-const MASTER_KEY = "techno21";
+// NOTE: there is deliberately no master key in this file any more.
+// It used to be `const MASTER_KEY = "techno21"`, which shipped in the compiled
+// JavaScript — anyone could read it from view-source and take over the panel.
+// The key is now compared against a bcrypt hash inside Postgres; the browser
+// only ever sends what the operator typed.
 
 const STAGES = [
   { key: "submitted", label: "FORM SUBMITTED", icon: "✓", color: "#5fb9d6" },
@@ -96,21 +101,14 @@ export default function AdminPage() {
   const [authError, setAuthError] = useState("");
   const [attempts, setAttempts] = useState(0);
   const [lockoutTime, setLockoutTime] = useState(0);
+  const [authBusy, setAuthBusy] = useState(false);
+  // Held in memory only for the session — never persisted to localStorage.
+  const [adminKey, setAdminKey] = useState("");
 
   // Candidates & Filtering state
-  const [candidates, setCandidates] = useState<Candidate[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("tech_candidates_admin");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          /* fallback */
-        }
-      }
-    }
-    return INITIAL_CANDIDATES;
-  });
+  // Loaded from the server on successful key verification — no longer seeded
+  // from localStorage, which used to hold a copy of every applicant's record.
+  const [candidates, setCandidates] = useState<Candidate[]>(INITIAL_CANDIDATES);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [domainFilter, setDomainFilter] = useState("all");
@@ -136,38 +134,45 @@ export default function AdminPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteErr, setDeleteErr] = useState("");
 
-  // Persist candidates to LocalStorage
+  // Applicant data is intentionally NOT written to localStorage any more.
+  // Keeping a full copy of the roster on disk in the browser was one of the
+  // ways the data leaked; it now lives only in memory for the admin session.
   useEffect(() => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("tech_candidates_admin", JSON.stringify(candidates));
+      localStorage.removeItem("tech_candidates_admin");
     }
-  }, [candidates]);
+  }, []);
 
   // ---- LIVE: reflect new applicants & candidate task submissions ----
   // Reloads the roster whenever another tab (a candidate) writes the store,
   // on window focus, and on a gentle poll. The equality guard prevents any
   // churn or clobbering of the admin's own in-tab edits.
+  // Refresh the roster from the server (key-gated) rather than from a shared
+  // localStorage blob. Polls gently and on window focus.
   useEffect(() => {
-    const reload = () => {
+    if (!isAuthenticated || !adminKey) return;
+    let alive = true;
+    const reload = async () => {
       try {
-        const raw = localStorage.getItem("tech_candidates_admin");
-        if (!raw) return;
-        setCandidates((prev) => (JSON.stringify(prev) === raw ? prev : JSON.parse(raw)));
+        const rows = await adminAll(adminKey);
+        if (!alive) return;
+        const mapped = rows.map((r) => candFromRow(r) as unknown as Candidate);
+        setCandidates((prev) =>
+          JSON.stringify(prev) === JSON.stringify(mapped) ? prev : mapped
+        );
       } catch {
-        /* ignore */
+        /* transient — keep showing what we have */
       }
     };
-    const onStorage = (e: StorageEvent) => { if (e.key === "tech_candidates_admin") reload(); };
-    const onFocus = () => reload();
-    window.addEventListener("storage", onStorage);
+    const onFocus = () => { void reload(); };
     window.addEventListener("focus", onFocus);
-    const iv = setInterval(reload, 4000);
+    const iv = setInterval(reload, 8000);
     return () => {
-      window.removeEventListener("storage", onStorage);
+      alive = false;
       window.removeEventListener("focus", onFocus);
       clearInterval(iv);
     };
-  }, []);
+  }, [isAuthenticated, adminKey]);
 
   // Lockout Timer countdown
   useEffect(() => {
@@ -188,44 +193,64 @@ export default function AdminPage() {
     return () => clearTimeout(timeout);
   }, [isAuthenticated]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  // The key is verified in Postgres. A correct key also returns the roster in
+  // the same round-trip, so there is no way to reach applicant data without it.
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (lockoutTime > 0) return;
+    if (lockoutTime > 0 || authBusy) return;
+    const key = inputKey.trim();
+    if (!key) return;
 
-    if (inputKey.trim().toLowerCase() === MASTER_KEY.toLowerCase()) {
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const rows = await adminAll(key);
+      setAdminKey(key);
+      setCandidates(rows.map((r) => candFromRow(r) as unknown as Candidate));
       setIsAuthenticated(true);
-      setAuthError("");
       setAttempts(0);
       setInputKey("");
-    } else {
-      const newAttempts = attempts + 1;
-      setAttempts(newAttempts);
-      if (newAttempts >= 5) {
-        setLockoutTime(60);
-        setAuthError("TOO MANY FAILED ATTEMPTS. LOCKED FOR 60s.");
+    } catch (err) {
+      const code = (err as ApiError)?.code || "ERROR";
+      if (code === "RATE_LIMITED") {
+        const secs = (err as ApiError).retryIn || 900;
+        setLockoutTime(secs);
+        setAuthError(`TOO MANY FAILED ATTEMPTS. LOCKED FOR ${secs}s.`);
+      } else if (code === "ADMIN_KEY_NOT_SET") {
+        setAuthError("NO ADMIN KEY SET. RUN app_set_admin_key() IN SUPABASE.");
+      } else if (code === "OFFLINE") {
+        setAuthError("SUPABASE NOT CONFIGURED — CANNOT VERIFY KEY.");
       } else {
-        setAuthError(`INVALID MASTER KEY. (${5 - newAttempts} ATTEMPTS REMAINING)`);
+        const n = attempts + 1;
+        setAttempts(n);
+        setAuthError(`INVALID MASTER KEY. (${Math.max(0, 5 - n)} ATTEMPTS REMAINING)`);
       }
+    } finally {
+      setAuthBusy(false);
     }
   };
 
-  const updateStage = (candId: string, newStageIdx: number) => {
+  /** Apply an admin-only patch server-side, then mirror it into local state. */
+  const applyPatch = async (cand: Candidate, patch: Record<string, unknown>, local: Partial<Candidate>) => {
+    try {
+      await adminWrite(adminKey, cand.email, patch);
+    } catch {
+      /* surface nothing here — the periodic refresh will correct the view */
+    }
     setCandidates((prev) =>
       prev.map((c) => {
-        if (c.id === candId) {
-          const updated = {
-            ...c,
-            stageIdx: newStageIdx,
-            updatedAt: "JUST NOW",
-          };
-          if (selectedCandidate?.id === candId) {
-            setSelectedCandidate(updated);
-          }
-          return updated;
-        }
-        return c;
+        if (c.id !== cand.id) return c;
+        const updated = { ...c, ...local, updatedAt: "JUST NOW" } as Candidate;
+        if (selectedCandidate?.id === cand.id) setSelectedCandidate(updated);
+        return updated;
       })
     );
+  };
+
+  const updateStage = (candId: string, newStageIdx: number) => {
+    const cand = candidates.find((c) => c.id === candId);
+    if (!cand) return;
+    void applyPatch(cand, { stage_idx: newStageIdx }, { stageIdx: newStageIdx });
   };
 
   // Executed only after the admin confirms the promotion dialog.
@@ -241,22 +266,10 @@ export default function AdminPage() {
     if (!confirmReject) return;
     const atStage = confirmReject.stageIdx; // stage reached when stopped
     const feedback = rejectFeedback.trim();
-    setCandidates((prev) =>
-      prev.map((c) => {
-        if (c.id === confirmReject.id) {
-          const updated: Candidate = {
-            ...c,
-            stageIdx: 5,
-            rejected: true,
-            rejectedAtStage: atStage,
-            rejectionFeedback: feedback,
-            updatedAt: "JUST NOW",
-          };
-          if (selectedCandidate?.id === c.id) setSelectedCandidate(updated);
-          return updated;
-        }
-        return c;
-      })
+    void applyPatch(
+      confirmReject,
+      { stage_idx: 5, rejected: true, rejected_at_stage: atStage, rejection_feedback: feedback },
+      { stageIdx: 5, rejected: true, rejectedAtStage: atStage, rejectionFeedback: feedback }
     );
     setConfirmReject(null);
     setRejectFeedback("");
@@ -271,16 +284,7 @@ export default function AdminPage() {
     setDeleting(true);
     setDeleteErr("");
     try {
-      if (isSupabaseConfigured && supabase) {
-        const { error } = await supabase.from("candidates").delete().eq("email", email);
-        if (error) {
-          // Almost always a missing DELETE policy — keep the row, tell the admin.
-          setDeleteErr("Delete blocked by Supabase: " + (error.message || String(error)) + " — re-run supabase/schema_live.sql to add the delete policy.");
-          setDeleting(false);
-          return;
-        }
-      }
-      // Forget it in the sync's "seen in cloud" set so a re-registration works.
+      await adminDelete(adminKey, email);
       try {
         const raw = localStorage.getItem("tech_pushed_emails");
         if (raw) {
@@ -293,7 +297,12 @@ export default function AdminPage() {
       setDeleting(false);
       setConfirmDelete(null);
     } catch (e) {
-      setDeleteErr("Delete error: " + String(e));
+      const code = (e as ApiError)?.code || "ERROR";
+      setDeleteErr(
+        code === "AUTH_FAILED"
+          ? "Admin key rejected — log out and back in."
+          : "Delete failed: " + String((e as Error)?.message || e)
+      );
       setDeleting(false);
     }
   };
@@ -306,31 +315,21 @@ export default function AdminPage() {
     return Math.max(0, Math.min(100, Math.round(n)));
   };
   const saveScores = (candId: string) => {
+    const cand = candidates.find((c) => c.id === candId);
+    if (!cand) return;
     const t = clampScore(scoreTask);
     const iv = clampScore(scoreInterview);
-    setCandidates((prev) =>
-      prev.map((c) => {
-        if (c.id === candId) {
-          const updated: Candidate = { ...c, taskScore: t, interviewScore: iv, updatedAt: "JUST NOW" };
-          if (selectedCandidate?.id === candId) setSelectedCandidate(updated);
-          return updated;
-        }
-        return c;
-      })
+    void applyPatch(
+      cand,
+      { task_score: t ?? "", interview_score: iv ?? "" },
+      { taskScore: t, interviewScore: iv }
     );
   };
 
   const saveNotes = (candId: string) => {
-    setCandidates((prev) =>
-      prev.map((c) => {
-        if (c.id === candId) {
-          const updated = { ...c, notes: editingNotes, updatedAt: "JUST NOW" };
-          setSelectedCandidate(updated);
-          return updated;
-        }
-        return c;
-      })
-    );
+    const cand = candidates.find((c) => c.id === candId);
+    if (!cand) return;
+    void applyPatch(cand, { notes: editingNotes }, { notes: editingNotes });
   };
 
   // The two per-domain task submission links, in domain order [1st, 2nd].

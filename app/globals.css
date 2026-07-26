@@ -54,6 +54,40 @@ button { font-family: 'Press Start 2P', monospace; }
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ---- Mobile viewport stability -------------------------------------
+   On phones `100vh` is the viewport with the browser chrome HIDDEN. As the
+   URL bar slides in and out during a scroll, every 100vh box silently
+   resizes — which is what made the page jiggle/jump while scrolling.
+   `100dvh` tracks the live viewport instead, so nothing reflows mid-scroll.
+   The plain vh line stays first as a fallback for older browsers. */
+.screen-h { height: 100vh; height: 100dvh; }
+.track-h  { height: 190vh; height: 190dvh; }
+
+html, body {
+  /* Stops the whole page rubber-banding behind the scroll container, which
+     on iOS reads as the layout "sliding" underneath the content. */
+  overscroll-behavior-y: none;
+}
+
+/* Full-screen fixed overlays (scanlines / CRT flicker) otherwise force a
+   full-page repaint on every scroll frame. Promoting them to their own
+   compositor layer keeps scrolling smooth on phones. */
+.gpu-layer {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: opacity;
+}
+
+/* The CRT flicker repaints a full-viewport element continuously. It costs
+   real frames on a phone and is barely visible at that size, so drop it on
+   small screens and for anyone who asked for reduced motion. */
+@media (max-width: 768px) {
+  .crt-flicker { animation: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crt-flicker, [style*="marqueeglow"], [style*="floaty"] { animation: none !important; }
+}
+
 /* ---- Responsive Layout Utilities ---- */
 .player-form-grid {
   display: grid;

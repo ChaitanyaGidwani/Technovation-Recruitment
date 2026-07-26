@@ -155,71 +155,35 @@ let started = false;
 const log = (...a: unknown[]) => console.info("%c[cloud-sync]", "color:#39ff14", ...a);
 const warn = (...a: unknown[]) => console.warn("[cloud-sync]", ...a);
 
+/** Exposed so the admin panel can map server rows into the UI shape. */
+export { candFromRow, rowFromCand };
+
+/**
+ * DISABLED BY DESIGN.
+ *
+ * This used to `select("*")` the whole `candidates` table on every page load
+ * and mirror it into localStorage — which meant any visitor's browser held
+ * every applicant's email, phone, admission number, answers and pin_hash.
+ * That single call was what made the PIN and the phone-based reset pointless.
+ *
+ * The table now denies direct anon access entirely. Data flows explicitly:
+ *   - applicants  → lib/api.ts login/register/save (PIN verified in Postgres)
+ *   - admin panel → lib/api.ts adminAll/adminWrite/adminDelete (key verified
+ *                   in Postgres, never shipped in the bundle)
+ *
+ * Kept as a no-op so the existing <CloudSync /> mount stays harmless.
+ */
 export function initCloudSync(): void {
   if (typeof window === "undefined") return;
-  if (!isSupabaseConfigured || !supabase) {
-    warn("Supabase not configured — running local-only. Set NEXT_PUBLIC_SUPABASE_URL and a key in .env.local, then restart.");
-    return;
-  }
   if (started) return;
   started = true;
-  const sb = supabase;
-  log("starting… syncing localStorage <-> Supabase 'candidates' table");
-
-  const pullMerge = async () => {
-    try {
-      const { data, error } = await sb.from("candidates").select("*");
-      if (error) {
-        warn("read failed:", error.message || error);
-        return;
-      }
-      const merged = reconcile((data || []).map(candFromRow), readLocal());
-      const h = JSON.stringify(merged);
-      if (h !== JSON.stringify(readLocal())) {
-        lastHash = h; // set before write so our own storage event doesn't re-push
-        writeLocal(merged);
-        log("pulled", (data || []).length, "cloud rows → local now has", merged.length);
-      } else {
-        lastHash = h;
-      }
-    } catch (e) {
-      warn("read error:", e);
-    }
-  };
-
-  const pushLocal = async () => {
-    const local = readLocal();
-    const h = JSON.stringify(local);
-    if (h === lastHash) return;
-    lastHash = h;
-    if (!local.length) return;
-    try {
-      const rows = local.map(rowFromCand);
-      const { error } = await sb.from("candidates").upsert(rows, { onConflict: "email" });
-      if (error) warn("write failed:", error.message || error);
-      else {
-        addPushed(rows.map((r) => r.email));
-        log("pushed", rows.length, "rows to Supabase");
-      }
-    } catch (e) {
-      warn("write error:", e);
-    }
-  };
-
-  // 1) initial pull (migrates any existing local data up), then continuous push
-  pullMerge().then(pushLocal);
-
-  const iv = window.setInterval(pushLocal, 2500);
-  const onStorage = (e: StorageEvent) => { if (e.key === KEY) pushLocal(); };
-  window.addEventListener("storage", onStorage);
-
-  // 2) realtime: any cloud change → refresh local
-  sb.channel("candidates-sync")
-    .on("postgres_changes", { event: "*", schema: "public", table: "candidates" }, pullMerge)
-    .subscribe((status) => log("realtime channel:", status));
-
-  window.addEventListener("beforeunload", () => {
-    window.clearInterval(iv);
-    window.removeEventListener("storage", onStorage);
-  });
+  void lastHash;
+  void reconcile;
+  void readLocal;
+  void writeLocal;
+  void addPushed;
+  void isSupabaseConfigured;
+  void supabase;
+  void warn;
+  log("global table sync is disabled — data now flows through server-side RPCs");
 }
