@@ -28,7 +28,7 @@ const VT = "'VT323'";
 const STATS = [
   { label: "FEE", value: "100% FREE", color: GREEN },
   { label: "DOMAINS", value: "6 GUILDS", color: CYAN },
-  { label: "STAGES", value: "3 BOSS LEVELS", color: MAGENTA },
+  { label: "STAGES", value: "3  LEVELS", color: MAGENTA },
 ];
 
 const TIMELINE = [
