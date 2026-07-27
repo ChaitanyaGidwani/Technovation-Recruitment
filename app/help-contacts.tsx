@@ -17,7 +17,7 @@ const PS = "'Press Start 2P', monospace";
 const VT = "'VT323', monospace";
 
 const CONTACTS = [
-  { name: "Chaitanya", display: "94542 43781", wa: "919454243781" },
+  { name: "Chaitanya", display: "97925 38186", wa: "919792538186" },
   { name: "Lavi", display: "99272 26271", wa: "919927226271" },
 ];
 
