@@ -23,6 +23,7 @@ import {
   ApiError,
 } from "@/lib/api";
 import { candFromRow } from "@/lib/cloud-sync";
+import HelpContacts from "./help-contacts";
 
 
 // ---- config (edit freely) ----
@@ -2857,6 +2858,9 @@ export default function ArcadePage() {
       {page === "hq" && renderHQ()}
       {renderDomainDetail()}
       {renderLoginModal()}
+      {/* Rendered once here rather than per-screen, so the contacts are
+          reachable from the floor, the form, the pass and HQ alike. */}
+      <HelpContacts />
     </div>
   );
 }

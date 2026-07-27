@@ -16,6 +16,7 @@ import {
   type Variants,
 } from "framer-motion";
 import { type CSSProperties, type ReactNode, useRef } from "react";
+import HelpContacts from "../help-contacts";
 
 // Palette shared with the rest of the arcade (floor / create / pass / HQ).
 const CYAN = "#00f0ff";
@@ -510,6 +511,7 @@ export default function ProcessPage() {
           </GlowButton>
         </motion.section>
       </div>
+      <HelpContacts />
     </div>
   );
 }
