@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useState, useMemo, type CSSProperties } from "react";
 import Link from "next/link";
-import { adminAll, adminWrite, adminDelete, ApiError } from "@/lib/api";
+import { adminAll, adminWrite, adminDelete, adminSetRegistrations, registrationsOpen, ApiError } from "@/lib/api";
 import { candFromRow } from "@/lib/cloud-sync";
 
 const VT = "'VT323', monospace";
@@ -134,6 +134,10 @@ export default function AdminPage() {
   const [authBusy, setAuthBusy] = useState(false);
   // Held in memory only for the session — never persisted to localStorage.
   const [adminKey, setAdminKey] = useState("");
+  // Registration open/paused switch. The database is the source of truth;
+  // this mirrors it so the header can show the current state.
+  const [regOpen, setRegOpen] = useState(true);
+  const [regBusy, setRegBusy] = useState(false);
 
   // Candidates & Filtering state
   // Loaded from the server on successful key verification — no longer seeded
@@ -213,6 +217,22 @@ export default function AdminPage() {
     return () => clearInterval(timer);
   }, [lockoutTime]);
 
+  /** Pause or reopen new registrations (verified against the admin key server-side). */
+  const toggleRegistrations = async () => {
+    if (regBusy) return;
+    const next = !regOpen;
+    if (!next && !window.confirm("Pause registrations?\n\nNew applicants will see \"Registrations are closed\". Existing applicants can still log in, submit tasks and reset their PIN.")) return;
+    setRegBusy(true);
+    try {
+      await adminSetRegistrations(adminKey, next);
+      setRegOpen(next);
+    } catch {
+      setRegOpen(await registrationsOpen());   // resync from the server on failure
+    } finally {
+      setRegBusy(false);
+    }
+  };
+
   /** Drop the key AND the roster from memory — not just the auth flag. */
   const adminSignOut = useCallback(() => {
     setIsAuthenticated(false);
@@ -247,6 +267,7 @@ export default function AdminPage() {
       const rows = await adminAll(key);
       setAdminKey(key);
       setCandidates(rows.map((r) => candFromRow(r) as unknown as Candidate));
+      setRegOpen(await registrationsOpen());
       setIsAuthenticated(true);
       setAttempts(0);
       setInputKey("");
@@ -656,6 +677,14 @@ export default function AdminPage() {
               style={{ cursor: "pointer", fontFamily: VT, fontSize: "16px", color: webhookUrl ? "#2ee88c" : "#6b7688", background: "transparent", border: `1px solid ${webhookUrl ? "rgba(46,232,140,.4)" : "rgba(255,255,255,.15)"}`, borderRadius: "8px", padding: "9px 16px" }}
             >
               {webhookUrl ? "● " : "○ "}Sheet sync
+            </button>
+            <button
+              onClick={() => void toggleRegistrations()}
+              disabled={regBusy}
+              title={regOpen ? "Pause new registrations" : "Reopen registrations"}
+              style={{ cursor: regBusy ? "wait" : "pointer", fontFamily: VT, fontSize: "16px", color: regOpen ? "#2ee88c" : "#ff5c6a", background: regOpen ? "rgba(46,232,140,.1)" : "rgba(255,92,106,.12)", border: `1px solid ${regOpen ? "rgba(46,232,140,.45)" : "rgba(255,92,106,.5)"}`, borderRadius: "8px", padding: "9px 16px" }}
+            >
+              {regBusy ? "…" : regOpen ? "● Registrations open" : "○ Registrations paused"}
             </button>
             <button
               onClick={adminSignOut}

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import {
   login as apiLogin,
   isRegistered as apiIsRegistered,
+  registrationsOpen as apiRegistrationsOpen,
   signOut as apiSignOut,
   register as apiRegister,
   save as apiSave,
@@ -415,6 +416,9 @@ export default function ArcadePage() {
   const [loginBusy, setLoginBusy] = useState(false);
   const [enterBusy, setEnterBusy] = useState(false);
   const [startBusy, setStartBusy] = useState(false);
+  // Whether the drive is accepting new applications. Defaults to open so a
+  // slow first response never flashes "closed" at a genuine applicant.
+  const [regOpen, setRegOpen] = useState(true);
   const [taskErr, setTaskErr] = useState("");
   // A remembered session shows a one-tap "Resume" on the landing page
   // (instead of force-navigating there).
@@ -814,6 +818,20 @@ export default function ArcadePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Is registration open? Re-checked on focus so a pause takes effect for
+  // someone already sitting on the page.
+  useEffect(() => {
+    let alive = true;
+    const check = async () => {
+      const open = await apiRegistrationsOpen();
+      if (alive) setRegOpen(open);
+    };
+    void check();
+    const onFocus = () => { void check(); };
+    window.addEventListener("focus", onFocus);
+    return () => { alive = false; window.removeEventListener("focus", onFocus); };
+  }, []);
+
   // Remember a prior session — but DON'T hijack the landing page. Pre-load the
   // candidate's data and offer a one-tap "Resume" on the floor instead.
   useEffect(() => {
@@ -919,6 +937,7 @@ export default function ArcadePage() {
    * through the briefing and into a blank, locked form.
    */
   const onInsertCoin = () => {
+    if (!regOpen) return;   // server enforces it too; this just avoids a dead end
     if (resumeInfo) {
       goTo("hq");
       return;
@@ -1113,6 +1132,9 @@ export default function ArcadePage() {
         setLoginEmail(email);
         setLoginErr("YOU'VE ALREADY APPLIED WITH THIS EMAIL — ENTER YOUR PIN TO LOG IN.");
         setShowLoginModal(true);
+      } else if (code === "REGISTRATIONS_CLOSED") {
+        setRegOpen(false);
+        setError("REGISTRATIONS ARE CLOSED — NEW APPLICATIONS ARE NO LONGER BEING ACCEPTED.");
       } else if (code === "BAD_EMAIL_DOMAIN") {
         setError("PLEASE USE YOUR COLLEGE EMAIL (@ABES.AC.IN)");
       } else if (code === "BAD_PIN_FORMAT") {
@@ -1726,17 +1748,34 @@ export default function ArcadePage() {
                       <div>&gt; CLUB NAME: <span style={{ color: "#ffb800" }}>{club()}</span></div>
                       <div>&gt; WELCOME, PLAYER 1.</div>
                       <div>&gt; 6 GUILD DOMAINS DETECTED.</div>
-                      <div style={{ color: "#ffb800", textShadow: "0 0 12px #ffb800", animation: "blink 1.05s steps(1) infinite", marginTop: "6px" }}>&gt; INSERT COIN OR SCROLL TO START ▮</div>
+                      <div style={{ color: "#ffb800", textShadow: "0 0 12px #ffb800", animation: "blink 1.05s steps(1) infinite", marginTop: "6px" }}>
+                        {regOpen ? "> INSERT COIN OR SCROLL TO START ▮" : "> REGISTRATIONS CLOSED ▮"}
+                      </div>
                     </div>
-                    {/* Primary landing action -> the Recruitment Quest briefing */}
+                    {/* Primary landing action -> the Recruitment Quest briefing.
+                        Replaced by a closed notice when the drive is paused. The
+                        real block is server-side in app_register; this is just
+                        what the applicant sees. */}
                     <div style={{ marginTop: "30px" }}>
-                      <ArcadeButton
-                        onClick={onInsertCoin}
-                        style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(10px,1.5vw,15px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "8px", padding: "15px 24px", boxShadow: "0 8px 0 #006074, 0 0 28px rgba(0,240,255,.6), inset 0 3px 8px rgba(255,255,255,.5)", letterSpacing: "1px", textShadow: "0 1px 0 rgba(255,255,255,.4)" }}
-                        activeStyle={{ transform: "translateY(6px)", boxShadow: "0 2px 0 #006074, 0 0 18px rgba(0,240,255,.5), inset 0 3px 8px rgba(255,255,255,.5)" }}
-                      >
-                        ▶ INSERT COIN · VIEW QUEST
-                      </ArcadeButton>
+                      {regOpen ? (
+                        <ArcadeButton
+                          onClick={onInsertCoin}
+                          style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(10px,1.5vw,15px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "8px", padding: "15px 24px", boxShadow: "0 8px 0 #006074, 0 0 28px rgba(0,240,255,.6), inset 0 3px 8px rgba(255,255,255,.5)", letterSpacing: "1px", textShadow: "0 1px 0 rgba(255,255,255,.4)" }}
+                          activeStyle={{ transform: "translateY(6px)", boxShadow: "0 2px 0 #006074, 0 0 18px rgba(0,240,255,.5), inset 0 3px 8px rgba(255,255,255,.5)" }}
+                        >
+                          ▶ INSERT COIN · VIEW QUEST
+                        </ArcadeButton>
+                      ) : (
+                        <div style={{ maxWidth: "460px", margin: "0 auto", background: "rgba(255,180,40,.08)", border: "2px solid #ffb800", borderRadius: "10px", padding: "clamp(14px,2vw,20px)" }}>
+                          <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.3vw,13px)", color: "#ffb800", textShadow: "0 0 10px #ffb800", letterSpacing: "1px" }}>
+                            🔒 REGISTRATIONS ARE CLOSED
+                          </div>
+                          <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "8px", lineHeight: 1.4 }}>
+                            We&apos;re not accepting new applications right now.
+                            Already applied? Use <span style={{ color: "#ffb800" }}>PLAYER LOGIN</span> above to check your progress.
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div style={{ position: "absolute", bottom: "5%", left: 0, right: 0, textAlign: "center", fontFamily: PS, fontSize: "10px", color: "#7de8ff" }}>
@@ -1827,11 +1866,11 @@ export default function ArcadePage() {
                 {/* PRESS START */}
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
                   <ArcadeButton
-                    onClick={() => void onPressStart()}
-                    style={startBtnStyle}
-                    activeStyle={{ transform: "translateY(9px)", boxShadow: "0 3px 0 #4d063d, 0 0 18px rgba(255,43,209,.6), inset 0 4px 8px rgba(255,255,255,.6)" }}
+                    onClick={() => { if (regOpen) void onPressStart(); }}
+                    style={regOpen ? startBtnStyle : { ...startBtnStyle, filter: "grayscale(1)", opacity: 0.45, cursor: "not-allowed" }}
+                    activeStyle={regOpen ? { transform: "translateY(9px)", boxShadow: "0 3px 0 #4d063d, 0 0 18px rgba(255,43,209,.6), inset 0 4px 8px rgba(255,255,255,.6)" } : {}}
                   >
-                    PRESS<br />START
+                    {regOpen ? <>PRESS<br />START</> : <>REG<br />CLOSED</>}
                   </ArcadeButton>
                   <div style={{ fontFamily: PS, fontSize: "8px", color: "#ff2bd1", textShadow: "0 0 8px #ff2bd1" }}>▲ 1 CREDIT</div>
                 </div>

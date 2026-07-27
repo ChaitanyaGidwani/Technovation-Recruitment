@@ -61,6 +61,25 @@ async function rpc<T>(fn: string, args: Json): Promise<T> {
   return data as T;
 }
 
+/* --------------------------- registration gate -------------------------- */
+
+/**
+ * Are new registrations being accepted?
+ *
+ * Only for choosing what to render — the real gate is inside app_register, so
+ * a paused drive can't be bypassed by calling the RPC directly. Defaults to
+ * open if the server can't be reached, so a network blip never wrongly tells
+ * applicants that registration has closed.
+ */
+export async function registrationsOpen(): Promise<boolean> {
+  try {
+    const v = await rpc<boolean>("app_registrations_open", {});
+    return v !== false;
+  } catch {
+    return true;
+  }
+}
+
 /* ------------------------------ applicant ------------------------------ */
 
 // NOTE: there was a stats() helper here backing the "LIVE REGISTRATIONS"
@@ -179,4 +198,9 @@ export async function adminWrite(key: string, email: string, patch: Json): Promi
 
 export async function adminDelete(key: string, email: string): Promise<void> {
   await rpc<boolean>("app_admin_delete", { p_key: key, p_email: email });
+}
+
+/** Open or pause new registrations. Admin-key gated in the database. */
+export async function adminSetRegistrations(key: string, open: boolean): Promise<boolean> {
+  return rpc<boolean>("app_set_registrations", { p_key: key, p_open: open });
 }

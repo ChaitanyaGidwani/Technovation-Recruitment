@@ -277,11 +277,36 @@ begin
   return _cand_public(c);
 end $$;
 
+-- 8e-bis. Registration open/paused switch.
+--     Enforced inside app_register below, NOT merely hidden in the UI —
+--     otherwise a paused drive could be bypassed by calling the RPC directly.
+--     Existing applicants are unaffected: login, task submission, PIN reset and
+--     the admin panel all keep working while registrations are paused.
+--     Defaults to OPEN when the row is absent.
+create or replace function app_registrations_open()
+returns boolean language sql security definer set search_path = public, extensions as $$
+  select coalesce((select value = 'true' from app_config where key = 'registrations_open'), true);
+$$;
+
+create or replace function app_set_registrations(p_key text, p_open boolean)
+returns boolean language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if not _admin_ok(p_key) then raise exception 'AUTH_FAILED'; end if;
+  insert into app_config(key, value)
+    values ('registrations_open', case when p_open then 'true' else 'false' end)
+    on conflict (key) do update set value = excluded.value;
+  return p_open;
+end $$;
+
 -- 8f. Registration. Refuses to overwrite an already-registered email.
 create or replace function app_register(p_email text, p_pin text, p_payload jsonb)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare c candidates%rowtype; em text;
 begin
+  if not app_registrations_open() then
+    raise exception 'REGISTRATIONS_CLOSED';
+  end if;
+
   em := lower(trim(p_email));
   if em !~* '^[^@\s]+@abes\.ac\.in$' then
     raise exception 'BAD_EMAIL_DOMAIN';
@@ -520,6 +545,8 @@ revoke all on function _throttle_guard(text), _throttle_fail(text), _throttle_cl
 -- Only these entry points are exposed.
 grant execute on function app_stats()                           to anon, authenticated;
 grant execute on function app_is_registered(text)                to anon, authenticated;
+grant execute on function app_registrations_open()               to anon, authenticated;
+grant execute on function app_set_registrations(text, boolean)   to anon, authenticated;
 grant execute on function app_login(text, text)                 to anon, authenticated;
 grant execute on function app_register(text, text, jsonb)       to anon, authenticated;
 grant execute on function app_save(text, text, jsonb)           to anon, authenticated;
