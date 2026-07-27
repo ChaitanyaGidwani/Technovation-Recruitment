@@ -108,16 +108,19 @@ export async function save(email: string, pin: string, payload: Json): Promise<J
  * has never used Supabase Auth can still receive one; the reset itself checks
  * that a matching applicant row exists.
  */
-export async function sendResetCode(email: string): Promise<void> {
+export async function sendResetLink(email: string): Promise<void> {
   if (!isSupabaseConfigured || !supabase) throw new ApiError("OFFLINE");
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim().toLowerCase(),
-    // Deliberately NO emailRedirectTo. Supabase rejects the whole request if the
-    // URL isn't in the project's Redirect URLs allow-list, and this flow never
-    // follows a link — the applicant types the 6-digit code. Passing it only
-    // created a way for sending to fail. Fix the emailed link, if any, via
-    // Authentication -> URL Configuration -> Site URL instead.
-    options: { shouldCreateUser: true },
+    options: {
+      shouldCreateUser: true,
+      // Where the link should land. Supabase falls back to the project's Site
+      // URL when this is omitted — which ships as http://localhost:3000, so
+      // production emails sent applicants to a page on their own machine.
+      // NOTE: this origin must be listed under Authentication → URL
+      // Configuration → Redirect URLs, or Supabase rejects the send outright.
+      emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+    },
   });
   if (error) {
     console.error("[api] signInWithOtp failed:", error);
@@ -125,17 +128,20 @@ export async function sendResetCode(email: string): Promise<void> {
   }
 }
 
-/** Step 2 — exchange the emailed code for a verified session. */
-export async function verifyResetCode(email: string, token: string): Promise<void> {
-  if (!isSupabaseConfigured || !supabase) throw new ApiError("OFFLINE");
-  const { error } = await supabase.auth.verifyOtp({
-    email: email.trim().toLowerCase(),
-    token: token.trim(),
-    type: "email",
-  });
-  if (error) {
-    console.error("[api] verifyOtp failed:", error);
-    throw new ApiError(codeOf(error), error.message || String(error));
+/**
+ * Step 2 — did the applicant arrive back here via a valid reset link?
+ *
+ * The Supabase client parses the tokens out of the URL on load, so a session
+ * existing here means this browser proved it can read that mailbox. Returns the
+ * verified address, or null when there's no session.
+ */
+export async function getVerifiedEmail(): Promise<string | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user?.email?.toLowerCase() || null;
+  } catch {
+    return null;
   }
 }
 

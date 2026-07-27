@@ -16,8 +16,8 @@ import {
   signOut as apiSignOut,
   register as apiRegister,
   save as apiSave,
-  sendResetCode,
-  verifyResetCode,
+  sendResetLink,
+  getVerifiedEmail,
   resetPin,
   ApiError,
 } from "@/lib/api";
@@ -405,11 +405,10 @@ export default function ArcadePage() {
   // Forgot PIN state
   const [forgotPinMode, setForgotPinMode] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
-  const [resetCode, setResetCode] = useState("");
   const [resetNewPin, setResetNewPin] = useState("");
   const [resetConfirmPin, setResetConfirmPin] = useState("");
   const [resetBusy, setResetBusy] = useState(false);
-  const [resetStep, setResetStep] = useState<"verify" | "code" | "newpin">("verify");
+  const [resetStep, setResetStep] = useState<"verify" | "sent" | "newpin">("verify");
   const [resetErr, setResetErr] = useState("");
   const [resetSuccess, setResetSuccess] = useState("");
   const [loginErr, setLoginErr] = useState("");
@@ -1222,13 +1221,16 @@ export default function ArcadePage() {
     }
   };
 
-  // ---- PIN RESET (email one-time code) ---------------------------------
-  // This used to accept email + last 4 digits of phone. Both of those were
-  // readable by anyone via the public table, so any applicant could reset
-  // someone else's PIN and take over their account. Recovery now requires
-  // receiving a code in the college mailbox, which an attacker can't do.
+  // ---- PIN RESET (emailed magic link) ----------------------------------
+  // This used to accept email + last 4 digits of phone. Both were readable by
+  // anyone via the public table, so any applicant could take over another
+  // account. Recovery now requires opening a link sent to the college mailbox.
+  //
+  // A link rather than a typed code, deliberately: Supabase's built-in mailer
+  // can't have its templates edited, so it can only send {{ .ConfirmationURL }}.
+  // Using the link means no SMTP provider is needed at all.
 
-  /** Step 1 — send the code. */
+  /** Step 1 — email the reset link. */
   const handleForgotPinVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     const em = resetEmail.trim().toLowerCase();
@@ -1243,9 +1245,9 @@ export default function ArcadePage() {
     setResetBusy(true);
     setResetErr("");
     try {
-      await sendResetCode(em);
-      setResetStep("code");
-      setResetSuccess("CODE SENT — CHECK YOUR COLLEGE INBOX (AND SPAM).");
+      await sendResetLink(em);
+      setResetStep("sent");
+      setResetSuccess("");
     } catch (err) {
       const e = err as ApiError;
       const detail = (e?.detail || "").toLowerCase();
@@ -1259,32 +1261,42 @@ export default function ArcadePage() {
       } else if (e?.code === "OFFLINE") {
         setResetErr("CANNOT REACH THE SERVER — CHECK YOUR CONNECTION.");
       } else {
-        setResetErr("COULDN'T SEND THE CODE. PLEASE TRY AGAIN IN A MOMENT.");
+        setResetErr("COULDN'T SEND THE LINK. PLEASE TRY AGAIN IN A MOMENT.");
       }
     } finally {
       setResetBusy(false);
     }
   };
 
-  /** Step 2 — verify the emailed code. */
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!resetCode.trim()) {
-      setResetErr("ENTER THE 6-DIGIT CODE FROM YOUR EMAIL");
-      return;
-    }
-    setResetBusy(true);
-    setResetErr("");
-    try {
-      await verifyResetCode(resetEmail.trim(), resetCode.trim());
-      setResetSuccess("");
+  /**
+   * Step 2 — the applicant came back by clicking the emailed link.
+   *
+   * The Supabase client parses the tokens out of the URL as it loads, so a
+   * session existing here is proof this browser opened that mailbox. When we
+   * see one, jump straight to "set a new PIN".
+   */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const verified = await getVerifiedEmail();
+      if (!alive || !verified) return;
+
+      // Strip the auth tokens from the address bar so they aren't left sitting
+      // in history or copied into a shared link.
+      try {
+        window.history.replaceState(null, "", window.location.pathname);
+      } catch { /* ignore */ }
+
+      setResetEmail(verified);
+      setForgotPinMode(true);
+      setShowLoginModal(true);
       setResetStep("newpin");
-    } catch {
-      setResetErr("THAT CODE ISN'T VALID OR HAS EXPIRED. REQUEST A NEW ONE.");
-    } finally {
-      setResetBusy(false);
-    }
-  };
+      setResetErr("");
+      setResetSuccess("");
+    })();
+    return () => { alive = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Step 3 — set the new PIN. The server identifies the account from the
    *  verified session, not from anything this form sends. */
@@ -1308,8 +1320,7 @@ export default function ArcadePage() {
         setForgotPinMode(false);
         setResetStep("verify");
         setResetEmail("");
-        setResetCode("");
-        setResetNewPin("");
+          setResetNewPin("");
         setResetConfirmPin("");
         setResetSuccess("");
         setResetErr("");
@@ -2606,7 +2617,6 @@ export default function ArcadePage() {
       setForgotPinMode(false);
       setResetStep("verify");
       setResetEmail("");
-      setResetCode("");
       setResetNewPin("");
       setResetConfirmPin("");
       setResetErr("");
@@ -2714,9 +2724,9 @@ export default function ArcadePage() {
               <div style={{ fontFamily: PS, fontSize: "16px", color: "#ffb800", textShadow: "0 0 12px #ffb800" }}>🔐 RESET PIN</div>
               <div style={{ fontFamily: VT, fontSize: "18px", color: "#7de8ff", marginTop: "8px" }}>
                 {resetStep === "verify"
-                  ? "We'll email a one-time code to your college address"
-                  : resetStep === "code"
-                  ? "Enter the 6-digit code we just emailed you"
+                  ? "We'll email a secure link to your college address"
+                  : resetStep === "sent"
+                  ? "Check your inbox and open the link we just sent"
                   : "Set your new secret PIN"}
               </div>
 
@@ -2741,34 +2751,25 @@ export default function ArcadePage() {
                   </div>
                   {resetErr && <div style={{ ...errBase, textAlign: "center", fontSize: "8px" }}>{resetErr}</div>}
                   <button type="submit" disabled={resetBusy} style={{ cursor: resetBusy ? "not-allowed" : "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: resetBusy ? "#4a5a7a" : "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "14px", boxShadow: resetBusy ? "none" : "0 6px 0 #8a7900, 0 0 20px rgba(255,180,40,.4)", marginTop: "6px" }}>
-                    {resetBusy ? "SENDING…" : "EMAIL ME A CODE ▶"}
+                    {resetBusy ? "SENDING…" : "EMAIL ME A RESET LINK ▶"}
                   </button>
                 </form>
-              ) : resetStep === "code" ? (
-                <form onSubmit={handleVerifyCode} style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "14px", textAlign: "left" }}>
-                  <div>
-                    <div style={{ ...labelSm, color: "#ffb800" }}>6-DIGIT CODE</div>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={resetCode}
-                      onChange={(e) => { setResetCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setResetErr(""); }}
-                      maxLength={6}
-                      placeholder="000000"
-                      style={{ ...fieldStyle, textAlign: "center", letterSpacing: "6px" }}
-                    />
+              ) : resetStep === "sent" ? (
+                <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "14px" }}>
+                  <div style={{ fontFamily: PS, fontSize: "26px", color: "#ffb800", textShadow: "0 0 14px #ffb800" }}>📬</div>
+                  <div style={{ fontFamily: VT, fontSize: "18px", color: "#a9c3d6", lineHeight: 1.4 }}>
+                    We&apos;ve emailed a reset link to
+                    <div style={{ color: "#ffb800", marginTop: "4px", wordBreak: "break-all" }}>{resetEmail.trim().toLowerCase()}</div>
                   </div>
-                  <div style={{ fontFamily: VT, fontSize: "15px", color: "#7de8ff" }}>
-                    Sent to {resetEmail.trim().toLowerCase()} — check spam if it hasn&apos;t arrived.
+                  <div style={{ fontFamily: VT, fontSize: "16px", color: "#7de8ff", lineHeight: 1.4 }}>
+                    Open it on this device and you&apos;ll come straight back here to choose a new PIN.
+                    Check your spam folder if it hasn&apos;t arrived within a minute.
                   </div>
                   {resetErr && <div style={{ ...errBase, textAlign: "center", fontSize: "8px" }}>{resetErr}</div>}
-                  <button type="submit" disabled={resetBusy} style={{ cursor: resetBusy ? "not-allowed" : "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: resetBusy ? "#4a5a7a" : "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "14px", boxShadow: resetBusy ? "none" : "0 6px 0 #8a7900, 0 0 20px rgba(255,180,40,.4)", marginTop: "6px" }}>
-                    {resetBusy ? "CHECKING…" : "VERIFY CODE ▶"}
-                  </button>
-                  <button type="button" onClick={() => { setResetStep("verify"); setResetCode(""); setResetErr(""); setResetSuccess(""); }} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#7de8ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "6px", padding: "10px" }}>
+                  <button type="button" onClick={() => { setResetStep("verify"); setResetErr(""); setResetSuccess(""); }} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#7de8ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "6px", padding: "10px" }}>
                     ◄ USE A DIFFERENT EMAIL
                   </button>
-                </form>
+                </div>
               ) : (
                 <form onSubmit={handleResetPinSubmit} style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "14px", textAlign: "left" }}>
                   <div>

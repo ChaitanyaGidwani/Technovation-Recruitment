@@ -23,6 +23,23 @@ export const isSupabaseConfigured = Boolean(url && key);
 
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(url as string, key as string, {
-      auth: { persistSession: false },
+      auth: {
+        // Applicants authenticate with a PIN, not a Supabase session. The only
+        // Supabase Auth session that ever exists is the short-lived one created
+        // by a PIN-reset magic link, and it's discarded immediately after.
+        persistSession: false,
+
+        // The reset link lands back on the site carrying its tokens in the URL.
+        // detectSessionInUrl picks them up so the app knows the mailbox was
+        // verified.
+        detectSessionInUrl: true,
+
+        // Implicit, NOT the default PKCE. PKCE stores a code verifier in
+        // localStorage and reads it back after the redirect — but with
+        // persistSession off there's nothing to read it from, so the callback
+        // would fail. Implicit puts the tokens straight in the URL fragment,
+        // which works without any stored state.
+        flowType: "implicit",
+      },
     })
   : null;
