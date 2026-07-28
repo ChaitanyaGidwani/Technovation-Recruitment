@@ -1643,6 +1643,45 @@ export default function ArcadePage() {
         className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "#04040a", position: "relative" }}
       >
         <div className="track-h" style={{ position: "relative" }}>
+          {/* Candidate login / resume.
+
+              Deliberately a SIBLING of the sticky CRT stage, not a child of it.
+              Inside the stage it inherited the stage's stickiness and stayed
+              glued to the viewport for the entire scroll — and position:fixed
+              did exactly the same thing. Anchored to the scroll track instead,
+              it sits at the top of the page and scrolls out of view like
+              ordinary content: visible on the first screen only, which is
+              where a returning applicant looks for it. */}
+          <div style={{ position: "absolute", top: isMobile ? "42px" : "calc(6.5vh + 14px)", left: isMobile ? "10px" : "22px", zIndex: 30, textAlign: "left", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", maxWidth: isMobile ? "62vw" : undefined }}>
+          {resumeInfo && (
+            <button
+              onClick={() => goTo("hq")}
+              style={{ cursor: "pointer", fontFamily: PS, fontSize: isMobile ? "7px" : "9px", color: "#04040a", border: "none", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", borderRadius: "4px", padding: isMobile ? "5px 8px" : "6px 10px", boxShadow: "0 3px 0 #006074, 0 0 12px rgba(0,240,255,.5)" }}
+            >
+              {isMobile ? "▶ RESUME" : `▶ RESUME AS ${resumeInfo.name.toUpperCase().slice(0, 14)}`}
+            </button>
+          )}
+          {/* Returning applicants land here, so this is a primary action —
+              sized to be findable rather than tucked into the corner. */}
+          <button
+            onClick={() => { setLoginEmail(form.email.trim() || loginEmail); setShowLoginModal(true); }}
+            style={{
+              cursor: "pointer",
+              fontFamily: PS,
+              fontSize: isMobile ? "10px" : "13px",
+              color: "#241a11",
+              border: "none",
+              background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)",
+              borderRadius: "6px",
+              padding: isMobile ? "11px 16px" : "14px 24px",
+              letterSpacing: "1px",
+              boxShadow: "0 5px 0 #8a7900, 0 0 20px rgba(255,180,40,.55)",
+              textShadow: "0 1px 0 rgba(255,255,255,.45)",
+            }}
+          >
+            {isMobile ? "🔑 LOGIN" : "🔑 PLAYER LOGIN"}
+          </button>
+        </div>
           <div
             className="screen-h"
             style={{
@@ -1688,37 +1727,6 @@ export default function ArcadePage() {
               {!isMobile && <span style={{ fontFamily: PS, fontSize: "11px", color: "#00f0ff", textShadow: "0 0 8px #00f0ff" }}>►</span>}
             </div>
 
-            {/* candidate login / resume */}
-            <div style={{ position: "absolute", top: isMobile ? "44px" : "8.2%", left: isMobile ? "2%" : "2.5%", zIndex: 7, textAlign: "left", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", maxWidth: isMobile ? "60%" : undefined }}>
-              {resumeInfo && (
-                <button
-                  onClick={() => goTo("hq")}
-                  style={{ cursor: "pointer", fontFamily: PS, fontSize: isMobile ? "7px" : "9px", color: "#04040a", border: "none", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", borderRadius: "4px", padding: isMobile ? "5px 8px" : "6px 10px", boxShadow: "0 3px 0 #006074, 0 0 12px rgba(0,240,255,.5)" }}
-                >
-                  {isMobile ? "▶ RESUME" : `▶ RESUME AS ${resumeInfo.name.toUpperCase().slice(0, 14)}`}
-                </button>
-              )}
-              {/* Returning applicants land here, so this is a primary action —
-                  sized to be findable rather than tucked into the corner. */}
-              <button
-                onClick={() => { setLoginEmail(form.email.trim() || loginEmail); setShowLoginModal(true); }}
-                style={{
-                  cursor: "pointer",
-                  fontFamily: PS,
-                  fontSize: isMobile ? "10px" : "13px",
-                  color: "#241a11",
-                  border: "none",
-                  background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)",
-                  borderRadius: "6px",
-                  padding: isMobile ? "11px 16px" : "14px 24px",
-                  letterSpacing: "1px",
-                  boxShadow: "0 5px 0 #8a7900, 0 0 20px rgba(255,180,40,.55)",
-                  textShadow: "0 1px 0 rgba(255,255,255,.45)",
-                }}
-              >
-                {isMobile ? "🔑 LOGIN" : "🔑 PLAYER LOGIN"}
-              </button>
-            </div>
 
             {/* CRT */}
             <div style={crtStyle}>
