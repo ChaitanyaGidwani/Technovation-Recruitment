@@ -1268,6 +1268,16 @@ export default function ArcadePage() {
     setResetBusy(true);
     setResetErr("");
     try {
+      // Check the application exists BEFORE emailing anything. Without this,
+      // someone who abandoned registration half-way gets a link, clicks it,
+      // types a new PIN twice — and only then hits "no applicant registered
+      // with that email", because there was never a row to reset.
+      if (!(await apiIsRegistered(em))) {
+        setResetErr(
+          "NO COMPLETED APPLICATION FOR THAT EMAIL. IF YOU STARTED BUT DIDN'T FINISH, PLEASE REGISTER AGAIN FROM THE HOME PAGE."
+        );
+        return;
+      }
       await sendResetLink(em);
       setResetStep("sent");
       setResetSuccess("");
@@ -1354,7 +1364,7 @@ export default function ArcadePage() {
         code === "NOT_VERIFIED"
           ? "VERIFICATION EXPIRED. START THE RESET AGAIN."
           : code === "NO_SUCH_APPLICANT"
-          ? "NO APPLICANT REGISTERED WITH THAT EMAIL."
+          ? "THIS EMAIL HAS NO COMPLETED APPLICATION — YOUR REGISTRATION WASN'T FINISHED. PLEASE REGISTER AGAIN FROM THE HOME PAGE."
           : "COULD NOT RESET THE PIN. TRY AGAIN."
       );
     } finally {
