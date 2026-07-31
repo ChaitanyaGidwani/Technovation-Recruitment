@@ -14,6 +14,7 @@ import {
   login as apiLogin,
   isRegistered as apiIsRegistered,
   registrationsOpen as apiRegistrationsOpen,
+  deadline as apiDeadline,
   signOut as apiSignOut,
   register as apiRegister,
   save as apiSave,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/api";
 import { candFromRow } from "@/lib/cloud-sync";
 import HelpContacts from "./help-contacts";
+import DeadlineTicker from "./deadline-ticker";
 
 
 // ---- config (edit freely) ----
@@ -420,6 +422,9 @@ export default function ArcadePage() {
   // Whether the drive is accepting new applications. Defaults to open so a
   // slow first response never flashes "closed" at a genuine applicant.
   const [regOpen, setRegOpen] = useState(true);
+  // Deadline for the countdown banner (display only — the real cutoff is
+  // enforced in app_register).
+  const [closesAt, setClosesAt] = useState<string | null>(null);
   const [taskErr, setTaskErr] = useState("");
   // A remembered session shows a one-tap "Resume" on the landing page
   // (instead of force-navigating there).
@@ -824,8 +829,10 @@ export default function ArcadePage() {
   useEffect(() => {
     let alive = true;
     const check = async () => {
-      const open = await apiRegistrationsOpen();
-      if (alive) setRegOpen(open);
+      const [open, at] = await Promise.all([apiRegistrationsOpen(), apiDeadline()]);
+      if (!alive) return;
+      setRegOpen(open);
+      setClosesAt(at);
     };
     void check();
     const onFocus = () => { void check(); };
@@ -1771,6 +1778,14 @@ export default function ArcadePage() {
                         {regOpen ? "> INSERT COIN OR SCROLL TO START ▮" : "> REGISTRATIONS CLOSED ▮"}
                       </div>
                     </div>
+                    {closesAt && (
+                      <div style={{ marginTop: "22px", display: "flex", justifyContent: "center" }}>
+                        <DeadlineTicker
+                          closesAt={closesAt}
+                          onExpire={() => { void apiRegistrationsOpen().then(setRegOpen); }}
+                        />
+                      </div>
+                    )}
                     {/* Primary landing action -> the Recruitment Quest briefing.
                         Replaced by a closed notice when the drive is paused. The
                         real block is server-side in app_register; this is just
