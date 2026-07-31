@@ -29,8 +29,7 @@ export default function HelpContacts() {
       style={{
         position: "fixed",
         right: "clamp(10px,2vw,20px)",
-        // raised so it clears the fixed deadline bar along the bottom edge
-        bottom: "clamp(56px,7vw,68px)",
+        bottom: "clamp(10px,2vw,20px)",
         zIndex: 200,
         display: "flex",
         flexDirection: "column",

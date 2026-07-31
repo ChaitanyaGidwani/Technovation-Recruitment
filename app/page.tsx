@@ -14,7 +14,6 @@ import {
   login as apiLogin,
   isRegistered as apiIsRegistered,
   registrationsOpen as apiRegistrationsOpen,
-  deadline as apiDeadline,
   signOut as apiSignOut,
   register as apiRegister,
   save as apiSave,
@@ -25,7 +24,6 @@ import {
 } from "@/lib/api";
 import { candFromRow } from "@/lib/cloud-sync";
 import HelpContacts from "./help-contacts";
-import DeadlineTicker from "./deadline-ticker";
 
 
 // ---- config (edit freely) ----
@@ -422,9 +420,6 @@ export default function ArcadePage() {
   // Whether the drive is accepting new applications. Defaults to open so a
   // slow first response never flashes "closed" at a genuine applicant.
   const [regOpen, setRegOpen] = useState(true);
-  // Deadline for the countdown banner (display only — the real cutoff is
-  // enforced in app_register).
-  const [closesAt, setClosesAt] = useState<string | null>(null);
   const [taskErr, setTaskErr] = useState("");
   // A remembered session shows a one-tap "Resume" on the landing page
   // (instead of force-navigating there).
@@ -764,7 +759,7 @@ export default function ArcadePage() {
     } catch {
       return false; // offline or rate-limited — keep showing what we have
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -821,7 +816,7 @@ export default function ArcadePage() {
       }
       sessionStorage.setItem("tech_tab", "1");
     } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Is registration open? Re-checked on focus so a pause takes effect for
@@ -829,10 +824,8 @@ export default function ArcadePage() {
   useEffect(() => {
     let alive = true;
     const check = async () => {
-      const [open, at] = await Promise.all([apiRegistrationsOpen(), apiDeadline()]);
-      if (!alive) return;
-      setRegOpen(open);
-      setClosesAt(at);
+      const open = await apiRegistrationsOpen();
+      if (alive) setRegOpen(open);
     };
     void check();
     const onFocus = () => { void check(); };
@@ -859,7 +852,7 @@ export default function ArcadePage() {
         setResumeInfo({ email: savedEmail, name: m?.name || "PLAYER" });
       }
     } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Returning from /process — land on domain/class selection with the
@@ -896,7 +889,7 @@ export default function ArcadePage() {
       }
       setPage("create");
     } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // ---- LIVE SYNC ----
   // Keep the candidate dashboard in lockstep with admin actions (promotions,
@@ -927,7 +920,7 @@ export default function ArcadePage() {
       clearInterval(iv);
       window.removeEventListener("focus", onFocus);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, form.email, refreshMe]);
 
   const setField = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -1335,7 +1328,7 @@ export default function ArcadePage() {
       setResetSuccess("");
     })();
     return () => { alive = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Step 3 — set the new PIN. The server identifies the account from the
@@ -1360,7 +1353,7 @@ export default function ArcadePage() {
         setForgotPinMode(false);
         setResetStep("verify");
         setResetEmail("");
-          setResetNewPin("");
+        setResetNewPin("");
         setResetConfirmPin("");
         setResetSuccess("");
         setResetErr("");
@@ -1371,8 +1364,8 @@ export default function ArcadePage() {
         code === "NOT_VERIFIED"
           ? "VERIFICATION EXPIRED. START THE RESET AGAIN."
           : code === "NO_SUCH_APPLICANT"
-          ? "THIS EMAIL HAS NO COMPLETED APPLICATION — YOUR REGISTRATION WASN'T FINISHED. PLEASE REGISTER AGAIN FROM THE HOME PAGE."
-          : "COULD NOT RESET THE PIN. TRY AGAIN."
+            ? "THIS EMAIL HAS NO COMPLETED APPLICATION — YOUR REGISTRATION WASN'T FINISHED. PLEASE REGISTER AGAIN FROM THE HOME PAGE."
+            : "COULD NOT RESET THE PIN. TRY AGAIN."
       );
     } finally {
       setResetBusy(false);
@@ -1670,35 +1663,35 @@ export default function ArcadePage() {
               ordinary content: visible on the first screen only, which is
               where a returning applicant looks for it. */}
           <div style={{ position: "absolute", top: isMobile ? "42px" : "calc(6.5vh + 14px)", left: isMobile ? "10px" : "22px", zIndex: 30, textAlign: "left", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", maxWidth: isMobile ? "62vw" : undefined }}>
-          {resumeInfo && (
-            <button
-              onClick={() => goTo("hq")}
-              style={{ cursor: "pointer", fontFamily: PS, fontSize: isMobile ? "7px" : "9px", color: "#04040a", border: "none", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", borderRadius: "4px", padding: isMobile ? "5px 8px" : "6px 10px", boxShadow: "0 3px 0 #006074, 0 0 12px rgba(0,240,255,.5)" }}
-            >
-              {isMobile ? "▶ RESUME" : `▶ RESUME AS ${resumeInfo.name.toUpperCase().slice(0, 14)}`}
-            </button>
-          )}
-          {/* Returning applicants land here, so this is a primary action —
+            {resumeInfo && (
+              <button
+                onClick={() => goTo("hq")}
+                style={{ cursor: "pointer", fontFamily: PS, fontSize: isMobile ? "7px" : "9px", color: "#04040a", border: "none", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", borderRadius: "4px", padding: isMobile ? "5px 8px" : "6px 10px", boxShadow: "0 3px 0 #006074, 0 0 12px rgba(0,240,255,.5)" }}
+              >
+                {isMobile ? "▶ RESUME" : `▶ RESUME AS ${resumeInfo.name.toUpperCase().slice(0, 14)}`}
+              </button>
+            )}
+            {/* Returning applicants land here, so this is a primary action —
               sized to be findable rather than tucked into the corner. */}
-          <button
-            onClick={() => { setLoginEmail(form.email.trim() || loginEmail); setShowLoginModal(true); }}
-            style={{
-              cursor: "pointer",
-              fontFamily: PS,
-              fontSize: isMobile ? "10px" : "13px",
-              color: "#241a11",
-              border: "none",
-              background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)",
-              borderRadius: "6px",
-              padding: isMobile ? "11px 16px" : "14px 24px",
-              letterSpacing: "1px",
-              boxShadow: "0 5px 0 #8a7900, 0 0 20px rgba(255,180,40,.55)",
-              textShadow: "0 1px 0 rgba(255,255,255,.45)",
-            }}
-          >
-            {isMobile ? "🔑 LOGIN" : "🔑 PLAYER LOGIN"}
-          </button>
-        </div>
+            <button
+              onClick={() => { setLoginEmail(form.email.trim() || loginEmail); setShowLoginModal(true); }}
+              style={{
+                cursor: "pointer",
+                fontFamily: PS,
+                fontSize: isMobile ? "10px" : "13px",
+                color: "#241a11",
+                border: "none",
+                background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)",
+                borderRadius: "6px",
+                padding: isMobile ? "11px 16px" : "14px 24px",
+                letterSpacing: "1px",
+                boxShadow: "0 5px 0 #8a7900, 0 0 20px rgba(255,180,40,.55)",
+                textShadow: "0 1px 0 rgba(255,255,255,.45)",
+              }}
+            >
+              {isMobile ? "🔑 LOGIN" : "🔑 PLAYER LOGIN"}
+            </button>
+          </div>
           <div
             className="screen-h"
             style={{
@@ -1778,15 +1771,6 @@ export default function ArcadePage() {
                         {regOpen ? "> INSERT COIN OR SCROLL TO START ▮" : "> REGISTRATIONS CLOSED ▮"}
                       </div>
                     </div>
-                    {closesAt && (
-                      <div style={{ marginTop: "26px", display: "flex", justifyContent: "center" }}>
-                        <DeadlineTicker
-                          variant="hero"
-                          closesAt={closesAt}
-                          onExpire={() => { void apiRegistrationsOpen().then(setRegOpen); }}
-                        />
-                      </div>
-                    )}
                     {/* Primary landing action -> the Recruitment Quest briefing.
                         Replaced by a closed notice when the drive is paused. The
                         real block is server-side in app_register; this is just
@@ -1975,179 +1959,179 @@ export default function ArcadePage() {
     }
 
     return (
-    <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(140% 90% at 50% -10%, #141a30 0%, #0a0d1a 55%, #05060d 100%)", position: "relative" }}>
-      <div style={scanOverlay(0.28)} />
-      {answersLocked && (
-        <div style={{ position: "sticky", top: 0, zIndex: 20, background: "rgba(255,180,40,.12)", borderBottom: "2px solid #ffb800", padding: "10px 16px", textAlign: "center", fontFamily: PS, fontSize: "clamp(8px,1.1vw,11px)", color: "#ffb800", textShadow: "0 0 8px #ffb800" }}>
-          🔒 APPLICATION SUBMITTED — YOUR ANSWERS ARE LOCKED &amp; CANNOT BE CHANGED
-        </div>
-      )}
-      <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "clamp(24px,4vw,56px) clamp(16px,4vw,40px) 80px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-          <ArcadeButton onClick={() => goTo("floor")} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#7de8ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "5px", padding: "9px 12px" }} activeStyle={{ transform: "translateY(2px)" }}>◄ ARCADE FLOOR</ArcadeButton>
-          <div style={{ fontFamily: PS, fontSize: "9px", color: "#4a5a7a" }}>
-            {answersLocked ? "VIEWING YOUR SUBMITTED APPLICATION · READ ONLY" : "STEP 2 / 4 · CHARACTER CREATION"}
+      <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(140% 90% at 50% -10%, #141a30 0%, #0a0d1a 55%, #05060d 100%)", position: "relative" }}>
+        <div style={scanOverlay(0.28)} />
+        {answersLocked && (
+          <div style={{ position: "sticky", top: 0, zIndex: 20, background: "rgba(255,180,40,.12)", borderBottom: "2px solid #ffb800", padding: "10px 16px", textAlign: "center", fontFamily: PS, fontSize: "clamp(8px,1.1vw,11px)", color: "#ffb800", textShadow: "0 0 8px #ffb800" }}>
+            🔒 APPLICATION SUBMITTED — YOUR ANSWERS ARE LOCKED &amp; CANNOT BE CHANGED
           </div>
-        </div>
-
-        <div style={{ textAlign: "center", marginTop: "clamp(18px,3vw,34px)" }}>
-          <div style={{ fontFamily: PS, fontSize: "clamp(18px,3.4vw,40px)", color: "#00f0ff", textShadow: "2px 0 #ff2bd1, -2px 0 #ffb800, 0 0 22px rgba(0,240,255,.5)", letterSpacing: "2px" }}>CHARACTER CREATION</div>
-          <div style={{ fontFamily: VT, fontSize: "clamp(16px,2vw,24px)", color: "#ff2bd1", marginTop: "8px" }}>◆ forge your player file, pick your class, prove your worth ◆</div>
-        </div>
-
-        {/* Section 1 */}
-        <div style={panelBox}>
-          <div style={sectionHdr}><span style={{ color: "#00f0ff" }}>01</span> PLAYER FILE</div>
-          <div className="player-form-grid">
-            {([
-              { l: "PLAYER NAME", k: "name", ph: "ENTER NAME" },
-              { l: "COLLEGE EMAIL", k: "email", ph: "student@abes.ac.in" },
-              { l: "BRANCH", k: "branch", ph: "E.G. COMPUTER SCIENCE" },
-              { l: "SECTION", k: "section", ph: "E.G. CSE-14" },
-              { l: "PHONE NUMBER", k: "phone", ph: "10-DIGIT MOBILE", numeric: true, maxLen: 10 },
-              { l: "ADMISSION NUMBER", k: "college", ph: "E.G. 24B0101010" },
-            ] as { l: string; k: keyof typeof form; ph: string; numeric?: boolean; maxLen?: number }[]).map((f) => (
-              <div key={f.k}>
-                <div style={labelSm}>{f.l}</div>
-                <input
-                  value={form[f.k]}
-                  readOnly={answersLocked}
-                  onChange={
-                    f.numeric
-                      ? (e) => setForm((s) => ({ ...s, [f.k]: e.target.value.replace(/\D/g, "").slice(0, f.maxLen || 10) }))
-                      : setField(f.k)
-                  }
-                  placeholder={f.ph}
-                  inputMode={f.numeric ? "numeric" : undefined}
-                  maxLength={f.numeric ? f.maxLen : undefined}
-                  style={{ ...fieldStyle, opacity: answersLocked ? 0.65 : 1, cursor: answersLocked ? "not-allowed" : "text" }}
-                />
-              </div>
-            ))}
+        )}
+        <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "clamp(24px,4vw,56px) clamp(16px,4vw,40px) 80px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+            <ArcadeButton onClick={() => goTo("floor")} style={{ cursor: "pointer", fontFamily: PS, fontSize: "9px", color: "#7de8ff", background: "transparent", border: "2px solid #1c3a4a", borderRadius: "5px", padding: "9px 12px" }} activeStyle={{ transform: "translateY(2px)" }}>◄ ARCADE FLOOR</ArcadeButton>
+            <div style={{ fontFamily: PS, fontSize: "9px", color: "#4a5a7a" }}>
+              {answersLocked ? "VIEWING YOUR SUBMITTED APPLICATION · READ ONLY" : "STEP 2 / 4 · CHARACTER CREATION"}
+            </div>
           </div>
-        </div>
 
-        {/* Section 2 — Dual Class Selection */}
-        <div style={panelBox}>
-          <div style={sectionHdr}><span style={{ color: "#ff2bd1" }}>02</span> CLASS SELECTION <span style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#7de8ff", marginLeft: "8px" }}>— PICK 2 DOMAINS</span></div>
-          <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginBottom: "clamp(12px,1.8vw,18px)" }}>
-            Select your <span style={{ color: "#00f0ff", textShadow: "0 0 6px #00f0ff" }}>PRIMARY</span> and <span style={{ color: "#ff2bd1", textShadow: "0 0 6px #ff2bd1" }}>SECONDARY</span> guild domains. Your 1st pick is your primary class.
+          <div style={{ textAlign: "center", marginTop: "clamp(18px,3vw,34px)" }}>
+            <div style={{ fontFamily: PS, fontSize: "clamp(18px,3.4vw,40px)", color: "#00f0ff", textShadow: "2px 0 #ff2bd1, -2px 0 #ffb800, 0 0 22px rgba(0,240,255,.5)", letterSpacing: "2px" }}>CHARACTER CREATION</div>
+            <div style={{ fontFamily: VT, fontSize: "clamp(16px,2vw,24px)", color: "#ff2bd1", marginTop: "8px" }}>◆ forge your player file, pick your class, prove your worth ◆</div>
           </div>
-          <div className="class-select-grid">
-            {DOMAINS.map((d) => {
-              const idx = selectedClasses.indexOf(d.key);
-              const isPrimary = idx === 0;
-              const isSecondary = idx === 1;
-              const labelColor = isPrimary ? "#00f0ff" : isSecondary ? "#ff2bd1" : d.color;
-              const labelText = isPrimary ? "1ST" : isSecondary ? "2ND" : "";
-              return (
-                <div key={d.key} style={{ ...badgeStyle(d), opacity: answersLocked && idx < 0 ? 0.5 : 1, pointerEvents: answersLocked ? "none" : "auto" }} onClick={() => { if (!answersLocked) toggleClass(d.key); }}>
-                  <div style={{ width: "clamp(44px,5vw,60px)", height: "clamp(44px,5vw,60px)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px", background: "rgba(255,255,255,.03)", border: "2px solid " + d.color, fontFamily: PS, fontSize: "clamp(18px,2.4vw,26px)", color: d.color, textShadow: "0 0 12px " + d.color }}>{d.glyph}</div>
-                  <div style={{ textAlign: "left", flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: PS, fontSize: "clamp(8px,1vw,11px)", color: "#fff" }}>{d.name}</div>
-                    <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,19px)", color: d.color }}>{d.stage}</div>
-                    <div style={{ fontFamily: VT, fontSize: "clamp(12px,1.3vw,16px)", color: "#7de8ff" }}>CLASS · {d.cls}</div>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                    {/* Selection badge */}
-                    <div style={{
-                      position: "absolute", top: "8px", right: "10px",
-                      fontFamily: PS, fontSize: "9px",
-                      color: "#04040a",
-                      background: labelColor,
-                      borderRadius: "4px",
-                      padding: "3px 7px",
-                      boxShadow: `0 0 10px ${labelColor}88`,
-                      opacity: idx >= 0 ? 1 : 0,
-                      transition: "all .15s",
-                    }}>{labelText}</div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); openDetail(d.key); }}
-                      style={{ cursor: "pointer", position: "absolute", bottom: "8px", right: "10px", fontFamily: PS, fontSize: "7px", color: d.color, background: `${d.color}11`, border: `1.5px solid ${d.color}44`, borderRadius: "4px", padding: "4px 8px", textShadow: `0 0 6px ${d.color}`, transition: "all .15s", opacity: 0.7 }}
-                      onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = `${d.color}22`; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.7"; e.currentTarget.style.background = `${d.color}11`; }}
-                    >
-                      ⓘ INFO
-                    </button>
-                  </div>
+
+          {/* Section 1 */}
+          <div style={panelBox}>
+            <div style={sectionHdr}><span style={{ color: "#00f0ff" }}>01</span> PLAYER FILE</div>
+            <div className="player-form-grid">
+              {([
+                { l: "PLAYER NAME", k: "name", ph: "ENTER NAME" },
+                { l: "COLLEGE EMAIL", k: "email", ph: "student@abes.ac.in" },
+                { l: "BRANCH", k: "branch", ph: "E.G. COMPUTER SCIENCE" },
+                { l: "SECTION", k: "section", ph: "E.G. CSE-14" },
+                { l: "PHONE NUMBER", k: "phone", ph: "10-DIGIT MOBILE", numeric: true, maxLen: 10 },
+                { l: "ADMISSION NUMBER", k: "college", ph: "E.G. 24B0101010" },
+              ] as { l: string; k: keyof typeof form; ph: string; numeric?: boolean; maxLen?: number }[]).map((f) => (
+                <div key={f.k}>
+                  <div style={labelSm}>{f.l}</div>
+                  <input
+                    value={form[f.k]}
+                    readOnly={answersLocked}
+                    onChange={
+                      f.numeric
+                        ? (e) => setForm((s) => ({ ...s, [f.k]: e.target.value.replace(/\D/g, "").slice(0, f.maxLen || 10) }))
+                        : setField(f.k)
+                    }
+                    placeholder={f.ph}
+                    inputMode={f.numeric ? "numeric" : undefined}
+                    maxLength={f.numeric ? f.maxLen : undefined}
+                    style={{ ...fieldStyle, opacity: answersLocked ? 0.65 : 1, cursor: answersLocked ? "not-allowed" : "text" }}
+                  />
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-          {/* Selection summary */}
-          {selectedClasses.length > 0 && (
-            <div style={{ marginTop: "clamp(12px,1.8vw,18px)", padding: "10px 14px", borderRadius: "8px", background: "rgba(255,255,255,.02)", border: "2px solid #1c2540", display: "flex", gap: "16px", alignItems: "center", flexWrap: "wrap" }}>
-              {selectedClasses.map((key, i) => {
-                const dm = DOMAINS.find((x) => x.key === key);
-                if (!dm) return null;
+
+          {/* Section 2 — Dual Class Selection */}
+          <div style={panelBox}>
+            <div style={sectionHdr}><span style={{ color: "#ff2bd1" }}>02</span> CLASS SELECTION <span style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#7de8ff", marginLeft: "8px" }}>— PICK 2 DOMAINS</span></div>
+            <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginBottom: "clamp(12px,1.8vw,18px)" }}>
+              Select your <span style={{ color: "#00f0ff", textShadow: "0 0 6px #00f0ff" }}>PRIMARY</span> and <span style={{ color: "#ff2bd1", textShadow: "0 0 6px #ff2bd1" }}>SECONDARY</span> guild domains. Your 1st pick is your primary class.
+            </div>
+            <div className="class-select-grid">
+              {DOMAINS.map((d) => {
+                const idx = selectedClasses.indexOf(d.key);
+                const isPrimary = idx === 0;
+                const isSecondary = idx === 1;
+                const labelColor = isPrimary ? "#00f0ff" : isSecondary ? "#ff2bd1" : d.color;
+                const labelText = isPrimary ? "1ST" : isSecondary ? "2ND" : "";
                 return (
-                  <div key={key} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontFamily: PS, fontSize: "9px", color: "#04040a", background: i === 0 ? "#00f0ff" : "#ff2bd1", borderRadius: "3px", padding: "2px 6px" }}>{i === 0 ? "1ST" : "2ND"}</span>
-                    <span style={{ fontFamily: PS, fontSize: "clamp(8px,1vw,11px)", color: dm.color, textShadow: `0 0 6px ${dm.color}` }}>{dm.glyph} {dm.name}</span>
+                  <div key={d.key} style={{ ...badgeStyle(d), opacity: answersLocked && idx < 0 ? 0.5 : 1, pointerEvents: answersLocked ? "none" : "auto" }} onClick={() => { if (!answersLocked) toggleClass(d.key); }}>
+                    <div style={{ width: "clamp(44px,5vw,60px)", height: "clamp(44px,5vw,60px)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px", background: "rgba(255,255,255,.03)", border: "2px solid " + d.color, fontFamily: PS, fontSize: "clamp(18px,2.4vw,26px)", color: d.color, textShadow: "0 0 12px " + d.color }}>{d.glyph}</div>
+                    <div style={{ textAlign: "left", flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: PS, fontSize: "clamp(8px,1vw,11px)", color: "#fff" }}>{d.name}</div>
+                      <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,19px)", color: d.color }}>{d.stage}</div>
+                      <div style={{ fontFamily: VT, fontSize: "clamp(12px,1.3vw,16px)", color: "#7de8ff" }}>CLASS · {d.cls}</div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+                      {/* Selection badge */}
+                      <div style={{
+                        position: "absolute", top: "8px", right: "10px",
+                        fontFamily: PS, fontSize: "9px",
+                        color: "#04040a",
+                        background: labelColor,
+                        borderRadius: "4px",
+                        padding: "3px 7px",
+                        boxShadow: `0 0 10px ${labelColor}88`,
+                        opacity: idx >= 0 ? 1 : 0,
+                        transition: "all .15s",
+                      }}>{labelText}</div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openDetail(d.key); }}
+                        style={{ cursor: "pointer", position: "absolute", bottom: "8px", right: "10px", fontFamily: PS, fontSize: "7px", color: d.color, background: `${d.color}11`, border: `1.5px solid ${d.color}44`, borderRadius: "4px", padding: "4px 8px", textShadow: `0 0 6px ${d.color}`, transition: "all .15s", opacity: 0.7 }}
+                        onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = `${d.color}22`; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.7"; e.currentTarget.style.background = `${d.color}11`; }}
+                      >
+                        ⓘ INFO
+                      </button>
+                    </div>
                   </div>
                 );
               })}
-              {selectedClasses.length < 2 && (
-                <span style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#ffb800", animation: "blink 1s steps(1) infinite" }}>← PICK {2 - selectedClasses.length} MORE</span>
-              )}
             </div>
-          )}
-        </div>
-
-        {/* Section 3 */}
-        <div style={panelBox}>
-          <div style={sectionHdr}><span style={{ color: "#ffb800" }}>03</span> QUEST QUESTIONS <span style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#7de8ff", marginLeft: "8px" }}>— 7 GUILD TRIALS</span></div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "clamp(16px,2.2vw,24px)" }}>
-            {[
-              { num: "Q1", q: "What is your biggest strength, and what is one key skill you are actively working to improve?", k: "q1" as const },
-              { num: "Q2", q: "What specifically drew you to our club, and what excites you most about becoming a member?", k: "q2" as const },
-              { num: "Q3", q: "What core skills or talents (e.g., coding, creative design, video editing, event management, public speaking) do you want to bring to our team?", k: "q3" as const },
-              { num: "Q4", q: "What specific goals or skills do you hope to achieve and master through your journey with us this year?", k: "q4" as const },
-              { num: "Q5", q: "When working on a group project or event, how do you approach challenges when a task isn't going as planned?", k: "q5" as const },
-              { num: "Q6", q: "When given ownership of a project or task, what steps do you take to ensure it gets completed successfully from start to finish?", k: "q6" as const },
-              { num: "Q7", q: "If you could launch one new project, event, or initiative with our club this year, what would it be?", k: "q7" as const },
-            ].map((q) => (
-              <div key={q.k} style={{ background: "rgba(255,255,255,.015)", padding: "14px 16px", borderRadius: "8px", border: "1px solid #3a3410" }}>
-                <div style={{ ...labelSm, color: "#ffb800", marginBottom: "6px" }}>
-                  {q.num}
-                </div>
-                <div style={{ fontFamily: VT, fontSize: "clamp(16px,1.9vw,22px)", color: "#ffb800", marginBottom: "10px", lineHeight: 1.35 }}>
-                  "{q.q}"
-                </div>
-                <textarea value={form[q.k]} onChange={setField(q.k)} rows={3} readOnly={answersLocked} placeholder="TYPE YOUR ANSWER..." style={{ ...areaStyle, opacity: answersLocked ? 0.7 : 1, cursor: answersLocked ? "not-allowed" : "text" }} />
+            {/* Selection summary */}
+            {selectedClasses.length > 0 && (
+              <div style={{ marginTop: "clamp(12px,1.8vw,18px)", padding: "10px 14px", borderRadius: "8px", background: "rgba(255,255,255,.02)", border: "2px solid #1c2540", display: "flex", gap: "16px", alignItems: "center", flexWrap: "wrap" }}>
+                {selectedClasses.map((key, i) => {
+                  const dm = DOMAINS.find((x) => x.key === key);
+                  if (!dm) return null;
+                  return (
+                    <div key={key} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontFamily: PS, fontSize: "9px", color: "#04040a", background: i === 0 ? "#00f0ff" : "#ff2bd1", borderRadius: "3px", padding: "2px 6px" }}>{i === 0 ? "1ST" : "2ND"}</span>
+                      <span style={{ fontFamily: PS, fontSize: "clamp(8px,1vw,11px)", color: dm.color, textShadow: `0 0 6px ${dm.color}` }}>{dm.glyph} {dm.name}</span>
+                    </div>
+                  );
+                })}
+                {selectedClasses.length < 2 && (
+                  <span style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#ffb800", animation: "blink 1s steps(1) infinite" }}>← PICK {2 - selectedClasses.length} MORE</span>
+                )}
               </div>
-            ))}
+            )}
+          </div>
+
+          {/* Section 3 */}
+          <div style={panelBox}>
+            <div style={sectionHdr}><span style={{ color: "#ffb800" }}>03</span> QUEST QUESTIONS <span style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#7de8ff", marginLeft: "8px" }}>— 7 GUILD TRIALS</span></div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "clamp(16px,2.2vw,24px)" }}>
+              {[
+                { num: "Q1", q: "What is your biggest strength, and what is one key skill you are actively working to improve?", k: "q1" as const },
+                { num: "Q2", q: "What specifically drew you to our club, and what excites you most about becoming a member?", k: "q2" as const },
+                { num: "Q3", q: "What core skills or talents (e.g., coding, creative design, video editing, event management, public speaking) do you want to bring to our team?", k: "q3" as const },
+                { num: "Q4", q: "What specific goals or skills do you hope to achieve and master through your journey with us this year?", k: "q4" as const },
+                { num: "Q5", q: "When working on a group project or event, how do you approach challenges when a task isn't going as planned?", k: "q5" as const },
+                { num: "Q6", q: "When given ownership of a project or task, what steps do you take to ensure it gets completed successfully from start to finish?", k: "q6" as const },
+                { num: "Q7", q: "If you could launch one new project, event, or initiative with our club this year, what would it be?", k: "q7" as const },
+              ].map((q) => (
+                <div key={q.k} style={{ background: "rgba(255,255,255,.015)", padding: "14px 16px", borderRadius: "8px", border: "1px solid #3a3410" }}>
+                  <div style={{ ...labelSm, color: "#ffb800", marginBottom: "6px" }}>
+                    {q.num}
+                  </div>
+                  <div style={{ fontFamily: VT, fontSize: "clamp(16px,1.9vw,22px)", color: "#ffb800", marginBottom: "10px", lineHeight: 1.35 }}>
+                    "{q.q}"
+                  </div>
+                  <textarea value={form[q.k]} onChange={setField(q.k)} rows={3} readOnly={answersLocked} placeholder="TYPE YOUR ANSWER..." style={{ ...areaStyle, opacity: answersLocked ? 0.7 : 1, cursor: answersLocked ? "not-allowed" : "text" }} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ ...errBase, textAlign: "center", marginTop: "18px" }}>{error}</div>
+
+          <div style={{ display: "flex", justifyContent: "center", marginTop: "clamp(24px,4vw,40px)" }}>
+            {answersLocked ? (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#ffb800", marginBottom: "12px" }}>
+                  🔒 You&apos;ve already submitted. Your answers are final.
+                </div>
+                <ArcadeButton
+                  onClick={() => goTo("hq")}
+                  style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(10px,1.3vw,14px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "8px", padding: "14px 22px", boxShadow: "0 6px 0 #006074, 0 0 20px rgba(0,240,255,.5)" }}
+                  activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #006074" }}
+                >
+                  ▶ GO TO PLAYER HQ
+                </ArcadeButton>
+              </div>
+            ) : (
+              <ArcadeButton
+                onClick={() => void onSaveData()}
+                style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(11px,1.5vw,16px)", color: "#241a11", background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "clamp(16px,2.2vw,22px) clamp(28px,4vw,44px)", boxShadow: "0 10px 0 #3a3410, 0 0 34px rgba(255,180,40,.6), inset 0 3px 8px rgba(255,255,255,.6)", textShadow: "0 1px 0 rgba(255,255,255,.5)" }}
+                activeStyle={{ transform: "translateY(7px)", boxShadow: "0 3px 0 #3a3410, 0 0 18px rgba(255,180,40,.5), inset 0 3px 8px rgba(255,255,255,.6)" }}
+              >
+                ▶ SAVE PLAYER DATA
+              </ArcadeButton>
+            )}
           </div>
         </div>
-
-        <div style={{ ...errBase, textAlign: "center", marginTop: "18px" }}>{error}</div>
-
-        <div style={{ display: "flex", justifyContent: "center", marginTop: "clamp(24px,4vw,40px)" }}>
-          {answersLocked ? (
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#ffb800", marginBottom: "12px" }}>
-                🔒 You&apos;ve already submitted. Your answers are final.
-              </div>
-              <ArcadeButton
-                onClick={() => goTo("hq")}
-                style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(10px,1.3vw,14px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "8px", padding: "14px 22px", boxShadow: "0 6px 0 #006074, 0 0 20px rgba(0,240,255,.5)" }}
-                activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #006074" }}
-              >
-                ▶ GO TO PLAYER HQ
-              </ArcadeButton>
-            </div>
-          ) : (
-            <ArcadeButton
-              onClick={() => void onSaveData()}
-              style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(11px,1.5vw,16px)", color: "#241a11", background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", border: "none", borderRadius: "8px", padding: "clamp(16px,2.2vw,22px) clamp(28px,4vw,44px)", boxShadow: "0 10px 0 #3a3410, 0 0 34px rgba(255,180,40,.6), inset 0 3px 8px rgba(255,255,255,.6)", textShadow: "0 1px 0 rgba(255,255,255,.5)" }}
-              activeStyle={{ transform: "translateY(7px)", boxShadow: "0 3px 0 #3a3410, 0 0 18px rgba(255,180,40,.5), inset 0 3px 8px rgba(255,255,255,.6)" }}
-            >
-              ▶ SAVE PLAYER DATA
-            </ArcadeButton>
-          )}
-        </div>
       </div>
-    </div>
     );
   };
 
@@ -2170,55 +2154,55 @@ export default function ArcadePage() {
     })();
 
     return (
-    <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(130% 90% at 50% 0%, #101830 0%, #080a16 60%, #05060d 100%)", position: "relative" }}>
-      <div style={scanOverlay(0.3)} />
-      <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(16px,2.4vw,26px)", padding: "clamp(28px,5vw,60px) 20px 70px", position: "relative", zIndex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div style={{ fontFamily: PS, fontSize: "clamp(20px,3.6vw,48px)", animation: alreadyActivated ? "none" : "gameon 0.7s infinite", color: alreadyActivated ? "#00f0ff" : undefined, textShadow: alreadyActivated ? "0 0 16px #00f0ff" : undefined }}>
-            {alreadyActivated ? "ARCADE PASS" : "LEVEL CLEAR!"}
+      <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(130% 90% at 50% 0%, #101830 0%, #080a16 60%, #05060d 100%)", position: "relative" }}>
+        <div style={scanOverlay(0.3)} />
+        <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(16px,2.4vw,26px)", padding: "clamp(28px,5vw,60px) 20px 70px", position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <div style={{ fontFamily: PS, fontSize: "clamp(20px,3.6vw,48px)", animation: alreadyActivated ? "none" : "gameon 0.7s infinite", color: alreadyActivated ? "#00f0ff" : undefined, textShadow: alreadyActivated ? "0 0 16px #00f0ff" : undefined }}>
+              {alreadyActivated ? "ARCADE PASS" : "LEVEL CLEAR!"}
+            </div>
+            {!alreadyActivated && (
+              <div style={{ fontFamily: PS, fontSize: "clamp(14px,2vw,26px)", color: "#ffb800", textShadow: "0 0 14px #ffb800", animation: "spin1up 3s linear infinite" }}>1UP</div>
+            )}
           </div>
-          {!alreadyActivated && (
-            <div style={{ fontFamily: PS, fontSize: "clamp(14px,2vw,26px)", color: "#ffb800", textShadow: "0 0 14px #ffb800", animation: "spin1up 3s linear infinite" }}>1UP</div>
+          <div style={{ fontFamily: VT, fontSize: "clamp(16px,2vw,24px)", color: "#7de8ff", textAlign: "center" }}>
+            {alreadyActivated ? "> YOUR PLAYER ID PASS" : "> PLAYER DATA SAVED · GENERATING ARCADE PASS..."}
+          </div>
+
+          <canvas ref={ticketRef} style={{ width: "100%", maxWidth: "600px", imageRendering: "pixelated", borderRadius: "6px", boxShadow: "0 0 40px rgba(0,240,255,.4)" }} />
+
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
+            <ArcadeButton onClick={onDownload} style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: "#00f0ff", border: "none", borderRadius: "5px", padding: "12px 16px", boxShadow: "0 5px 0 #007a8a, 0 0 16px rgba(0,240,255,.5)" }} activeStyle={{ transform: "translateY(3px)", boxShadow: "0 2px 0 #007a8a" }}>⤓ DOWNLOAD PASS</ArcadeButton>
+            <ArcadeButton onClick={onShareWA} style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "5px", padding: "12px 16px", boxShadow: "0 5px 0 #3a3410, 0 0 16px rgba(255,180,40,.5)" }} activeStyle={{ transform: "translateY(3px)", boxShadow: "0 2px 0 #3a3410" }}>◈ WHATSAPP</ArcadeButton>
+            <ArcadeButton onClick={onShareIG} style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#fff", background: "#ff2bd1", border: "none", borderRadius: "5px", padding: "12px 16px", boxShadow: "0 5px 0 #8a0e6d, 0 0 16px rgba(255,43,209,.5)" }} activeStyle={{ transform: "translateY(3px)", boxShadow: "0 2px 0 #8a0e6d" }}>◉ INSTAGRAM</ArcadeButton>
+          </div>
+
+          {/* Activation — first-time registration only. Once the account exists
+            this whole panel is gone; the pass is just a pass. */}
+          {alreadyActivated ? (
+            <ArcadeButton
+              onClick={() => goTo("hq")}
+              style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(9px,1.2vw,12px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "6px", padding: "14px 20px", boxShadow: "0 6px 0 #006074, 0 0 20px rgba(0,240,255,.5)", textShadow: "0 1px 0 rgba(255,255,255,.4)", marginTop: "4px" }}
+              activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #006074" }}
+            >
+              ◄ BACK TO PLAYER HQ
+            </ArcadeButton>
+          ) : (
+            <div style={{ width: "100%", maxWidth: "600px", marginTop: "8px", background: "rgba(10,14,26,.85)", border: "3px solid #1c2540", borderRadius: "12px", padding: "clamp(18px,2.6vw,28px)", boxShadow: "0 0 30px rgba(0,0,0,.5), inset 0 0 22px rgba(0,240,255,.05)" }}>
+              <div style={{ fontFamily: PS, fontSize: "clamp(10px,1.3vw,13px)", color: "#ffb800", textShadow: "0 0 8px #ffb800", letterSpacing: "1px" }}>▶ ACTIVATE ACCOUNT · ENTER PLAYER HQ</div>
+              <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#7de8ff", marginTop: "6px", marginBottom: "14px" }}>Set a secret PIN to track your quest, tasks &amp; interview slots.</div>
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end" }}>
+                <div style={{ flex: 1, minWidth: "180px" }}>
+                  <div style={labelSm}>SET SECRET PIN</div>
+                  <PinField value={pin} onChange={(e) => { setPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setError(""); }} placeholder="4-6 DIGIT PIN" style={fieldStyle} />
+                </div>
+                <ArcadeButton onClick={onEnterHQ} style={{ cursor: enterBusy ? "wait" : "pointer", opacity: enterBusy ? 0.7 : 1, fontFamily: PS, fontSize: "clamp(9px,1.2vw,12px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "6px", padding: "14px 18px", boxShadow: "0 6px 0 #006074, 0 0 20px rgba(0,240,255,.5)", textShadow: "0 1px 0 rgba(255,255,255,.4)" }} activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #006074" }}>{enterBusy ? "SAVING…" : "ENTER HQ ▶"}</ArcadeButton>
+              </div>
+              <div style={{ ...errBase, marginTop: "12px" }}>{error}</div>
+            </div>
           )}
         </div>
-        <div style={{ fontFamily: VT, fontSize: "clamp(16px,2vw,24px)", color: "#7de8ff", textAlign: "center" }}>
-          {alreadyActivated ? "> YOUR PLAYER ID PASS" : "> PLAYER DATA SAVED · GENERATING ARCADE PASS..."}
-        </div>
-
-        <canvas ref={ticketRef} style={{ width: "100%", maxWidth: "600px", imageRendering: "pixelated", borderRadius: "6px", boxShadow: "0 0 40px rgba(0,240,255,.4)" }} />
-
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
-          <ArcadeButton onClick={onDownload} style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: "#00f0ff", border: "none", borderRadius: "5px", padding: "12px 16px", boxShadow: "0 5px 0 #007a8a, 0 0 16px rgba(0,240,255,.5)" }} activeStyle={{ transform: "translateY(3px)", boxShadow: "0 2px 0 #007a8a" }}>⤓ DOWNLOAD PASS</ArcadeButton>
-          <ArcadeButton onClick={onShareWA} style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#04040a", background: "#ffb800", border: "none", borderRadius: "5px", padding: "12px 16px", boxShadow: "0 5px 0 #3a3410, 0 0 16px rgba(255,180,40,.5)" }} activeStyle={{ transform: "translateY(3px)", boxShadow: "0 2px 0 #3a3410" }}>◈ WHATSAPP</ArcadeButton>
-          <ArcadeButton onClick={onShareIG} style={{ cursor: "pointer", fontFamily: PS, fontSize: "10px", color: "#fff", background: "#ff2bd1", border: "none", borderRadius: "5px", padding: "12px 16px", boxShadow: "0 5px 0 #8a0e6d, 0 0 16px rgba(255,43,209,.5)" }} activeStyle={{ transform: "translateY(3px)", boxShadow: "0 2px 0 #8a0e6d" }}>◉ INSTAGRAM</ArcadeButton>
-        </div>
-
-        {/* Activation — first-time registration only. Once the account exists
-            this whole panel is gone; the pass is just a pass. */}
-        {alreadyActivated ? (
-          <ArcadeButton
-            onClick={() => goTo("hq")}
-            style={{ cursor: "pointer", fontFamily: PS, fontSize: "clamp(9px,1.2vw,12px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "6px", padding: "14px 20px", boxShadow: "0 6px 0 #006074, 0 0 20px rgba(0,240,255,.5)", textShadow: "0 1px 0 rgba(255,255,255,.4)", marginTop: "4px" }}
-            activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #006074" }}
-          >
-            ◄ BACK TO PLAYER HQ
-          </ArcadeButton>
-        ) : (
-          <div style={{ width: "100%", maxWidth: "600px", marginTop: "8px", background: "rgba(10,14,26,.85)", border: "3px solid #1c2540", borderRadius: "12px", padding: "clamp(18px,2.6vw,28px)", boxShadow: "0 0 30px rgba(0,0,0,.5), inset 0 0 22px rgba(0,240,255,.05)" }}>
-            <div style={{ fontFamily: PS, fontSize: "clamp(10px,1.3vw,13px)", color: "#ffb800", textShadow: "0 0 8px #ffb800", letterSpacing: "1px" }}>▶ ACTIVATE ACCOUNT · ENTER PLAYER HQ</div>
-            <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#7de8ff", marginTop: "6px", marginBottom: "14px" }}>Set a secret PIN to track your quest, tasks &amp; interview slots.</div>
-            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div style={{ flex: 1, minWidth: "180px" }}>
-                <div style={labelSm}>SET SECRET PIN</div>
-                <PinField value={pin} onChange={(e) => { setPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setError(""); }} placeholder="4-6 DIGIT PIN" style={fieldStyle} />
-              </div>
-              <ArcadeButton onClick={onEnterHQ} style={{ cursor: enterBusy ? "wait" : "pointer", opacity: enterBusy ? 0.7 : 1, fontFamily: PS, fontSize: "clamp(9px,1.2vw,12px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", border: "none", borderRadius: "6px", padding: "14px 18px", boxShadow: "0 6px 0 #006074, 0 0 20px rgba(0,240,255,.5)", textShadow: "0 1px 0 rgba(255,255,255,.4)" }} activeStyle={{ transform: "translateY(4px)", boxShadow: "0 2px 0 #006074" }}>{enterBusy ? "SAVING…" : "ENTER HQ ▶"}</ArcadeButton>
-            </div>
-            <div style={{ ...errBase, marginTop: "12px" }}>{error}</div>
-          </div>
-        )}
       </div>
-    </div>
     );
   };
 
@@ -2800,8 +2784,8 @@ export default function ArcadePage() {
                 {resetStep === "verify"
                   ? "We'll email a secure link to your college address"
                   : resetStep === "sent"
-                  ? "Check your inbox and open the link we just sent"
-                  : "Set your new secret PIN"}
+                    ? "Check your inbox and open the link we just sent"
+                    : "Set your new secret PIN"}
               </div>
 
               {resetSuccess ? (
@@ -2895,9 +2879,6 @@ export default function ArcadePage() {
       {/* Rendered once here rather than per-screen, so the contacts are
           reachable from the floor, the form, the pass and HQ alike. */}
       <HelpContacts />
-      {/* Slim always-visible reminder. The hero block scrolls away with the
-          arcade screen; this keeps the deadline in view the whole time. */}
-      <DeadlineTicker variant="bar" closesAt={closesAt} />
     </div>
   );
 }

@@ -80,21 +80,6 @@ export async function registrationsOpen(): Promise<boolean> {
   }
 }
 
-/**
- * When registrations close, as an ISO timestamp — or null if no deadline is set.
- *
- * Read from the database so the time can be changed without a redeploy. The
- * countdown built from this is only what the applicant sees; the actual cutoff
- * is enforced inside app_register.
- */
-export async function deadline(): Promise<string | null> {
-  try {
-    return (await rpc<string | null>("app_deadline", {})) ?? null;
-  } catch {
-    return null;
-  }
-}
-
 /* ------------------------------ applicant ------------------------------ */
 
 // NOTE: there was a stats() helper here backing the "LIVE REGISTRATIONS"
