@@ -1779,8 +1779,9 @@ export default function ArcadePage() {
                       </div>
                     </div>
                     {closesAt && (
-                      <div style={{ marginTop: "22px", display: "flex", justifyContent: "center" }}>
+                      <div style={{ marginTop: "26px", display: "flex", justifyContent: "center" }}>
                         <DeadlineTicker
+                          variant="hero"
                           closesAt={closesAt}
                           onExpire={() => { void apiRegistrationsOpen().then(setRegOpen); }}
                         />
@@ -2894,6 +2895,9 @@ export default function ArcadePage() {
       {/* Rendered once here rather than per-screen, so the contacts are
           reachable from the floor, the form, the pass and HQ alike. */}
       <HelpContacts />
+      {/* Slim always-visible reminder. The hero block scrolls away with the
+          arcade screen; this keeps the deadline in view the whole time. */}
+      <DeadlineTicker variant="bar" closesAt={closesAt} />
     </div>
   );
 }
