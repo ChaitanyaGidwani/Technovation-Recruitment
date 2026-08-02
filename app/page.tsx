@@ -16,7 +16,6 @@ import {
   registrationsOpen as apiRegistrationsOpen,
   signOut as apiSignOut,
   register as apiRegister,
-  save as apiSave,
   sendResetLink,
   getVerifiedEmail,
   resetPin,
@@ -28,6 +27,11 @@ import HelpContacts from "./help-contacts";
 
 // ---- config (edit freely) ----
 const CLUB_NAME = "TECHNOVATION";
+
+// Task Round links. Submissions run through Google Forms, so the responses land
+// in the form's own sheet rather than in sub_link_1 / sub_link_2.
+const TASK_FORM_URL = "https://forms.gle/4rN45cGjgHbyv1KZ7";
+const FEEDBACK_FORM_URL = "https://forms.gle/ct1pum5fyNYggrNF9";
 const SCANLINES = 0.35;
 const FLICKER = true;
 const SCREEN_TINT = "blue" as "blue" | "green" | "amber";
@@ -346,30 +350,24 @@ export default function ArcadePage() {
       });
     }
 
-    if (stageIdx >= 2) {
-      if (submitted.length) {
-        log.push({
-          id: "submitted",
-          ...DONE,
-          title: submitted.length > 1 ? "TASKS RECEIVED" : "TASK RECEIVED",
-          body: `We've got your ${names(submitted)} submission${submitted.length > 1 ? "s" : ""}. Submissions are final and can't be edited.`,
-        });
-      }
-      if (pending.length) {
-        log.push({
-          id: "task",
-          ...ACT,
-          title: "SUBMIT YOUR TASK",
-          body: `Add your work link for ${names(pending)} in the Quest Log on the left, then press Submit. Double-check it first — submissions are final.`,
-        });
-      } else if (stageIdx === 2) {
-        log.push({
-          id: "review",
-          ...NOW,
-          title: "TASKS UNDER REVIEW",
-          body: "Everything's submitted. The team is reviewing your work now — nothing for you to do at this point.",
-        });
-      }
+    if (stageIdx === 2) {
+      // Submissions go through a Google Form now, so the site can't tell whether
+      // a given applicant has submitted — don't claim to know either way.
+      log.push({
+        id: "task",
+        ...ACT,
+        title: "SUBMIT YOUR TASK",
+        body: `Open the Quest Log on the left and submit BOTH forms — the task submission${
+          doms.length ? ` for ${names(doms)}` : ""
+        } and the website feedback. Both are compulsory for further evaluation. Use the same college email you registered with.`,
+      });
+    } else if (stageIdx > 2) {
+      log.push({
+        id: "task",
+        ...DONE,
+        title: "TASK ROUND COMPLETE",
+        body: "Your task round is done — the team has moved you forward.",
+      });
     }
 
     if (stageIdx === 3) {
@@ -420,7 +418,6 @@ export default function ArcadePage() {
   // Whether the drive is accepting new applications. Defaults to open so a
   // slow first response never flashes "closed" at a genuine applicant.
   const [regOpen, setRegOpen] = useState(true);
-  const [taskErr, setTaskErr] = useState("");
   // A remembered session shows a one-tap "Resume" on the landing page
   // (instead of force-navigating there).
   const [resumeInfo, setResumeInfo] = useState<{ email: string; name: string } | null>(null);
@@ -1152,48 +1149,10 @@ export default function ArcadePage() {
 
   // Submit the task for one specific department. Stage is NOT self-advanced —
   // only the Guild Council admin promotes candidates between rounds.
-  const submitTaskFor = async (domainKey: string) => {
-    if (taskDone[domainKey]) return; // submissions are final — no resubmit
-    const link = (taskLinks[domainKey] || "").trim();
-    if (!link) return;
-    setTaskDone((p) => ({ ...p, [domainKey]: true }));
+  // NOTE: submitTaskFor() lived here. Task submission moved to a Google Form,
+  // so the in-app link fields — and the app_save call behind them — are gone.
+  // app_save still exists server-side if in-app submission ever returns.
 
-    const email = form.email.trim();
-    // Which server column this domain maps to: 1st enlisted domain -> sub_link_1.
-    const idx = selectedClasses.indexOf(domainKey);
-    const col = idx === 1 ? "sub_link_2" : "sub_link_1";
-
-    // Persist locally first so the UI stays responsive...
-    try {
-      const existingRaw = localStorage.getItem("tech_candidates_admin");
-      if (existingRaw) {
-        const list = JSON.parse(existingRaw);
-        const updated = list.map((c: any) => {
-          if (c.email.toLowerCase() === email.toLowerCase()) {
-            const submissions = { ...(c.submissions || {}), [domainKey]: link };
-            const firstLink = Object.values(submissions).find(Boolean) as string | undefined;
-            return { ...c, submissions, submissionLink: firstLink || c.submissionLink, updatedAt: "JUST NOW" };
-          }
-          return c;
-        });
-        localStorage.setItem("tech_candidates_admin", JSON.stringify(updated));
-      }
-    } catch {
-      /* fallback */
-    }
-
-    // ...then push to the server. Without this the admin panel, the exports and
-    // the Google Sheet never see the submission — it stayed in the applicant's
-    // own browser.
-    try {
-      await apiSave(email, pin, { [col]: link });
-      setTaskErr("");
-    } catch {
-      // Roll the tick back so the applicant knows it didn't land and can retry.
-      setTaskDone((p) => ({ ...p, [domainKey]: false }));
-      setTaskErr("COULDN'T SAVE THAT LINK — CHECK YOUR CONNECTION AND SUBMIT AGAIN.");
-    }
-  };
 
   const handleCandidateLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1531,24 +1490,9 @@ export default function ArcadePage() {
       transition: "all .12s",
     };
   };
-  const tagStyle = (kind: "active" | "done" | "locked"): CSSProperties => {
-    const map = {
-      active: { c: "#ffb800", b: "rgba(255,180,40,.12)" },
-      done: { c: "#ffb800", b: "rgba(255,180,40,.12)" },
-      locked: { c: "#4a5a7a", b: "rgba(74,90,122,.12)" },
-    };
-    const m = map[kind];
-    return {
-      fontFamily: PS,
-      fontSize: "7px",
-      color: m.c,
-      background: m.b,
-      border: "1px solid " + m.c,
-      borderRadius: "4px",
-      padding: "4px 7px",
-      whiteSpace: "nowrap",
-    };
-  };
+  // NOTE: tagStyle() lived here, producing the ACTIVE / DONE / UPCOMING chips on
+  // the quest cards. Those cards were replaced by the Google Form links, whose
+  // REQUIRED chips are styled inline, so nothing called it any more.
   const taskCard = (locked: boolean): CSSProperties => ({
     padding: "14px",
     borderRadius: "8px",
@@ -2288,6 +2232,15 @@ export default function ArcadePage() {
     const selColor = dom ? dom.color : "#00f0ff";
     // Task guild unlocks only once the admin clears the SCREENING round.
     const screeningCleared = stageIdx >= 2;
+
+    // Level derived from the stage. A rejected applicant keeps the level they
+    // reached (rejectedAtStage), since stage_idx is set to 5 on rejection and
+    // would otherwise read as a level beyond anything they actually cleared.
+    const playerLevel = (() => {
+      const reached = rejected ? rejectedAtStage : stageIdx;
+      const lvl = Math.min(Math.max(reached, 1), 4);
+      return lvl >= 4 ? "LV.MAX" : `LV.0${lvl}`;
+    })();
     const domainTasks = selectedClasses
       .map((k) => DOMAINS.find((d) => d.key === k))
       .filter((d): d is (typeof DOMAINS)[number] => !!d);
@@ -2305,7 +2258,13 @@ export default function ArcadePage() {
               <div>
                 <div style={{ fontFamily: PS, fontSize: "clamp(12px,1.8vw,20px)", color: "#00f0ff", textShadow: "0 0 12px rgba(0,240,255,.5)" }}>{(form.name || "PLAYER 1").toUpperCase()}</div>
                 <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,21px)", color: selColor }}>{[dom, dom2].filter(Boolean).map((d) => d!.stage + " · " + d!.cls).join(" + ") || "UNASSIGNED · ROOKIE"}</div>
-                <div style={{ fontFamily: PS, fontSize: "8px", color: "#7de8ff", marginTop: "4px" }}>PLAYER No. #{String(playerNo || 1).padStart(4, "0")} · LV.01</div>
+                {/* Level tracks the stage rather than being pinned at 01:
+                    Screening = LV.01, Task Round = LV.02, Interview = LV.03,
+                    Recruited = LV.MAX. A stopped application shows the level it
+                    actually reached, not a level it never got to. */}
+                <div style={{ fontFamily: PS, fontSize: "8px", color: "#7de8ff", marginTop: "4px" }}>
+                  PLAYER No. #{String(playerNo || 1).padStart(4, "0")} · {playerLevel}
+                </div>
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
@@ -2338,64 +2297,137 @@ export default function ArcadePage() {
             <div style={panelBoxTight}>
               <div style={sectionHdr}><span style={{ color: "#ff2bd1" }}>⚔</span> QUEST LOG</div>
 
-              {!screeningCleared ? (
+              {/* Three distinct states, driven by the applicant's real stage:
+                    rejected      -> outcome + feedback form only
+                    task round+   -> congratulations + task form + feedback form
+                    still screening -> locked notice
+                  Submissions now go through a Google Form rather than link
+                  fields, so review happens in the form's responses sheet. */}
+              {rejected ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  <div style={{ ...taskCard(false), borderColor: "#ff2bd1", background: "rgba(255,43,209,.06)" }}>
+                    <div style={{ fontFamily: PS, fontSize: "clamp(10px,1.3vw,13px)", color: "#ff2bd1", textShadow: "0 0 10px #ff2bd1", lineHeight: 1.5 }}>
+                      APPLICATION NOT SHORTLISTED
+                    </div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "10px", lineHeight: 1.45 }}>
+                      Unfortunately you didn&apos;t make it through to the Task Round this time.
+                      We had a huge number of applications and a limited number of places, so this
+                      isn&apos;t a reflection of your potential.
+                    </div>
+                    {rejectionFeedback.trim() && (
+                      <div style={{ marginTop: "12px", padding: "11px 13px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,43,209,.3)", borderRadius: "8px" }}>
+                        <div style={{ fontFamily: PS, fontSize: "8px", color: "#ff2bd1" }}>NOTE FROM THE TEAM</div>
+                        <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#ffb800", marginTop: "6px", lineHeight: 1.4 }}>
+                          &ldquo;{rejectionFeedback.trim()}&rdquo;
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#7de8ff", marginTop: "12px", lineHeight: 1.4 }}>
+                      Please do apply again next season — we&apos;d genuinely like to see you back.
+                    </div>
+                  </div>
+
+                  {/* Feedback form only. The task form is deliberately NOT shown
+                      to applicants who weren't shortlisted. */}
+                  <div style={taskCard(false)}>
+                    <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: "#00f0ff" }}>ONE LAST FAVOUR</div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginTop: "8px", lineHeight: 1.4 }}>
+                      Tell us what you thought of this recruitment site — it genuinely helps us
+                      improve it for next year.
+                    </div>
+                    <a
+                      href={FEEDBACK_FORM_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: "block", textAlign: "center", marginTop: "12px", fontFamily: PS, fontSize: "clamp(9px,1.1vw,11px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", borderRadius: "6px", padding: "13px", textDecoration: "none", boxShadow: "0 5px 0 #006074, 0 0 18px rgba(0,240,255,.45)" }}
+                    >
+                      ▶ SHARE WEBSITE FEEDBACK
+                    </a>
+                  </div>
+                </div>
+              ) : !screeningCleared ? (
                 <div style={{ ...taskCard(true), textAlign: "center", padding: "clamp(20px,3vw,30px)" }}>
                   <div style={{ fontFamily: PS, fontSize: "clamp(11px,1.4vw,14px)", color: "#4a5a7a" }}>🔒 TASK GUILD LOCKED</div>
                   <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "12px", lineHeight: 1.35 }}>
-                    Clear the <span style={{ color: "#00f0ff" }}>SCREENING</span> round first. Once the Guild Council shortlists you, your domain tasks unlock here — one for each guild you enlisted in.
+                    Clear the <span style={{ color: "#00f0ff" }}>SCREENING</span> round first. Once the Guild Council shortlists you, your domain tasks unlock here.
                   </div>
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                  {domainTasks.map((d, i) => {
-                    const done = !!taskDone[d.key];
-                    return (
-                      <div key={d.key} style={taskCard(false)}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
-                          <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: done ? "#ffb800" : "#ffb800" }}>
-                            {i === 0 ? "1ST" : "2ND"} · {d.name} TASK
-                          </div>
-                          <div style={tagStyle(done ? "done" : "active")}>{done ? "SUBMITTED" : "ACTIVE"}</div>
-                        </div>
-                        <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginTop: "6px" }}>
-                          Build a small artifact for the <span style={{ color: d.color }}>{d.stage}</span>. Submit your proof link below.
-                        </div>
-                        {done ? (
-                          <>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px", flexWrap: "wrap", background: "#050a10", border: "2px solid #3a3410", borderRadius: "4px", padding: "7px 10px" }}>
-                              <span style={{ fontFamily: PS, fontSize: "8px", color: "#ffb800" }}>🔒</span>
-                              <span style={{ fontFamily: VT, fontSize: "16px", color: "#ffb800", wordBreak: "break-all", flex: 1, minWidth: 0, textShadow: "0 0 6px #ffb800" }}>{taskLinks[d.key]}</span>
-                            </div>
-                            <div style={{ fontFamily: VT, fontSize: "14px", color: "#ffb800", marginTop: "6px" }}>✓ Submitted &amp; locked — the council will review your {d.name} task. Submissions are final.</div>
-                          </>
-                        ) : (
-                          <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
-                            <input
-                              value={taskLinks[d.key] || ""}
-                              onChange={(e) => setTaskLinks((p) => ({ ...p, [d.key]: e.target.value }))}
-                              placeholder="PASTE SUBMISSION LINK"
-                              style={{ flex: 1, minWidth: "150px", background: "#050a10", border: "2px solid #3a3410", borderRadius: "4px", color: "#ffb800", fontFamily: VT, fontSize: "16px", padding: "6px 9px", textShadow: "0 0 6px #ffb800" }}
-                            />
-                            <ArcadeButton onClick={() => void submitTaskFor(d.key)} style={{ cursor: "pointer", fontFamily: PS, fontSize: "8px", color: "#241a11", background: "#ffb800", border: "none", borderRadius: "4px", padding: "8px 12px", boxShadow: "0 4px 0 #3a3410" }} activeStyle={{ transform: "translateY(2px)", boxShadow: "0 2px 0 #3a3410" }}>SUBMIT</ArcadeButton>
-                          </div>
-                        )}
-                        {taskErr && !taskDone[d.key] && (
-                          <div style={{ fontFamily: VT, fontSize: "15px", color: "#ff2bd1", marginTop: "8px", lineHeight: 1.3 }}>
-                            ⚠ {taskErr}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {/* interview prep — upcoming */}
-                  <div style={taskCard(true)}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
-                      <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: "#4a5a7a" }}>ROUND 2 · INTERVIEW PREP</div>
-                      <div style={tagStyle("locked")}>UPCOMING</div>
+                  {/* Congratulations */}
+                  <div style={{ ...taskCard(false), borderColor: "#ffb800", background: "rgba(255,180,40,.07)" }}>
+                    <div style={{ fontFamily: PS, fontSize: "clamp(10px,1.4vw,14px)", color: "#ffb800", textShadow: "0 0 12px #ffb800", lineHeight: 1.5 }}>
+                      🎉 CONGRATULATIONS — SCREENING CLEARED!
                     </div>
-                    <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginTop: "6px" }}>Review guild lore & prepare a 2-min pitch. Unlocks once your tasks are judged.</div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#a9c3d6", marginTop: "10px", lineHeight: 1.45 }}>
+                      You&apos;ve made it through to the <span style={{ color: "#ffb800" }}>TASK ROUND</span>
+                      {domainTasks.length > 0 && (
+                        <> for <span style={{ color: "#00f0ff" }}>{domainTasks.map((d) => d.name).join(" and ")}</span></>
+                      )}. Complete the task and submit it using the form below.
+                    </div>
+
+                    {/* Both forms are mandatory — stated once, prominently, and
+                        repeated as a REQUIRED tag on each card below. */}
+                    <div
+                      style={{
+                        marginTop: "13px",
+                        padding: "11px 13px",
+                        background: "rgba(255,43,209,.1)",
+                        border: "2px solid #ff2bd1",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      <div style={{ fontFamily: PS, fontSize: "clamp(8px,1.1vw,11px)", color: "#ff2bd1", textShadow: "0 0 10px #ff2bd1", lineHeight: 1.5 }}>
+                        ⚠ BOTH FORMS ARE COMPULSORY
+                      </div>
+                      <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.7vw,19px)", color: "#ffe9b8", marginTop: "7px", lineHeight: 1.45 }}>
+                        You must submit <span style={{ color: "#ffb800" }}>both</span> the Task Submission form
+                        and the Website Feedback form to be considered for further evaluation.
+                        Applications missing either one will not be taken forward.
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Task submission form */}
+                  <div style={taskCard(false)}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+                      <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: "#ffb800" }}>1 · TASK SUBMISSION</div>
+                      <div style={{ fontFamily: PS, fontSize: "7px", color: "#ff2bd1", border: "1px solid #ff2bd188", background: "rgba(255,43,209,.14)", borderRadius: "3px", padding: "3px 7px", whiteSpace: "nowrap" }}>REQUIRED</div>
+                    </div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginTop: "8px", lineHeight: 1.4 }}>
+                      Open the form, read the task for your domain, and submit your work there.
+                      Use the same college email you registered with.
+                    </div>
+                    <a
+                      href={TASK_FORM_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: "block", textAlign: "center", marginTop: "12px", fontFamily: PS, fontSize: "clamp(9px,1.2vw,12px)", color: "#241a11", background: "radial-gradient(circle at 40% 30%, #fff5b0, #ffb800 55%, #b8a200)", borderRadius: "6px", padding: "14px", textDecoration: "none", boxShadow: "0 5px 0 #8a7900, 0 0 20px rgba(255,180,40,.5)", textShadow: "0 1px 0 rgba(255,255,255,.45)" }}
+                    >
+                      ▶ OPEN TASK SUBMISSION FORM
+                    </a>
+                  </div>
+
+                  {/* Feedback form */}
+                  <div style={taskCard(false)}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+                      <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: "#00f0ff" }}>2 · WEBSITE FEEDBACK</div>
+                      <div style={{ fontFamily: PS, fontSize: "7px", color: "#ff2bd1", border: "1px solid #ff2bd188", background: "rgba(255,43,209,.14)", borderRadius: "3px", padding: "3px 7px", whiteSpace: "nowrap" }}>REQUIRED</div>
+                    </div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginTop: "8px", lineHeight: 1.4 }}>
+                      How was this recruitment site to use? Your feedback shapes next year&apos;s.
+                      This one is required too — not optional.
+                    </div>
+                    <a
+                      href={FEEDBACK_FORM_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: "block", textAlign: "center", marginTop: "12px", fontFamily: PS, fontSize: "clamp(9px,1.1vw,11px)", color: "#04040a", background: "radial-gradient(circle at 40% 30%, #b6f5ff, #00f0ff 60%, #0090b8)", borderRadius: "6px", padding: "13px", textDecoration: "none", boxShadow: "0 5px 0 #006074, 0 0 18px rgba(0,240,255,.45)" }}
+                    >
+                      ▶ SHARE WEBSITE FEEDBACK
+                    </a>
+                  </div>
+
                 </div>
               )}
             </div>

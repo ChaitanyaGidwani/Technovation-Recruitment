@@ -115,10 +115,9 @@ export async function register(email: string, pin: string, payload: Json): Promi
   return rpc<Json>("app_register", { p_email: email, p_pin: pin, p_payload: payload });
 }
 
-/** Save applicant-editable fields only (task links, and answers while unlocked). */
-export async function save(email: string, pin: string, payload: Json): Promise<Json> {
-  return rpc<Json>("app_save", { p_email: email, p_pin: pin, p_payload: payload });
-}
+// NOTE: a save() wrapper lived here, used by the in-app task-link fields.
+// Task submission moved to a Google Form, so nothing calls it. The app_save
+// function still exists in the database if in-app submission ever returns.
 
 /* --------------------------- PIN reset via OTP -------------------------- */
 
