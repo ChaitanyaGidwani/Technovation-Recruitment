@@ -32,6 +32,8 @@ const CLUB_NAME = "TECHNOVATION";
 // in the form's own sheet rather than in sub_link_1 / sub_link_2.
 const TASK_FORM_URL = "https://forms.gle/4rN45cGjgHbyv1KZ7";
 const FEEDBACK_FORM_URL = "https://forms.gle/ct1pum5fyNYggrNF9";
+// Shown in three places on the dashboard — edit here and it changes everywhere.
+const TASK_DEADLINE = "5 AUGUST, 4:30 PM";
 const SCANLINES = 0.35;
 const FLICKER = true;
 const SCREEN_TINT = "blue" as "blue" | "green" | "amber";
@@ -359,7 +361,7 @@ export default function ArcadePage() {
         title: "SUBMIT YOUR TASK",
         body: `Open the task submission form from the Quest Log on the left${
           doms.length ? ` and complete the task for ${names(doms)}` : ""
-        }. This is compulsory for further evaluation. Use the same college email you registered with. There's also a short website feedback form in the Quest Log.`,
+        }. Submit it before ${TASK_DEADLINE} — this is compulsory, and late submissions won't be accepted. Use the same college email you registered with. There's also a short website feedback form in the Quest Log.`,
       });
     } else if (stageIdx > 2) {
       log.push({
@@ -2385,6 +2387,12 @@ export default function ArcadePage() {
                         to be considered for further evaluation. Applications without it will not be
                         taken forward.
                       </div>
+                      <div style={{ fontFamily: PS, fontSize: "clamp(8px,1.1vw,11px)", color: "#ffb800", textShadow: "0 0 10px #ffb800", marginTop: "10px", lineHeight: 1.6 }}>
+                        ⏰ DEADLINE &mdash; {TASK_DEADLINE}
+                      </div>
+                      <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.7vw,19px)", color: "#ffe9b8", marginTop: "5px", lineHeight: 1.45 }}>
+                        Submissions after this time will not be accepted.
+                      </div>
                     </div>
                   </div>
 
@@ -2397,6 +2405,9 @@ export default function ArcadePage() {
                     <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginTop: "8px", lineHeight: 1.4 }}>
                       Open the form, read the task for your domain, and submit your work there.
                       Use the same college email you registered with.
+                    </div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#ffb800", marginTop: "8px", lineHeight: 1.4 }}>
+                      ⏰ Submit before <span style={{ fontFamily: PS, fontSize: "clamp(8px,1vw,10px)" }}>{TASK_DEADLINE}</span>
                     </div>
                     <a
                       href={TASK_FORM_URL}
