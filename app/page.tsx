@@ -33,7 +33,7 @@ const CLUB_NAME = "TECHNOVATION";
 const TASK_FORM_URL = "https://forms.gle/4rN45cGjgHbyv1KZ7";
 const FEEDBACK_FORM_URL = "https://forms.gle/ct1pum5fyNYggrNF9";
 // Shown in three places on the dashboard — edit here and it changes everywhere.
-const TASK_DEADLINE = "5 AUGUST, 4:30 PM";
+const TASK_DEADLINE = "5 AUGUST, 11:59 PM";
 const SCANLINES = 0.35;
 const FLICKER = true;
 const SCREEN_TINT = "blue" as "blue" | "green" | "amber";
