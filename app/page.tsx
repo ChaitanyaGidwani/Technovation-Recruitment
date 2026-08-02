@@ -357,9 +357,9 @@ export default function ArcadePage() {
         id: "task",
         ...ACT,
         title: "SUBMIT YOUR TASK",
-        body: `Open the Quest Log on the left and submit BOTH forms — the task submission${
-          doms.length ? ` for ${names(doms)}` : ""
-        } and the website feedback. Both are compulsory for further evaluation. Use the same college email you registered with.`,
+        body: `Open the task submission form from the Quest Log on the left${
+          doms.length ? ` and complete the task for ${names(doms)}` : ""
+        }. This is compulsory for further evaluation. Use the same college email you registered with. There's also a short website feedback form in the Quest Log.`,
       });
     } else if (stageIdx > 2) {
       log.push({
@@ -2366,8 +2366,8 @@ export default function ArcadePage() {
                       )}. Complete the task and submit it using the form below.
                     </div>
 
-                    {/* Both forms are mandatory — stated once, prominently, and
-                        repeated as a REQUIRED tag on each card below. */}
+                    {/* The TASK form is mandatory. The feedback form is
+                        encouraged but optional — don't imply otherwise. */}
                     <div
                       style={{
                         marginTop: "13px",
@@ -2378,12 +2378,12 @@ export default function ArcadePage() {
                       }}
                     >
                       <div style={{ fontFamily: PS, fontSize: "clamp(8px,1.1vw,11px)", color: "#ff2bd1", textShadow: "0 0 10px #ff2bd1", lineHeight: 1.5 }}>
-                        ⚠ BOTH FORMS ARE COMPULSORY
+                        ⚠ TASK SUBMISSION IS COMPULSORY
                       </div>
                       <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.7vw,19px)", color: "#ffe9b8", marginTop: "7px", lineHeight: 1.45 }}>
-                        You must submit <span style={{ color: "#ffb800" }}>both</span> the Task Submission form
-                        and the Website Feedback form to be considered for further evaluation.
-                        Applications missing either one will not be taken forward.
+                        You must submit the <span style={{ color: "#ffb800" }}>Task Submission</span> form
+                        to be considered for further evaluation. Applications without it will not be
+                        taken forward.
                       </div>
                     </div>
                   </div>
@@ -2410,13 +2410,9 @@ export default function ArcadePage() {
 
                   {/* Feedback form */}
                   <div style={taskCard(false)}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
-                      <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: "#00f0ff" }}>2 · WEBSITE FEEDBACK</div>
-                      <div style={{ fontFamily: PS, fontSize: "7px", color: "#ff2bd1", border: "1px solid #ff2bd188", background: "rgba(255,43,209,.14)", borderRadius: "3px", padding: "3px 7px", whiteSpace: "nowrap" }}>REQUIRED</div>
-                    </div>
+                    <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.1vw,12px)", color: "#00f0ff" }}>2 · WEBSITE FEEDBACK</div>
                     <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.6vw,18px)", color: "#a9c3d6", marginTop: "8px", lineHeight: 1.4 }}>
                       How was this recruitment site to use? Your feedback shapes next year&apos;s.
-                      This one is required too — not optional.
                     </div>
                     <a
                       href={FEEDBACK_FORM_URL}
