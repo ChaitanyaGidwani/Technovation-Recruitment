@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import TaskCountdown from "./task-countdown";
 import {
   login as apiLogin,
   isRegistered as apiIsRegistered,
@@ -34,6 +35,8 @@ const CLUB_NAME = "TECHNOVATION";
 const TASK_FORM_URL = "https://forms.gle/4rN45cGjgHbyv1KZ7";
 const FEEDBACK_FORM_URL = "https://forms.gle/ct1pum5fyNYggrNF9";
 // Shown in three places on the dashboard — edit here and it changes everywhere.
+// The live clock on the arcade floor keeps its own copy of this instant in
+// task-countdown.tsx; if you change the date, change it there too.
 const TASK_DEADLINE = "5 AUGUST, 11:59 PM";
 const SCANLINES = 0.35;
 const FLICKER = true;
@@ -1585,8 +1588,13 @@ export default function ArcadePage() {
       position: "absolute",
       inset: 0,
       display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
+      flexDirection: "column",
+      // Centred by `margin: auto` on the child rather than justifyContent.
+      // justifyContent:center clips an overflowing column at BOTH ends, which
+      // is what pushed the screen title out of frame; auto margins centre when
+      // there is room and fall back to scrolling when there isn't.
+      overflowY: "auto",
+      padding: "clamp(20px,3.5vh,42px) 0 clamp(16px,2.5vh,26px)",
       opacity: 1 - term,
       pointerEvents: term > 0.5 ? "none" : "auto",
       transition: "opacity .2s",
@@ -1761,7 +1769,7 @@ export default function ArcadePage() {
 
                 {/* BOOT */}
                 <div style={bootStyle}>
-                  <div style={{ textAlign: "center", padding: "0 6%" }}>
+                  <div style={{ textAlign: "center", padding: "0 6%", margin: "auto auto 0", width: "100%" }}>
                     <div style={{ fontFamily: PS, fontSize: "clamp(20px,4vw,52px)", color: "#00f0ff", textShadow: "2px 0 #ff2bd1, -2px 0 #ffb800, 0 0 24px rgba(0,240,255,.6)", letterSpacing: "3px", lineHeight: 1.3 }}>
                       {club()}
                     </div>
@@ -1791,19 +1799,24 @@ export default function ArcadePage() {
                           ▶ INSERT COIN · VIEW QUEST
                         </ArcadeButton>
                       ) : (
-                        <div style={{ maxWidth: "460px", margin: "0 auto", background: "rgba(255,180,40,.08)", border: "2px solid #ffb800", borderRadius: "10px", padding: "clamp(14px,2vw,20px)" }}>
-                          <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.3vw,13px)", color: "#ffb800", textShadow: "0 0 10px #ffb800", letterSpacing: "1px" }}>
-                            🔒 REGISTRATIONS ARE CLOSED
-                          </div>
-                          <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "8px", lineHeight: 1.4 }}>
-                            We&apos;re not accepting new applications right now.
-                            Already applied? Use <span style={{ color: "#ffb800" }}>PLAYER LOGIN</span> above to check your progress.
-                          </div>
+                        // Registrations being shut is already reported by the
+                        // "> REGISTRATIONS CLOSED" terminal line above, so this
+                        // slot goes to the live task deadline instead.
+                        <div style={{ maxWidth: "540px", margin: "0 auto" }}>
+                          <TaskCountdown size="large" heading="⏰ TASK SUBMISSION CLOSES IN" />
                         </div>
                       )}
                     </div>
                   </div>
-                  <div style={{ position: "absolute", bottom: "5%", left: 0, right: 0, textAlign: "center", fontFamily: PS, fontSize: "10px", color: "#7de8ff" }}>
+                  {/* In normal flow, not absolutely pinned.
+                      Pinned to the bottom it sat on whatever the boot screen
+                      rendered above it, and reserving space with padding only
+                      worked while the content was short enough to fit — once
+                      it wasn't, the content simply ran through the reserve.
+                      As a flex item with `auto` margins it takes the leftover
+                      space when there is any and stacks normally when there
+                      isn't, so it can't be overlapped at any height. */}
+                  <div style={{ margin: "clamp(14px,2.5vh,26px) auto auto", textAlign: "center", fontFamily: PS, fontSize: "10px", color: "#7de8ff", flexShrink: 0 }}>
                     <div>SCROLL TO BROWSE DOMAINS</div>
                     <div style={{ fontSize: "18px", animation: "scrollpulse 1.4s infinite", marginTop: "8px" }}>▼</div>
                   </div>
