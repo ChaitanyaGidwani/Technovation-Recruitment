@@ -1048,11 +1048,29 @@ export default function ArcadePage() {
         if (!hasAnswers && livePin) {
           setEnterBusy(true);
           try {
-            const row = await apiSave(form.email.trim(), livePin, { answers });
+            // Send the whole form, not just the answers. Sending answers alone
+            // meant the domain picks, branch and section they had just typed
+            // were dropped on the floor — the account ended up submitted but
+            // with no domains against it.
+            const row = await apiSave(form.email.trim(), livePin, {
+              name: form.name.trim(),
+              branch: form.branch.trim(),
+              section: form.section.trim(),
+              phone: form.phone.trim(),
+              college_id: form.college.trim(),
+              domains: selectedClasses,
+              answers,
+            });
             const cand = candFromRow(row);
             try {
               localStorage.setItem("tech_candidates_admin", JSON.stringify([cand]));
             } catch { /* ignore */ }
+            // Adopt the server's identity for this row. Without this the screen
+            // kept the placeholder number invented locally further down
+            // (1000 + list.length + 1), so the arcade ticket printed #1002
+            // instead of the real player number the database had assigned.
+            setPlayerNo(cand.playerNo || 1001);
+            setStageIdx(cand.stageIdx || 1);
             setError("");
             goTo("hq");
           } catch {
