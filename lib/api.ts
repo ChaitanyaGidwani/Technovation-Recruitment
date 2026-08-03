@@ -97,11 +97,15 @@ export async function registrationsOpen(): Promise<boolean> {
  *
  * Returns a bare boolean: no name, answers or hash.
  */
-export async function isRegistered(email: string): Promise<boolean> {
+export async function isRegistered(email: string): Promise<boolean | null> {
   try {
     return !!(await rpc<boolean>("app_is_registered", { p_email: email }));
   } catch {
-    return false; // never block a genuine new applicant on a network blip
+    // null = "couldn't find out", NOT "no". This used to return false on any
+    // error, which the PIN-reset flow read as "no application exists" — so a
+    // momentary network blip told a genuinely registered applicant that they
+    // had never registered. Each caller now picks its own safe direction.
+    return null;
   }
 }
 
@@ -115,9 +119,14 @@ export async function register(email: string, pin: string, payload: Json): Promi
   return rpc<Json>("app_register", { p_email: email, p_pin: pin, p_payload: payload });
 }
 
-// NOTE: a save() wrapper lived here, used by the in-app task-link fields.
-// Task submission moved to a Google Form, so nothing calls it. The app_save
-// function still exists in the database if in-app submission ever returns.
+/**
+ * Save applicant-editable fields. app_save permits `answers` only while
+ * stage_idx <= 1, so this can complete an application that has none on file
+ * but can never rewrite answers once someone has been shortlisted.
+ */
+export async function save(email: string, pin: string, payload: Json): Promise<Json> {
+  return rpc<Json>("app_save", { p_email: email, p_pin: pin, p_payload: payload });
+}
 
 /* --------------------------- PIN reset via OTP -------------------------- */
 

@@ -16,6 +16,7 @@ import {
   registrationsOpen as apiRegistrationsOpen,
   signOut as apiSignOut,
   register as apiRegister,
+  save as apiSave,
   sendResetLink,
   getVerifiedEmail,
   resetPin,
@@ -962,7 +963,9 @@ export default function ArcadePage() {
     // application and was only turned away at the final step.
     setStartBusy(true);
     try {
-      if (await apiIsRegistered(form.email.trim())) {
+      // === true only: if the lookup failed we let them through rather than
+      // wrongly turning away a new applicant.
+      if ((await apiIsRegistered(form.email.trim())) === true) {
         setLoginEmail(form.email.trim());
         setLoginErr("YOU'VE ALREADY APPLIED WITH THIS EMAIL — ENTER YOUR PIN TO CONTINUE.");
         setShowLoginModal(true);
@@ -1023,20 +1026,49 @@ export default function ArcadePage() {
       const emailKey = form.email.trim().toLowerCase();
       const existing = list.find((c: any) => c.email.toLowerCase() === emailKey);
 
-      // Already applied AND activated → never re-submit. Route to login instead,
-      // preserving all their existing progress. Checked against the server as
-      // well as this device, since localStorage is empty on a new browser.
-      if ((existing && existing.pinHash) || (await apiIsRegistered(form.email.trim()))) {
+      const answers = {
+        q1: form.q1.trim(), q2: form.q2.trim(), q3: form.q3.trim(),
+        q4: form.q4.trim(), q5: form.q5.trim(), q6: form.q6.trim(), q7: form.q7.trim(),
+      };
+
+      const alreadyRegistered =
+        (existing && existing.pinHash) || (await apiIsRegistered(form.email.trim())) === true;
+
+      if (alreadyRegistered) {
+        // An activated account with NO answers on file is someone finishing an
+        // application that was started for them (or left incomplete). Let them
+        // save through app_save, which permits answers while stage_idx <= 1,
+        // rather than bouncing them to a login they've already done.
+        const storedAnswers = (existing && existing.answers) || {};
+        const hasAnswers = ["q1","q2","q3","q4","q5","q6","q7"]
+          .some((k) => String((storedAnswers as any)[k] || "").trim() !== "");
+        let livePin = pin;
+        try { livePin = livePin || sessionStorage.getItem("tech_pin") || ""; } catch { /* ignore */ }
+
+        if (!hasAnswers && livePin) {
+          setEnterBusy(true);
+          try {
+            const row = await apiSave(form.email.trim(), livePin, { answers });
+            const cand = candFromRow(row);
+            try {
+              localStorage.setItem("tech_candidates_admin", JSON.stringify([cand]));
+            } catch { /* ignore */ }
+            setError("");
+            goTo("hq");
+          } catch {
+            setError("COULDN'T SAVE YOUR ANSWERS. CHECK YOUR CONNECTION AND TRY AGAIN.");
+          } finally {
+            setEnterBusy(false);
+          }
+          return;
+        }
+
+        // Genuinely a repeat application → send them to log in.
         setLoginEmail(form.email.trim());
         setLoginErr("YOU'VE ALREADY APPLIED WITH THIS EMAIL — ENTER YOUR PIN TO LOG IN.");
         setShowLoginModal(true);
         return;
       }
-
-      const answers = {
-        q1: form.q1.trim(), q2: form.q2.trim(), q3: form.q3.trim(),
-        q4: form.q4.trim(), q5: form.q5.trim(), q6: form.q6.trim(), q7: form.q7.trim(),
-      };
 
       if (existing) {
         // Applied but not activated yet → update their file, keep id/progress.
@@ -1189,7 +1221,14 @@ export default function ArcadePage() {
       setShowLoginModal(false);
       setLoginErr("");
       saveSession(loginEmail.trim(), loginPin);
-      goTo("hq");
+
+      // An account with no answers on file hasn't really finished applying —
+      // send them to the form to complete it rather than to a dashboard that
+      // has nothing to show.
+      const a = (row as any).answers || {};
+      const hasAnswers = ["q1","q2","q3","q4","q5","q6","q7"]
+        .some((k) => String(a[k] || "").trim() !== "");
+      goTo(hasAnswers ? "hq" : "create");
     } catch (err) {
       const code = (err as ApiError)?.code || "ERROR";
       if (code === "RATE_LIMITED") {
@@ -1233,9 +1272,12 @@ export default function ArcadePage() {
       // someone who abandoned registration half-way gets a link, clicks it,
       // types a new PIN twice — and only then hits "no applicant registered
       // with that email", because there was never a row to reset.
-      if (!(await apiIsRegistered(em))) {
+      // === false only. A failed lookup returns null, and accusing a real
+      // applicant of never registering is far worse than sending them a link
+      // that harmlessly fails at the last step.
+      if ((await apiIsRegistered(em)) === false) {
         setResetErr(
-          "NO COMPLETED APPLICATION FOR THAT EMAIL. IF YOU STARTED BUT DIDN'T FINISH, PLEASE REGISTER AGAIN FROM THE HOME PAGE."
+          "NO COMPLETED APPLICATION FOR THAT EMAIL. CHECK THE SPELLING — IT MUST MATCH EXACTLY WHAT YOU REGISTERED WITH."
         );
         return;
       }
@@ -1851,6 +1893,10 @@ export default function ArcadePage() {
   const renderCreate = () => {
     // Once a candidate has fully submitted (activated account with a PIN), their
     // application — including the 7 questionnaire answers — is locked read-only.
+    // Locked once the account is activated AND answers actually exist.
+    // Keying it on the PIN alone meant an account created without answers (e.g.
+    // one added manually) opened a read-only, empty form the applicant could
+    // never fill in. You can't lock answers that were never given.
     const answersLocked = (() => {
       try {
         const raw = localStorage.getItem("tech_candidates_admin");
@@ -1858,7 +1904,10 @@ export default function ArcadePage() {
         const m = list.find(
           (c: any) => c.email?.toLowerCase() === (form.email || "").trim().toLowerCase()
         );
-        return !!(m && m.pinHash);
+        if (!m || !m.pinHash) return false;
+        const a = m.answers || {};
+        return ["q1", "q2", "q3", "q4", "q5", "q6", "q7"]
+          .some((k) => String(a[k] || "").trim() !== "");
       } catch {
         return false;
       }

@@ -165,6 +165,8 @@ export default function AdminPage() {
   const [rejectFeedback, setRejectFeedback] = useState("");
   // Candidate awaiting permanent deletion the admin must re-confirm.
   const [confirmDelete, setConfirmDelete] = useState<Candidate | null>(null);
+  // Candidate awaiting an "un-stop" the admin must re-confirm.
+  const [confirmRestore, setConfirmRestore] = useState<Candidate | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteErr, setDeleteErr] = useState("");
 
@@ -323,6 +325,23 @@ export default function AdminPage() {
   };
 
   // Stop an applicant's journey (rejection) — only after admin confirmation.
+  /**
+   * Undo a stop: put the applicant back at the stage they were on when they
+   * were stopped, and clear the rejection entirely so their dashboard shows the
+   * normal flow again rather than the "not shortlisted" screen.
+   */
+  const restoreConfirmed = () => {
+    if (!confirmRestore) return;
+    const back = Math.min(Math.max(confirmRestore.rejectedAtStage ?? 1, 1), 4);
+    void applyPatch(
+      confirmRestore,
+      // '' clears the column server-side; null would leave the old value.
+      { stage_idx: back, rejected: false, rejected_at_stage: "", rejection_feedback: "" },
+      { stageIdx: back, rejected: false, rejectedAtStage: undefined, rejectionFeedback: "" }
+    );
+    setConfirmRestore(null);
+  };
+
   const rejectConfirmed = () => {
     if (!confirmReject) return;
     const atStage = confirmReject.stageIdx; // stage reached when stopped
@@ -894,7 +913,19 @@ export default function AdminPage() {
                           )}
 
                           {cand.stageIdx === 5 && (
-                            <span style={{ fontFamily: VT, fontSize: "15px", color: "#ff5c6a", border: "1px solid rgba(255,92,106,.3)", background: "rgba(255,92,106,.12)", borderRadius: "7px", padding: "5px 12px" }}>Stopped</span>
+                            <>
+                              <span style={{ fontFamily: VT, fontSize: "15px", color: "#ff5c6a", border: "1px solid rgba(255,92,106,.3)", background: "rgba(255,92,106,.12)", borderRadius: "7px", padding: "5px 12px" }}>Stopped</span>
+                              {/* Undo a stop. Without this the only actions left on a
+                                  stopped row were Dossier and delete, so reversing a
+                                  decision meant editing the database by hand. */}
+                              <button
+                                onClick={() => setConfirmRestore(cand)}
+                                title="Put this applicant back into the process"
+                                style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#29d3ec", background: "transparent", border: "1px solid rgba(41,211,236,.4)", borderRadius: "7px", padding: "6px 13px" }}
+                              >
+                                ↩ Restore
+                              </button>
+                            </>
                           )}
 
                           <button
@@ -1290,6 +1321,54 @@ export default function AdminPage() {
                   style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#2a0508", background: "#ff5c6a", border: "none", borderRadius: "8px", padding: "11px 22px" }}
                 >
                   Confirm stop
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Restore (un-stop) — re-confirmation */}
+      {confirmRestore && (() => {
+        const back = Math.min(Math.max(confirmRestore.rejectedAtStage ?? 1, 1), 4);
+        const to = STAGES[back];
+        return (
+          <div
+            onClick={() => setConfirmRestore(null)}
+            style={{ position: "fixed", inset: 0, zIndex: 120, background: "rgba(4,4,10,0.9)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "100%", maxWidth: "520px", background: "#0e1119", border: "1px solid rgba(255,255,255,.1)", borderRadius: "16px", padding: "28px", textAlign: "center" }}
+            >
+              <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "19px", color: "#f0f3f8" }}>Restore applicant</div>
+              <div style={{ fontFamily: VT, fontSize: "19px", color: "#c9cfe0", marginTop: "12px" }}>
+                Put <span style={{ color: "#29d3ec" }}>{confirmRestore.name}</span> (#{confirmRestore.playerNo}) back into the process?
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", margin: "18px 0" }}>
+                <span style={{ fontFamily: VT, fontSize: "14px", color: "#ff5c6a", border: "1px solid rgba(255,92,106,.4)", background: "rgba(255,92,106,.14)", borderRadius: "6px", padding: "5px 11px", whiteSpace: "nowrap" }}>✕ BENCH / ON HOLD</span>
+                <span style={{ fontFamily: VT, fontSize: "16px", color: "#6b7688" }}>→</span>
+                <span style={{ fontFamily: VT, fontSize: "14px", color: to.color, border: `1px solid ${to.color}66`, background: `${to.color}22`, borderRadius: "6px", padding: "5px 11px", whiteSpace: "nowrap" }}>{to.icon} {to.label}</span>
+              </div>
+
+              <div style={{ fontFamily: VT, fontSize: "15px", color: "#6b7688", marginBottom: "22px", lineHeight: 1.4 }}>
+                This clears the rejection and any feedback you left. Their dashboard
+                goes back to the normal flow the next time they open it.
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+                <button
+                  onClick={() => setConfirmRestore(null)}
+                  style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#c9cfe0", background: "transparent", border: "1px solid rgba(255,255,255,.15)", borderRadius: "8px", padding: "11px 20px" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={restoreConfirmed}
+                  style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#06121a", background: "#29d3ec", border: "none", borderRadius: "8px", padding: "11px 22px" }}
+                >
+                  ↩ Confirm restore
                 </button>
               </div>
             </div>
