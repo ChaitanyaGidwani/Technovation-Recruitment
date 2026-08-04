@@ -19,8 +19,8 @@ const VT = "'VT323', monospace";
  * makes the browser read it in the visitor's own timezone, so the same page
  * would show a different deadline depending on where it was opened.
  */
-export const TASK_DEADLINE_ISO = "2026-08-05T23:59:00+05:30";
-export const TASK_DEADLINE = "5 AUGUST, 11:59 PM";
+export const TASK_DEADLINE_ISO = "2026-08-07T18:00:00+05:30";
+export const TASK_DEADLINE = "7 AUGUST, 6:00 PM";
 
 /** The ring drains across the final week; before that it simply sits full. */
 const RING_WINDOW_MS = 7 * 24 * 3600 * 1000;

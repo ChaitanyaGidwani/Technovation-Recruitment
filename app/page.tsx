@@ -37,7 +37,7 @@ const FEEDBACK_FORM_URL = "https://forms.gle/ct1pum5fyNYggrNF9";
 // Shown in three places on the dashboard — edit here and it changes everywhere.
 // The live clock on the arcade floor keeps its own copy of this instant in
 // task-countdown.tsx; if you change the date, change it there too.
-const TASK_DEADLINE = "5 AUGUST, 11:59 PM";
+const TASK_DEADLINE = "7 AUGUST, 6:00 PM";
 const SCANLINES = 0.35;
 const FLICKER = true;
 const SCREEN_TINT = "blue" as "blue" | "green" | "amber";
@@ -1804,6 +1804,12 @@ export default function ArcadePage() {
                         // slot goes to the live task deadline instead.
                         <div style={{ maxWidth: "540px", margin: "0 auto" }}>
                           <TaskCountdown size="large" heading="⏰ TASK SUBMISSION CLOSES IN" />
+                          {/* Deliberately a quiet one-liner rather than a second
+                              bordered panel — the boot screen has a fixed
+                              height and another box would crowd the clock. */}
+                          <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.7vw,19px)", color: "#7de8ff", marginTop: "10px", lineHeight: 1.4 }}>
+                            Interview dates — <span style={{ fontFamily: PS, fontSize: "clamp(8px,1vw,10px)", color: "#ffb800" }}>TBA</span>
+                          </div>
                         </div>
                       )}
                     </div>
