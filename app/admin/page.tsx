@@ -184,6 +184,7 @@ export default function AdminPage() {
   const [deleteErr, setDeleteErr] = useState("");
 
   // Drafted results — decisions taken but not yet published to applicants.
+  const [confirmDemote, setConfirmDemote] = useState<Candidate | null>(null);
   const [confirmRelease, setConfirmRelease] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [releasing, setReleasing] = useState(false);
@@ -382,6 +383,20 @@ export default function AdminPage() {
     const next = Math.min(confirmPromote.stageIdx + 1, 4);
     void applyDraft(confirmPromote, { stage_idx: next }, { pendingStageIdx: next });
     setConfirmPromote(null);
+  };
+
+  /**
+   * Move an applicant back a stage.
+   *
+   * Drafted like every other stage change, so a mis-click can be undone before
+   * anyone sees it. Stage 1 (Screening) is the floor — below that they'd fall
+   * out of the process entirely, which is what Stop is for.
+   */
+  const demoteConfirmed = () => {
+    if (!confirmDemote) return;
+    const back = Math.max(confirmDemote.stageIdx - 1, 1);
+    void applyDraft(confirmDemote, { stage_idx: back }, { pendingStageIdx: back });
+    setConfirmDemote(null);
   };
 
   /** Remove one applicant from the drafted batch, leaving the rest staged. */
@@ -1135,6 +1150,19 @@ export default function AdminPage() {
                                 </button>
                               )}
 
+                              {/* Reverse a stage. Only meaningful above
+                                  Screening, and not for stopped applicants —
+                                  those have Restore instead. */}
+                              {cand.stageIdx > 1 && cand.stageIdx < 5 && (
+                                <button
+                                  onClick={() => setConfirmDemote(cand)}
+                                  title="Move this applicant back one stage"
+                                  style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#f0c674", background: "transparent", border: "1px solid rgba(240,198,116,.4)", borderRadius: "7px", padding: "6px 13px" }}
+                                >
+                                  ← Demote
+                                </button>
+                              )}
+
                               {cand.stageIdx < 4 && (
                                 <button
                                   onClick={() => { setConfirmReject(cand); setRejectFeedback(cand.rejectionFeedback || ""); }}
@@ -1611,6 +1639,47 @@ export default function AdminPage() {
       })()}
 
       {/* Permanent delete — re-confirmation */}
+      {confirmDemote && (() => {
+        const from = STAGES[confirmDemote.stageIdx] || STAGES[0];
+        const to = STAGES[Math.max(confirmDemote.stageIdx - 1, 1)];
+        return (
+          <div
+            onClick={() => setConfirmDemote(null)}
+            style={{ position: "fixed", inset: 0, zIndex: 130, background: "rgba(4,4,10,0.9)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "100%", maxWidth: "500px", background: "#0e1119", border: "1px solid rgba(240,198,116,.35)", borderRadius: "16px", padding: "28px", textAlign: "center" }}
+            >
+              <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "18px", color: "#f0c674" }}>← Move back a stage</div>
+              <div style={{ fontFamily: VT, fontSize: "19px", color: "#c9cfe0", marginTop: "12px", lineHeight: 1.4 }}>
+                Move <span style={{ color: "#29d3ec" }}>{confirmDemote.name}</span> (#{confirmDemote.playerNo}) from{" "}
+                <span style={{ color: "#f0c674" }}>{from?.label}</span> back to{" "}
+                <span style={{ color: "#f0c674" }}>{to?.label}</span>?
+              </div>
+              <div style={{ fontFamily: VT, fontSize: "16px", color: "#8a93a5", marginTop: "8px", lineHeight: 1.4 }}>
+                This is drafted like any other decision — nothing changes on their
+                dashboard until you release. Scores and answers are untouched.
+              </div>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "22px", flexWrap: "wrap" }}>
+                <button
+                  onClick={() => setConfirmDemote(null)}
+                  style={{ cursor: "pointer", fontFamily: VT, fontSize: "17px", color: "#c9cfe0", background: "transparent", border: "1px solid rgba(255,255,255,.15)", borderRadius: "8px", padding: "10px 22px" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={demoteConfirmed}
+                  style={{ cursor: "pointer", fontFamily: SANS, fontWeight: 700, fontSize: "15px", color: "#06121a", background: "#f0c674", border: "none", borderRadius: "8px", padding: "11px 24px" }}
+                >
+                  Move back
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {confirmRelease && (
         <div
           onClick={() => { if (!releasing) setConfirmRelease(false); }}
