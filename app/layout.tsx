@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import CloudSync from "./cloud-sync";
+import VersionGuard from "./version-guard";
 
 export const metadata: Metadata = {
   title: "Technovation Recruitment",
@@ -28,6 +29,8 @@ export default function RootLayout({
         />
       </head>
       <body>
+        {/* In the root layout so it covers every route, including /admin. */}
+        <VersionGuard />
         <CloudSync />
         {children}
       </body>
