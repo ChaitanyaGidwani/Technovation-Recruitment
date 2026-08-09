@@ -10,7 +10,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import TaskCountdown from "./task-countdown";
 import {
   login as apiLogin,
   isRegistered as apiIsRegistered,
@@ -1802,11 +1801,23 @@ export default function ArcadePage() {
                         // Registrations being shut is already reported by the
                         // "> REGISTRATIONS CLOSED" terminal line above, so this
                         // slot goes to the live task deadline instead.
+                        // The task window has closed, so the countdown has
+                        // nothing left to count. This slot now carries the
+                        // next thing applicants are waiting on.
                         <div style={{ maxWidth: "540px", margin: "0 auto" }}>
-                          <TaskCountdown size="large" heading="⏰ TASK SUBMISSION CLOSES IN" />
+                          <div style={{ background: "rgba(255,180,40,.08)", border: "2px solid #ffb800", borderRadius: "10px", padding: "clamp(14px,2vw,20px)" }}>
+                            <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.3vw,13px)", color: "#ffb800", textShadow: "0 0 10px #ffb800", letterSpacing: "1px", lineHeight: 1.5 }}>
+                              📣 ROUND 2 RESULTS COMING SOON
+                            </div>
+                            <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "9px", lineHeight: 1.4 }}>
+                              Task Round submissions are closed and under review.
+                              Results will be released shortly — use{" "}
+                              <span style={{ color: "#ffb800" }}>PLAYER LOGIN</span> to check your status.
+                            </div>
+                          </div>
                           {/* Deliberately a quiet one-liner rather than a second
                               bordered panel — the boot screen has a fixed
-                              height and another box would crowd the clock. */}
+                              height and another box would crowd it. */}
                           <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.7vw,19px)", color: "#7de8ff", marginTop: "10px", lineHeight: 1.4 }}>
                             Interview dates — <span style={{ fontFamily: PS, fontSize: "clamp(8px,1vw,10px)", color: "#ffb800" }}>TBA</span>
                           </div>
