@@ -208,6 +208,32 @@ export async function adminDelete(key: string, email: string): Promise<void> {
   await rpc<boolean>("app_admin_delete", { p_key: key, p_email: email });
 }
 
+/* ------------------------- drafted results ------------------------------ */
+
+/**
+ * Stage a promotion or rejection WITHOUT publishing it.
+ *
+ * Writing stage_idx straight through meant the first applicant promoted saw it
+ * the moment the button was pressed, so anyone refreshing could work out their
+ * result before it was announced. Drafts live in pending_* columns that no
+ * applicant-facing RPC returns.
+ *
+ * Pass stage_idx: "" to clear one applicant's draft.
+ */
+export async function adminDraft(key: string, email: string, patch: Json): Promise<Json> {
+  return rpc<Json>("app_admin_draft", { p_key: key, p_email: email, p_patch: patch });
+}
+
+/** Publish every draft at once. Returns how many applicants moved. */
+export async function adminReleaseResults(key: string): Promise<number> {
+  return (await rpc<number>("app_admin_release_results", { p_key: key })) ?? 0;
+}
+
+/** Throw the whole drafted batch away without publishing. */
+export async function adminDiscardDrafts(key: string): Promise<number> {
+  return (await rpc<number>("app_admin_discard_drafts", { p_key: key })) ?? 0;
+}
+
 /** Open or pause new registrations. Admin-key gated in the database. */
 export async function adminSetRegistrations(key: string, open: boolean): Promise<boolean> {
   return rpc<boolean>("app_set_registrations", { p_key: key, p_open: open });

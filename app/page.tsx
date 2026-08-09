@@ -380,7 +380,7 @@ export default function ArcadePage() {
         id: "interview",
         ...NOW,
         title: "INTERVIEW ROUND",
-        body: "You cleared the task round. We'll reach out on your registered email and phone to set up a short interview, so keep an eye on your inbox.",
+        body: "Congratulations — you cleared the Task Round against a strong field. Interview dates are still to be announced; we'll reach out on your registered email and phone with your slot, so keep an eye on your inbox. Nothing to submit in the meantime. All the best!",
       });
     } else if (stageIdx >= 4) {
       log.push({
@@ -2255,10 +2255,16 @@ export default function ArcadePage() {
     const dom = selDomain(0);
     const reachedIdx = Math.min(Math.max(rejectedAtStage, 1), STAGES.length - 1);
     const reachedLabel = STAGES[reachedIdx]?.label || "SCREENING";
+    // Deliberately attributes the outcome to the size of the field rather than
+    // to any shortcoming. Reaching the Task Round put someone in the top ~70 of
+    // 289, and the message should say so plainly instead of consoling them.
     const positive =
-      `Reaching the ${reachedLabel} stage is no small feat — it means your skills are real. ` +
-      `Every great player has a stack of "Game Over" screens behind them. Keep building, keep shipping, ` +
-      `and drop another coin next season. TECHNOVATION would love to see you back. 🎮`;
+      `You made it to the ${reachedLabel} stage, and you got there on merit — ` +
+      `your application and your work were genuinely strong. ` +
+      `We had far more good people than we had spots, and that is the only reason ` +
+      `your journey pauses here. It is not a reflection of your ability. ` +
+      `Keep building and keep shipping — we would be glad to see you apply again, ` +
+      `and we wish you the very best in everything you take on next. 🎮`;
     return (
       <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(120% 80% at 50% -5%, #2a0e18 0%, #0a0e1c 55%, #05060d 100%)", position: "relative" }}>
         <div style={scanOverlay(0.22)} />
@@ -2277,7 +2283,10 @@ export default function ArcadePage() {
           {/* GAME OVER */}
           <div style={{ textAlign: "center" }}>
             <div style={{ fontFamily: PS, fontSize: "clamp(20px,4vw,40px)", color: "#ff2bd1", textShadow: "0 0 18px rgba(255,43,209,.6)", letterSpacing: "2px" }}>GAME OVER</div>
-            <div style={{ fontFamily: VT, fontSize: "clamp(18px,2.2vw,26px)", color: "#7de8ff", marginTop: "12px" }}>Your quest concluded at the <span style={{ color: "#ffb800" }}>{reachedLabel}</span> stage.</div>
+            <div style={{ fontFamily: VT, fontSize: "clamp(18px,2.2vw,26px)", color: "#7de8ff", marginTop: "12px" }}>
+              You played really well, and made it all the way to the{" "}
+              <span style={{ color: "#ffb800" }}>{reachedLabel}</span> stage.
+            </div>
           </div>
 
           {/* journey tracker (stopped) */}
@@ -2449,6 +2458,40 @@ export default function ArcadePage() {
                   <div style={{ fontFamily: PS, fontSize: "clamp(11px,1.4vw,14px)", color: "#4a5a7a" }}>🔒 TASK GUILD LOCKED</div>
                   <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "12px", lineHeight: 1.35 }}>
                     Clear the <span style={{ color: "#00f0ff" }}>SCREENING</span> round first. Once the Guild Council shortlists you, your domain tasks unlock here.
+                  </div>
+                </div>
+              ) : stageIdx >= 3 ? (
+                /* Past the Task Round. Showing the submission form here told
+                   someone who had already cleared it to go and submit a task
+                   whose deadline had passed. */
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  <div style={{ ...taskCard(false), borderColor: "#2ee88c", background: "rgba(46,232,140,.07)" }}>
+                    <div style={{ fontFamily: PS, fontSize: "clamp(10px,1.4vw,14px)", color: "#2ee88c", textShadow: "0 0 12px #2ee88c", lineHeight: 1.5 }}>
+                      🎉 CONGRATULATIONS — TASK ROUND CLEARED!
+                    </div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#a9c3d6", marginTop: "12px", lineHeight: 1.5 }}>
+                      You&apos;ve cleared the <span style={{ color: "#ffb800" }}>TASK ROUND</span>
+                      {domainTasks.length > 0 && (
+                        <> for <span style={{ color: "#00f0ff" }}>{domainTasks.map((d) => d.name).join(" and ")}</span></>
+                      )}
+                      . Your submission stood out against a strong field, and the
+                      council has moved you through to the{" "}
+                      <span style={{ color: "#2ee88c" }}>INTERVIEW ROUND</span>.
+                    </div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#a9c3d6", marginTop: "12px", lineHeight: 1.5 }}>
+                      Nothing to submit for now. We&apos;ll reach out on your
+                      registered email and phone with your interview slot, so keep
+                      an eye on your inbox.
+                    </div>
+                    <div style={{ marginTop: "14px", padding: "11px 13px", background: "rgba(0,240,255,.07)", border: "2px solid #00f0ff", borderRadius: "8px" }}>
+                      <div style={{ fontFamily: PS, fontSize: "clamp(8px,1.1vw,11px)", color: "#00f0ff", textShadow: "0 0 10px #00f0ff", lineHeight: 1.5 }}>
+                        ☎ INTERVIEW DATES — TBA
+                      </div>
+                      <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.7vw,19px)", color: "#a9c3d6", marginTop: "7px", lineHeight: 1.45 }}>
+                        Dates will be announced shortly. Be ready to talk about
+                        your domains and what you built — all the best!
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (

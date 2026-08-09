@@ -82,6 +82,12 @@ function candFromRow(r: Cand): Cand {
     rejectedAtStage: r.rejected_at_stage ?? undefined,
     rejectionFeedback: r.rejection_feedback ?? undefined,
     notes: r.notes ?? undefined,
+    // Drafted-but-unreleased decision. Only ever populated for the admin
+    // listing — _cand_public strips these, so an applicant's own row can
+    // never carry them.
+    pendingStageIdx: r.pending_stage_idx ?? undefined,
+    pendingRejected: r.pending_rejected ?? undefined,
+    pendingRejectedAtStage: r.pending_rejected_at_stage ?? undefined,
     updatedAt: "SYNCED",
   };
 }

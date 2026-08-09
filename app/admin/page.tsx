@@ -13,7 +13,10 @@
 
 import { useCallback, useEffect, useState, useMemo, type CSSProperties } from "react";
 import Link from "next/link";
-import { adminAll, adminWrite, adminDelete, adminSetRegistrations, registrationsOpen, ApiError } from "@/lib/api";
+import {
+  adminAll, adminWrite, adminDelete, adminSetRegistrations, registrationsOpen,
+  adminDraft, adminReleaseResults, adminDiscardDrafts, ApiError,
+} from "@/lib/api";
 import { candFromRow } from "@/lib/cloud-sync";
 
 const VT = "'VT323', monospace";
@@ -105,7 +108,17 @@ interface Candidate {
   rejectionFeedback?: string;
   taskScore?: number;      // /100, set once candidate reaches Task Round
   interviewScore?: number; // /100, set once candidate reaches Interview
+  // A decision that has been made but NOT published. Applicants cannot see
+  // these — the database strips them from every applicant-facing response.
+  pendingStageIdx?: number;
+  pendingRejected?: boolean;
+  pendingRejectedAtStage?: number;
   updatedAt: string;
+}
+
+/** Does this applicant have an unpublished decision waiting? */
+function hasDraft(c: Candidate): boolean {
+  return c.pendingStageIdx != null || c.pendingRejected != null;
 }
 
 // Real Applicant Data (Starts empty and populates dynamically as candidates apply)
@@ -169,6 +182,13 @@ export default function AdminPage() {
   const [confirmRestore, setConfirmRestore] = useState<Candidate | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteErr, setDeleteErr] = useState("");
+
+  // Drafted results — decisions taken but not yet published to applicants.
+  const [confirmRelease, setConfirmRelease] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [releasing, setReleasing] = useState(false);
+  const [releaseErr, setReleaseErr] = useState("");
+  const [releasedCount, setReleasedCount] = useState<number | null>(null);
 
   // Applicant data is intentionally NOT written to localStorage any more.
   // Keeping a full copy of the roster on disk in the browser was one of the
@@ -316,12 +336,97 @@ export default function AdminPage() {
     void applyPatch(cand, { stage_idx: newStageIdx }, { stageIdx: newStageIdx });
   };
 
+  /** Pull the roster from the server. Used after release/discard, where a
+   *  stale view would be actively misleading. */
+  const refresh = useCallback(async () => {
+    if (!adminKey) return;
+    try {
+      const rows = await adminAll(adminKey);
+      setCandidates(rows.map((r) => candFromRow(r) as unknown as Candidate));
+    } catch {
+      /* keep showing what we have */
+    }
+  }, [adminKey]);
+
+  /**
+   * Stage a decision instead of publishing it.
+   *
+   * The applicant's own record is untouched, so their dashboard shows exactly
+   * what it showed before. Only "Release results" moves them.
+   */
+  const applyDraft = async (
+    cand: Candidate,
+    patch: Record<string, unknown>,
+    local: Partial<Candidate>
+  ) => {
+    try {
+      await adminDraft(adminKey, cand.email, patch);
+    } catch {
+      setReleaseErr("COULDN'T SAVE THAT DECISION — CHECK YOUR CONNECTION AND TRY AGAIN.");
+      return;
+    }
+    setReleaseErr("");
+    setCandidates((prev) =>
+      prev.map((c) => {
+        if (c.id !== cand.id) return c;
+        const updated = { ...c, ...local } as Candidate;
+        if (selectedCandidate?.id === cand.id) setSelectedCandidate(updated);
+        return updated;
+      })
+    );
+  };
+
   // Executed only after the admin confirms the promotion dialog.
   const promoteConfirmed = () => {
     if (!confirmPromote) return;
     const next = Math.min(confirmPromote.stageIdx + 1, 4);
-    updateStage(confirmPromote.id, next);
+    void applyDraft(confirmPromote, { stage_idx: next }, { pendingStageIdx: next });
     setConfirmPromote(null);
+  };
+
+  /** Remove one applicant from the drafted batch, leaving the rest staged. */
+  const undoDraft = (cand: Candidate) => {
+    void applyDraft(
+      cand,
+      // '' clears the column server-side; omitting the key would leave it as is.
+      { stage_idx: "", rejected: "", rejected_at_stage: "", rejection_feedback: "" },
+      {
+        pendingStageIdx: undefined,
+        pendingRejected: undefined,
+        pendingRejectedAtStage: undefined,
+      }
+    );
+  };
+
+  /** Publish every drafted decision at once. */
+  const releaseResults = async () => {
+    setReleasing(true);
+    setReleaseErr("");
+    try {
+      const n = await adminReleaseResults(adminKey);
+      await refresh();
+      setReleasedCount(n);
+      setConfirmRelease(false);
+    } catch {
+      setReleaseErr("RELEASE FAILED — NOTHING WAS PUBLISHED. TRY AGAIN.");
+    } finally {
+      setReleasing(false);
+    }
+  };
+
+  /** Bin the whole drafted batch without publishing any of it. */
+  const discardDrafts = async () => {
+    setReleasing(true);
+    setReleaseErr("");
+    try {
+      await adminDiscardDrafts(adminKey);
+      await refresh();
+      setConfirmDiscard(false);
+    } catch {
+      setReleaseErr("COULDN'T DISCARD THE DRAFTS. TRY AGAIN.");
+    } finally {
+      setReleasing(false);
+    }
   };
 
   // Stop an applicant's journey (rejection) — only after admin confirmation.
@@ -346,10 +451,12 @@ export default function AdminPage() {
     if (!confirmReject) return;
     const atStage = confirmReject.stageIdx; // stage reached when stopped
     const feedback = rejectFeedback.trim();
-    void applyPatch(
+    // Drafted like promotions are. If rejections published immediately, the
+    // people who didn't make it would find out before the people who did.
+    void applyDraft(
       confirmReject,
       { stage_idx: 5, rejected: true, rejected_at_stage: atStage, rejection_feedback: feedback },
-      { stageIdx: 5, rejected: true, rejectedAtStage: atStage, rejectionFeedback: feedback }
+      { pendingStageIdx: 5, pendingRejected: true, pendingRejectedAtStage: atStage }
     );
     setConfirmReject(null);
     setRejectFeedback("");
@@ -466,6 +573,49 @@ export default function AdminPage() {
       c.updatedAt ?? "",
       ...QUESTIONS.map((q) => ans[q.key] ?? ""),
     ];
+  };
+
+  /**
+   * Everyone who has cleared the Task Round and is at Interview or beyond,
+   * counting drafted promotions so the list can be checked BEFORE releasing.
+   * Anyone stopped is excluded even if a stage number would otherwise include
+   * them.
+   */
+  const round3Qualified = useMemo(() => {
+    const effStage = (c: Candidate) => c.pendingStageIdx ?? c.stageIdx;
+    const effRejected = (c: Candidate) => c.pendingRejected ?? !!c.rejected;
+    return candidates
+      .filter((c) => !effRejected(c) && effStage(c) >= 3 && effStage(c) <= 4)
+      .sort((a, b) => a.playerNo - b.playerNo);
+  }, [candidates]);
+
+  const draftCount = useMemo(() => candidates.filter(hasDraft).length, [candidates]);
+  const draftPromoted = useMemo(
+    () => candidates.filter((c) => hasDraft(c) && !c.pendingRejected).length,
+    [candidates]
+  );
+  const draftStopped = useMemo(
+    () => candidates.filter((c) => c.pendingRejected === true).length,
+    [candidates]
+  );
+
+  /** Round 3 list: name, branch, admission number, college email. */
+  const exportRound3 = () => {
+    const headers = ["Player No", "Name", "Branch", "Admission No", "College Email"];
+    const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const content = [
+      headers.map(cell).join(","),
+      ...round3Qualified.map((c) =>
+        [c.playerNo, c.name, c.branch, c.collegeId, c.email].map(cell).join(",")
+      ),
+    ].join("\r\n");
+    const blob = new Blob(["﻿" + content], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `technovation_round3_qualified_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const exportCSV = () => {
@@ -692,6 +842,13 @@ export default function AdminPage() {
               ↓ CSV
             </button>
             <button
+              onClick={exportRound3}
+              title="Qualified for the Interview round — name, branch, admission no, college email"
+              style={{ cursor: "pointer", fontFamily: VT, fontSize: "16px", color: "#f0c674", background: "transparent", border: "1px solid rgba(240,198,116,.4)", borderRadius: "8px", padding: "9px 16px" }}
+            >
+              ↓ Round 3 ({round3Qualified.length})
+            </button>
+            <button
               onClick={() => { setWebhookDraft(webhookUrl); setShowSyncCfg((v) => !v); }}
               style={{ cursor: "pointer", fontFamily: VT, fontSize: "16px", color: webhookUrl ? "#2ee88c" : "#6b7688", background: "transparent", border: `1px solid ${webhookUrl ? "rgba(46,232,140,.4)" : "rgba(255,255,255,.15)"}`, borderRadius: "8px", padding: "9px 16px" }}
             >
@@ -713,6 +870,58 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
+
+        {/* Drafted results.
+            Decisions are staged here and published in one go, so applicants
+            can't infer their outcome from a dashboard updating early. */}
+        {draftCount > 0 && (
+          <div style={{ ...cardBox, marginBottom: "24px", borderLeft: "3px solid #f0c674", background: "rgba(240,198,116,.07)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px", flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "17px", color: "#f0c674" }}>
+                  {draftCount} result{draftCount === 1 ? "" : "s"} drafted · not yet visible to applicants
+                </div>
+                <div style={{ fontFamily: VT, fontSize: "16px", color: "#8a93a5", marginTop: "4px", lineHeight: 1.4 }}>
+                  {draftPromoted} promotion{draftPromoted === 1 ? "" : "s"} · {draftStopped} stopped.
+                  Their dashboards are unchanged until you release.
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <button
+                  onClick={() => setConfirmDiscard(true)}
+                  disabled={releasing}
+                  style={{ cursor: releasing ? "wait" : "pointer", fontFamily: VT, fontSize: "16px", color: "#ff5c6a", background: "transparent", border: "1px solid rgba(255,92,106,.35)", borderRadius: "8px", padding: "9px 16px" }}
+                >
+                  Discard all
+                </button>
+                <button
+                  onClick={() => setConfirmRelease(true)}
+                  disabled={releasing}
+                  style={{ cursor: releasing ? "wait" : "pointer", fontFamily: SANS, fontWeight: 700, fontSize: "15px", color: "#06121a", background: "#f0c674", border: "none", borderRadius: "8px", padding: "10px 20px" }}
+                >
+                  {releasing ? "Releasing…" : "🚀 Release results"}
+                </button>
+              </div>
+            </div>
+            {releaseErr && (
+              <div style={{ fontFamily: VT, fontSize: "16px", color: "#ff5c6a", marginTop: "10px" }}>{releaseErr}</div>
+            )}
+          </div>
+        )}
+
+        {releasedCount != null && draftCount === 0 && (
+          <div style={{ ...cardBox, marginBottom: "24px", borderLeft: "3px solid #2ee88c", background: "rgba(46,232,140,.07)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ fontFamily: VT, fontSize: "17px", color: "#2ee88c" }}>
+              ✓ Released — {releasedCount} applicant{releasedCount === 1 ? "" : "s"} updated. Their dashboards are live now.
+            </div>
+            <button
+              onClick={() => setReleasedCount(null)}
+              style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#6b7688", background: "transparent", border: "1px solid rgba(255,255,255,.15)", borderRadius: "8px", padding: "6px 14px" }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Google Sheets live-sync config */}
         {showSyncCfg && (
@@ -894,22 +1103,47 @@ export default function AdminPage() {
                             Dossier
                           </button>
 
-                          {cand.stageIdx < 4 && (
-                            <button
-                              onClick={() => setConfirmPromote(cand)}
-                              style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#06180f", background: "#2ee88c", border: "none", borderRadius: "7px", padding: "6px 13px" }}
-                            >
-                              Promote →
-                            </button>
-                          )}
+                          {/* A drafted decision replaces the action buttons, so
+                              the same applicant can't be staged twice. */}
+                          {hasDraft(cand) ? (
+                            <>
+                              <span
+                                title="Decided, but not published to the applicant yet"
+                                style={{ fontFamily: VT, fontSize: "15px", color: "#f0c674", border: "1px solid rgba(240,198,116,.4)", background: "rgba(240,198,116,.12)", borderRadius: "7px", padding: "5px 12px" }}
+                              >
+                                ◷ Drafted ·{" "}
+                                {cand.pendingRejected
+                                  ? "Stopped"
+                                  : `→ ${STAGES[Math.min(cand.pendingStageIdx ?? 0, 4)]?.label ?? "Next"}`}
+                              </span>
+                              <button
+                                onClick={() => undoDraft(cand)}
+                                title="Remove this one from the batch"
+                                style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#8a93a5", background: "transparent", border: "1px solid rgba(255,255,255,.15)", borderRadius: "7px", padding: "6px 13px" }}
+                              >
+                                Undo
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              {cand.stageIdx < 4 && (
+                                <button
+                                  onClick={() => setConfirmPromote(cand)}
+                                  style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#06180f", background: "#2ee88c", border: "none", borderRadius: "7px", padding: "6px 13px" }}
+                                >
+                                  Promote →
+                                </button>
+                              )}
 
-                          {cand.stageIdx < 4 && (
-                            <button
-                              onClick={() => { setConfirmReject(cand); setRejectFeedback(cand.rejectionFeedback || ""); }}
-                              style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#ff5c6a", background: "transparent", border: "1px solid rgba(255,92,106,.4)", borderRadius: "7px", padding: "6px 13px" }}
-                            >
-                              Stop
-                            </button>
+                              {cand.stageIdx < 4 && (
+                                <button
+                                  onClick={() => { setConfirmReject(cand); setRejectFeedback(cand.rejectionFeedback || ""); }}
+                                  style={{ cursor: "pointer", fontFamily: VT, fontSize: "15px", color: "#ff5c6a", background: "transparent", border: "1px solid rgba(255,92,106,.4)", borderRadius: "7px", padding: "6px 13px" }}
+                                >
+                                  Stop
+                                </button>
+                              )}
+                            </>
                           )}
 
                           {cand.stageIdx === 5 && (
@@ -1377,6 +1611,82 @@ export default function AdminPage() {
       })()}
 
       {/* Permanent delete — re-confirmation */}
+      {confirmRelease && (
+        <div
+          onClick={() => { if (!releasing) setConfirmRelease(false); }}
+          style={{ position: "fixed", inset: 0, zIndex: 130, background: "rgba(4,4,10,0.9)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: "520px", background: "#0e1119", border: "1px solid rgba(240,198,116,.35)", borderRadius: "16px", padding: "28px", textAlign: "center" }}
+          >
+            <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "18px", color: "#f0c674" }}>🚀 Release results</div>
+            <div style={{ fontFamily: VT, fontSize: "19px", color: "#c9cfe0", marginTop: "12px", lineHeight: 1.4 }}>
+              Publish <span style={{ color: "#29d3ec" }}>{draftCount}</span> decision{draftCount === 1 ? "" : "s"} to applicants right now —{" "}
+              {draftPromoted} promoted, {draftStopped} stopped.
+            </div>
+            <div style={{ fontFamily: VT, fontSize: "16px", color: "#8a93a5", marginTop: "8px", lineHeight: 1.4 }}>
+              Everyone updates at the same moment. This can&apos;t be undone from
+              here — you&apos;d have to change stages individually afterwards.
+            </div>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "22px", flexWrap: "wrap" }}>
+              <button
+                onClick={() => setConfirmRelease(false)}
+                disabled={releasing}
+                style={{ cursor: "pointer", fontFamily: VT, fontSize: "17px", color: "#c9cfe0", background: "transparent", border: "1px solid rgba(255,255,255,.15)", borderRadius: "8px", padding: "10px 22px" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void releaseResults()}
+                disabled={releasing}
+                style={{ cursor: releasing ? "wait" : "pointer", fontFamily: SANS, fontWeight: 700, fontSize: "15px", color: "#06121a", background: "#f0c674", border: "none", borderRadius: "8px", padding: "11px 24px" }}
+              >
+                {releasing ? "Releasing…" : "Release now"}
+              </button>
+            </div>
+            {releaseErr && (
+              <div style={{ fontFamily: VT, fontSize: "16px", color: "#ff5c6a", marginTop: "12px" }}>{releaseErr}</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {confirmDiscard && (
+        <div
+          onClick={() => { if (!releasing) setConfirmDiscard(false); }}
+          style={{ position: "fixed", inset: 0, zIndex: 130, background: "rgba(4,4,10,0.9)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: "500px", background: "#0e1119", border: "1px solid rgba(255,92,106,.3)", borderRadius: "16px", padding: "28px", textAlign: "center" }}
+          >
+            <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: "18px", color: "#ff5c6a" }}>Discard drafted results</div>
+            <div style={{ fontFamily: VT, fontSize: "19px", color: "#c9cfe0", marginTop: "12px", lineHeight: 1.4 }}>
+              Throw away all {draftCount} drafted decision{draftCount === 1 ? "" : "s"}?
+              Nothing has been shown to applicants, so they won&apos;t notice —
+              but you&apos;ll have to make the decisions again.
+            </div>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "22px", flexWrap: "wrap" }}>
+              <button
+                onClick={() => setConfirmDiscard(false)}
+                disabled={releasing}
+                style={{ cursor: "pointer", fontFamily: VT, fontSize: "17px", color: "#c9cfe0", background: "transparent", border: "1px solid rgba(255,255,255,.15)", borderRadius: "8px", padding: "10px 22px" }}
+              >
+                Keep them
+              </button>
+              <button
+                onClick={() => void discardDrafts()}
+                disabled={releasing}
+                style={{ cursor: releasing ? "wait" : "pointer", fontFamily: SANS, fontWeight: 700, fontSize: "15px", color: "#fff", background: "#e5484d", border: "none", borderRadius: "8px", padding: "11px 24px" }}
+              >
+                {releasing ? "…" : "Discard all"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmDelete && (
         <div
           onClick={() => { if (!deleting) setConfirmDelete(null); }}
