@@ -1805,14 +1805,14 @@ export default function ArcadePage() {
                         // nothing left to count. This slot now carries the
                         // next thing applicants are waiting on.
                         <div style={{ maxWidth: "540px", margin: "0 auto" }}>
-                          <div style={{ background: "rgba(255,180,40,.08)", border: "2px solid #ffb800", borderRadius: "10px", padding: "clamp(14px,2vw,20px)" }}>
-                            <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.3vw,13px)", color: "#ffb800", textShadow: "0 0 10px #ffb800", letterSpacing: "1px", lineHeight: 1.5 }}>
-                              📣 ROUND 2 RESULTS COMING SOON
+                          <div style={{ background: "rgba(46,232,140,.09)", border: "2px solid #2ee88c", borderRadius: "10px", padding: "clamp(14px,2vw,20px)" }}>
+                            <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.3vw,13px)", color: "#2ee88c", textShadow: "0 0 10px #2ee88c", letterSpacing: "1px", lineHeight: 1.5 }}>
+                              📣 ROUND 2 RESULTS ARE OUT
                             </div>
                             <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "9px", lineHeight: 1.4 }}>
-                              Task Round submissions are closed and under review.
-                              Results will be released shortly — use{" "}
-                              <span style={{ color: "#ffb800" }}>PLAYER LOGIN</span> to check your status.
+                              Task Round results have been released. Use{" "}
+                              <span style={{ color: "#ffb800" }}>PLAYER LOGIN</span> to
+                              see your status — thank you to everyone who took part.
                             </div>
                           </div>
                           {/* Deliberately a quiet one-liner rather than a second
