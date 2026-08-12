@@ -1811,17 +1811,23 @@ export default function ArcadePage() {
                           style={{
                             maxWidth: "540px",
                             margin: "0 auto",
-                            background: "rgba(0,240,255,.07)",
-                            border: "2px solid #00f0ff",
+                            // Magenta, not cyan. The CRT screen is teal-tinted
+                            // and the terminal text above is amber, so a cyan
+                            // panel sank into the background — magenta is the
+                            // site's other primary and is the only accent that
+                            // reads as separate against that glow.
+                            background: "rgba(255,43,209,.09)",
+                            border: "2px solid #ff2bd1",
                             borderRadius: "10px",
                             padding: "clamp(14px,2vw,20px)",
                             textAlign: "center",
+                            boxShadow: "0 0 26px rgba(255,43,209,.22)",
                           }}
                         >
-                          <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.3vw,13px)", color: "#00f0ff", textShadow: "0 0 10px #00f0ff", letterSpacing: "1px", lineHeight: 1.6 }}>
+                          <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.3vw,13px)", color: "#ff2bd1", textShadow: "0 0 10px #ff2bd1", letterSpacing: "1px", lineHeight: 1.6 }}>
                             ☎ INTERVIEW ROUND
                           </div>
-                          <div style={{ fontFamily: PS, fontSize: "clamp(11px,1.7vw,17px)", color: "#ffb800", textShadow: "0 0 12px #ffb800", letterSpacing: "1px", marginTop: "10px" }}>
+                          <div style={{ fontFamily: PS, fontSize: "clamp(11px,1.7vw,17px)", color: "#00f0ff", textShadow: "0 0 12px #00f0ff", letterSpacing: "1px", marginTop: "10px" }}>
                             {INTERVIEW_WINDOW}
                           </div>
                           <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "12px", lineHeight: 1.45 }}>
