@@ -37,6 +37,9 @@ const FEEDBACK_FORM_URL = "https://forms.gle/ct1pum5fyNYggrNF9";
 // The live clock on the arcade floor keeps its own copy of this instant in
 // task-countdown.tsx; if you change the date, change it there too.
 const TASK_DEADLINE = "7 AUGUST, 6:00 PM";
+// Interview window. Used on the arcade floor and on the dashboard of everyone
+// who cleared the Task Round — one constant so the two can't disagree.
+const INTERVIEW_WINDOW = "14–16 AUGUST";
 const SCANLINES = 0.35;
 const FLICKER = true;
 const SCREEN_TINT = "blue" as "blue" | "green" | "amber";
@@ -380,7 +383,7 @@ export default function ArcadePage() {
         id: "interview",
         ...NOW,
         title: "INTERVIEW ROUND",
-        body: "Congratulations — you cleared the Task Round against a strong field. Interview dates are still to be announced; we'll reach out on your registered email and phone with your slot, so keep an eye on your inbox. Nothing to submit in the meantime. All the best!",
+        body: `Congratulations — you cleared the Task Round against a strong field. Interviews run from ${INTERVIEW_WINDOW}, so please keep those days free; we'll confirm your individual slot over your registered email and phone. Nothing to submit in the meantime — come ready to talk about your domains and what you built. All the best!`,
       });
     } else if (stageIdx >= 4) {
       log.push({
@@ -1800,26 +1803,33 @@ export default function ArcadePage() {
                       ) : (
                         // Registrations being shut is already reported by the
                         // "> REGISTRATIONS CLOSED" terminal line above, so this
-                        // slot goes to the live task deadline instead.
-                        // The task window has closed, so the countdown has
-                        // nothing left to count. This slot now carries the
-                        // next thing applicants are waiting on.
-                        <div style={{ maxWidth: "540px", margin: "0 auto" }}>
-                          <div style={{ background: "rgba(46,232,140,.09)", border: "2px solid #2ee88c", borderRadius: "10px", padding: "clamp(14px,2vw,20px)" }}>
-                            <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.3vw,13px)", color: "#2ee88c", textShadow: "0 0 10px #2ee88c", letterSpacing: "1px", lineHeight: 1.5 }}>
-                              📣 ROUND 2 RESULTS ARE OUT
-                            </div>
-                            <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "9px", lineHeight: 1.4 }}>
-                              Task Round results have been released. Use{" "}
-                              <span style={{ color: "#ffb800" }}>PLAYER LOGIN</span> to
-                              see your status — thank you to everyone who took part.
-                            </div>
+                        // Results are out and the task window has closed, so the
+                        // only thing left to announce is the interview schedule.
+                        // One centred panel — the boot screen is fixed height
+                        // and a second box crowds the terminal text above.
+                        <div
+                          style={{
+                            maxWidth: "540px",
+                            margin: "0 auto",
+                            background: "rgba(0,240,255,.07)",
+                            border: "2px solid #00f0ff",
+                            borderRadius: "10px",
+                            padding: "clamp(14px,2vw,20px)",
+                            textAlign: "center",
+                          }}
+                        >
+                          <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.3vw,13px)", color: "#00f0ff", textShadow: "0 0 10px #00f0ff", letterSpacing: "1px", lineHeight: 1.6 }}>
+                            ☎ INTERVIEW ROUND
                           </div>
-                          {/* Deliberately a quiet one-liner rather than a second
-                              bordered panel — the boot screen has a fixed
-                              height and another box would crowd it. */}
-                          <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.7vw,19px)", color: "#7de8ff", marginTop: "10px", lineHeight: 1.4 }}>
-                            Interview dates — <span style={{ fontFamily: PS, fontSize: "clamp(8px,1vw,10px)", color: "#ffb800" }}>TBA</span>
+                          <div style={{ fontFamily: PS, fontSize: "clamp(11px,1.7vw,17px)", color: "#ffb800", textShadow: "0 0 12px #ffb800", letterSpacing: "1px", marginTop: "10px" }}>
+                            {INTERVIEW_WINDOW}
+                          </div>
+                          <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "12px", lineHeight: 1.45 }}>
+                            Shortlisted players — keep these three days free.
+                            Individual slots are confirmed over email and phone.
+                          </div>
+                          <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "8px", lineHeight: 1.45 }}>
+                            Use <span style={{ color: "#ffb800" }}>PLAYER LOGIN</span> to check your status.
                           </div>
                         </div>
                       )}
@@ -2480,16 +2490,20 @@ export default function ArcadePage() {
                     </div>
                     <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#a9c3d6", marginTop: "12px", lineHeight: 1.5 }}>
                       Nothing to submit for now. We&apos;ll reach out on your
-                      registered email and phone with your interview slot, so keep
-                      an eye on your inbox.
+                      registered email and phone with your exact slot, so keep an
+                      eye on your inbox.
                     </div>
-                    <div style={{ marginTop: "14px", padding: "11px 13px", background: "rgba(0,240,255,.07)", border: "2px solid #00f0ff", borderRadius: "8px" }}>
-                      <div style={{ fontFamily: PS, fontSize: "clamp(8px,1.1vw,11px)", color: "#00f0ff", textShadow: "0 0 10px #00f0ff", lineHeight: 1.5 }}>
-                        ☎ INTERVIEW DATES — TBA
+                    <div style={{ marginTop: "14px", padding: "12px 14px", background: "rgba(0,240,255,.07)", border: "2px solid #00f0ff", borderRadius: "8px" }}>
+                      <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.3vw,13px)", color: "#00f0ff", textShadow: "0 0 10px #00f0ff", lineHeight: 1.5 }}>
+                        ☎ INTERVIEWS — {INTERVIEW_WINDOW}
                       </div>
-                      <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.7vw,19px)", color: "#a9c3d6", marginTop: "7px", lineHeight: 1.45 }}>
-                        Dates will be announced shortly. Be ready to talk about
-                        your domains and what you built — all the best!
+                      <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.7vw,19px)", color: "#a9c3d6", marginTop: "8px", lineHeight: 1.45 }}>
+                        Interviews run from <span style={{ color: "#ffb800" }}>{INTERVIEW_WINDOW}</span>.
+                        Please keep these three days free — your individual slot
+                        will be confirmed over email and phone.
+                      </div>
+                      <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.7vw,19px)", color: "#a9c3d6", marginTop: "8px", lineHeight: 1.45 }}>
+                        Come ready to talk about your domains and what you built. All the best!
                       </div>
                     </div>
                   </div>
