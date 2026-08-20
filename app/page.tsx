@@ -330,6 +330,16 @@ export default function ArcadePage() {
   const [sharedLinkedIn, setSharedLinkedIn] = useState(false);
   /** True when the pass image itself made it onto the clipboard. */
   const [passOnClipboard, setPassOnClipboard] = useState(false);
+  /**
+   * The pass, rendered in advance.
+   *
+   * navigator.share() and window.open() both require an active user gesture,
+   * and awaiting anything inside the click handler spends it — Android Chrome
+   * then refuses the share AND blocks the fallback popup, so the button did
+   * nothing at all. Having the file ready means the handler can act
+   * synchronously, which is the only way either API works on mobile.
+   */
+  const passFileRef = useRef<File | null>(null);
   const [taskInput, setTaskInput] = useState("");
   const [taskSubmitted, setTaskSubmitted] = useState(false);
   // Rejection / "journey stopped" state (set by the Guild Council admin).
@@ -519,36 +529,39 @@ export default function ArcadePage() {
    *      through a URL, full stop. So the pass is downloaded, the caption is
    *      pre-filled, and the poster attaches the image themselves.
    */
-  const onShareLinkedIn = async () => {
+  const onShareLinkedIn = () => {
     const caption = linkedInCaption(deptLabel);
+    const url = `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(caption)}`;
 
-    try {
-      const file = await passAsFile();
-      if (file && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], text: caption });
-        return;
-      }
-    } catch {
-      /* cancelled or unsupported — fall through to the desktop path */
+    // Decided synchronously — no await before this point, or the gesture is
+    // gone and both branches below fail silently.
+    const file = passFileRef.current;
+    const canNative =
+      !!file && typeof navigator.share === "function" && !!navigator.canShare?.({ files: [file] });
+
+    if (canNative && file) {
+      setSharedLinkedIn(true);
+      setTimeout(() => setSharedLinkedIn(false), 10000);
+      navigator.share({ files: [file], text: caption }).catch(() => {
+        // Cancelled, or the target app refused the file. Send them to the
+        // composer anyway rather than leaving the button apparently dead.
+        window.location.href = url;
+      });
+      return;
     }
 
-    // Desktop. The caption rides in on the URL, so the clipboard is free for
-    // the IMAGE — and LinkedIn's composer accepts a pasted image. That turns
-    // "download, find the file, open the picker" into a single Ctrl/Cmd+V.
-    const copied = await copyPassImage();
-    setPassOnClipboard(copied);
+    // Opened FIRST, while the gesture is still live, so it isn't popup-blocked.
+    const win = window.open(url, "_blank", "noopener,noreferrer");
+    if (!win) window.location.href = url; // popup blocked → same tab
+
     setSharedLinkedIn(true);
     setTimeout(() => setSharedLinkedIn(false), 10000);
 
-    // Downloaded as well, so there's still a file if the paste doesn't take
-    // (Firefox can't write images to the clipboard at all).
+    // Now the slow work, after the navigation is already under way. The
+    // caption is in the URL, so the clipboard is free for the image, which
+    // LinkedIn's composer accepts as a paste.
+    void copyPassImage().then(setPassOnClipboard);
     void downloadPass();
-
-    window.open(
-      `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(caption)}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
   };
 
   /**
@@ -846,6 +859,22 @@ export default function ArcadePage() {
     if (!blob) return null;
     return new File([blob], passFileName, { type: "image/png" });
   }, [passAsBlob, passFileName]);
+
+  // Render the pass ahead of the click. See passFileRef — the share APIs only
+  // work while a user gesture is live, so it has to be ready before then.
+  useEffect(() => {
+    if (!recruited) {
+      passFileRef.current = null;
+      return;
+    }
+    let alive = true;
+    void passAsFile().then((f) => {
+      if (alive) passFileRef.current = f;
+    });
+    return () => {
+      alive = false;
+    };
+  }, [recruited, passAsFile]);
 
   /**
    * Put the pass image itself on the clipboard, so it can be pasted straight
@@ -2820,7 +2849,7 @@ export default function ArcadePage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => void onShareLinkedIn()}
+                        onClick={onShareLinkedIn}
                         style={{
                           cursor: "pointer",
                           display: "block",
