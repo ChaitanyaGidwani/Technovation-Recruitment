@@ -842,7 +842,10 @@ export default function ArcadePage() {
     return cvs;
   }, [paintTicket]);
 
-  const passFileName = `technovation-pass-${String(playerNo || 1).padStart(4, "0")}.png`;
+  // Timestamped so a freshly generated pass can never be confused with one
+  // downloaded earlier in the same folder — which is exactly how a stale image
+  // gets attached to a post by mistake.
+  const passFileName = `technovation-pass-${String(playerNo || 1).padStart(4, "0")}-${Date.now()}.png`;
 
   const downloadPass = useCallback(async () => {
     const cvs = await renderPassCanvas();
