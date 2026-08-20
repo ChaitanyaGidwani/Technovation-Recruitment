@@ -61,12 +61,14 @@ const CLUB_PAGE_NAME = "TECHNOVATION - The Networking Club, ABESEC";
  */
 function linkedInCaptionAfterTag(dept: string): string {
   return (
-    ` — thrilled to share that I've been selected as a TECHIE` +
-    `${dept ? `, joining the ${dept} team` : ""}! 🎮\n\n` +
-    `The process ran across three rounds — screening, a hands-on domain task, and an ` +
-    `interview — and I'm grateful to the team for the opportunity.\n\n` +
-    `Excited for everything we're going to build this year.\n\n` +
-    `#Technovation #TheNetworkingClub #ABESEC #Networking #NewBeginnings`
+    ` — I'm in. 🎮\n\n` +
+    `Selected as a TECHIE for 2026${dept ? `, joining the ${dept} team` : ""}.\n\n` +
+    `Three rounds to get here: an application, a hands-on task in my own domain, ` +
+    `and an interview. The task round was the best part — build something real, ` +
+    `then sit down and defend it.\n\n` +
+    `Thanks to the team for running it properly, and to everyone I met along the ` +
+    `way. Now the actual work starts.\n\n` +
+    `#Technovation #TheNetworkingClub #ABESEC #ABESEngineeringCollege #StudentClubs`
   );
 }
 
@@ -665,8 +667,12 @@ export default function ArcadePage() {
    */
   const paintTicket = useCallback(
     (cvs: HTMLCanvasElement) => {
-      const W = 780,
-        H = 380;
+      const W = 780;
+      // A recruited pass is taller. The original 380px had every pixel spoken
+      // for — the badge was being drawn at H-78, which is exactly where the
+      // BRANCH field sits, so the two printed on top of each other. Giving the
+      // stamp its own strip is the fix; squeezing it in isn't.
+      const H = recruited ? 452 : 380;
       const ctx = cvs.getContext("2d");
       if (!ctx) return;
       cvs.width = W;
@@ -701,13 +707,48 @@ export default function ArcadePage() {
       ctx.fillStyle = accent;
       ctx.font = `10px ${PS}`;
       ctx.fillText("// PLAYER ID PASS · " + club(), 44, 78);
+      /**
+       * Draw text that always fits the space it's given.
+       *
+       * The old code chopped every value at 20 characters, which silently
+       * mangled anything longer — "Vadanta Kumar Chauhaan" printed as
+       * "VADANTA KUMAR CHAUHA" on a pass people post publicly. Measuring and
+       * stepping the size down keeps the whole value; only if it still won't
+       * fit at the smallest readable size does it ellipsise, and then honestly.
+       */
+      const fitText = (
+        text: string,
+        x: number,
+        y: number,
+        maxW: number,
+        maxPx: number,
+        minPx = 8
+      ) => {
+        let size = maxPx;
+        ctx.font = `${size}px ${PS}`;
+        while (size > minPx && ctx.measureText(text).width > maxW) {
+          size -= 1;
+          ctx.font = `${size}px ${PS}`;
+        }
+        let out = text;
+        if (ctx.measureText(out).width > maxW) {
+          while (out.length > 1 && ctx.measureText(out + "…").width > maxW) {
+            out = out.slice(0, -1);
+          }
+          out += "…";
+        }
+        ctx.fillText(out, x, y);
+      };
+
+      // Everything in the left column has to clear the perforation line.
+      const colW = px - 44 - 26;
+
       const fld = (y: number, label: string, val: string, col: string) => {
         ctx.fillStyle = "#7de8ff";
         ctx.font = `9px ${PS}`;
         ctx.fillText(label, 44, y);
         ctx.fillStyle = col;
-        ctx.font = `14px ${PS}`;
-        ctx.fillText(String(val).slice(0, 20), 44, y + 15);
+        fitText(String(val || "—"), 44, y + 15, colW, 14);
       };
       fld(118, "PLAYER NAME", name, "#ffb800");
       fld(164, "CLASS", clsName, "#ff2bd1");
@@ -728,20 +769,28 @@ export default function ArcadePage() {
       // Recruited stamp. Only for selected members — the pass doubles as the
       // thing they screenshot and share, so it should say what they became.
       if (recruited) {
+        // Sits in the strip added below the field list — the last field
+        // (BRANCH) ends around y=331, so this starts well clear of it.
         const bx = 40;
-        const by = H - 78;
+        const bh = 62;
+        const by = H - bh - 34;
+        // Kept inside the left column so it doesn't cross the perforation line.
         const bw = px - 84;
         ctx.fillStyle = "rgba(46,232,140,.14)";
-        ctx.fillRect(bx, by, bw, 46);
+        ctx.fillRect(bx, by, bw, bh);
         ctx.lineWidth = 3;
         ctx.strokeStyle = "#2ee88c";
-        ctx.strokeRect(bx, by, bw, 46);
+        ctx.strokeRect(bx, by, bw, bh);
+
         ctx.fillStyle = "#2ee88c";
-        ctx.font = `16px ${PS}`;
-        ctx.fillText("★ RECRUITED", bx + 14, by + 15);
-        ctx.fillStyle = "#7de8ff";
-        ctx.font = `9px ${PS}`;
-        ctx.fillText(deptLabel.toUpperCase().slice(0, 34), bx + 170, by + 19);
+        fitText("★ RECRUITED", bx + 18, by + 14, bw - 36, 16);
+
+        // Department on its own line. Side by side, the two collided as soon as
+        // a longer name like PR/OUTREACH appeared.
+        if (deptLabel) {
+          ctx.fillStyle = "#7de8ff";
+          fitText(deptLabel.toUpperCase(), bx + 18, by + 40, bw - 36, 10);
+        }
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
