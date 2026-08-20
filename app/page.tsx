@@ -326,6 +326,8 @@ export default function ArcadePage() {
   const [pin, setPin] = useState("");
   const [stageIdx, setStageIdx] = useState(1);
   const [sharedLinkedIn, setSharedLinkedIn] = useState(false);
+  /** True when the pass image itself made it onto the clipboard. */
+  const [passOnClipboard, setPassOnClipboard] = useState(false);
   const [taskInput, setTaskInput] = useState("");
   const [taskSubmitted, setTaskSubmitted] = useState(false);
   // Rejection / "journey stopped" state (set by the Guild Council admin).
@@ -528,14 +530,18 @@ export default function ArcadePage() {
       /* cancelled or unsupported — fall through to the desktop path */
     }
 
-    try {
-      void navigator.clipboard?.writeText(caption);
-      setSharedLinkedIn(true);
-      setTimeout(() => setSharedLinkedIn(false), 8000);
-    } catch {
-      /* clipboard blocked — the composer still opens pre-filled */
-    }
+    // Desktop. The caption rides in on the URL, so the clipboard is free for
+    // the IMAGE — and LinkedIn's composer accepts a pasted image. That turns
+    // "download, find the file, open the picker" into a single Ctrl/Cmd+V.
+    const copied = await copyPassImage();
+    setPassOnClipboard(copied);
+    setSharedLinkedIn(true);
+    setTimeout(() => setSharedLinkedIn(false), 10000);
+
+    // Downloaded as well, so there's still a file if the paste doesn't take
+    // (Firefox can't write images to the clipboard at all).
     void downloadPass();
+
     window.open(
       `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(caption)}`,
       "_blank",
@@ -780,13 +786,39 @@ export default function ArcadePage() {
     a.click();
   }, [renderPassCanvas, passFileName]);
 
+  const passAsBlob = useCallback(async (): Promise<Blob | null> => {
+    const cvs = await renderPassCanvas();
+    return new Promise((res) => cvs.toBlob(res, "image/png"));
+  }, [renderPassCanvas]);
+
   /** The pass as a File, for the native share sheet. */
   const passAsFile = useCallback(async (): Promise<File | null> => {
-    const cvs = await renderPassCanvas();
-    const blob: Blob | null = await new Promise((res) => cvs.toBlob(res, "image/png"));
+    const blob = await passAsBlob();
     if (!blob) return null;
     return new File([blob], passFileName, { type: "image/png" });
-  }, [renderPassCanvas, passFileName]);
+  }, [passAsBlob, passFileName]);
+
+  /**
+   * Put the pass image itself on the clipboard, so it can be pasted straight
+   * into LinkedIn's composer with one keystroke.
+   *
+   * The ClipboardItem is constructed with a PROMISE rather than an awaited
+   * blob. Awaiting first would break the chain of user activation in Safari and
+   * the write would be rejected; handing over the promise keeps the gesture
+   * alive while the canvas renders.
+   */
+  const copyPassImage = useCallback(async (): Promise<boolean> => {
+    try {
+      if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) return false;
+      const item = new ClipboardItem({
+        "image/png": passAsBlob().then((b) => b as Blob),
+      });
+      await navigator.clipboard.write([item]);
+      return true;
+    } catch {
+      return false; // Firefox, or permission denied — the download covers it
+    }
+  }, [passAsBlob]);
 
   useEffect(() => {
     if (page !== "hq") return;
@@ -2716,9 +2748,23 @@ export default function ArcadePage() {
                         and opens LinkedIn.
                       </div>
                       <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.7vw,18px)", color: "#7de8ff", marginTop: "9px", lineHeight: 1.5, background: "rgba(0,240,255,.06)", border: "1px solid rgba(0,240,255,.3)", borderRadius: "7px", padding: "10px 12px", textAlign: "left" }}>
-                        <div style={{ color: "#ffb800", marginBottom: "5px" }}>On a phone this posts complete — text and pass together.</div>
-                        <div>On a laptop, LinkedIn won&apos;t let a website attach the image for you, so:{" "}
-                          <span style={{ color: "#ffb800" }}>tap the picture icon</span> in the composer and pick the pass that just downloaded.</div>
+                        {sharedLinkedIn && passOnClipboard ? (
+                          <div style={{ color: "#2ee88c", marginBottom: "5px" }}>
+                            ✓ Your pass is on the clipboard — click inside the LinkedIn box and
+                            press <span style={{ color: "#ffb800" }}>Ctrl+V</span> (or{" "}
+                            <span style={{ color: "#ffb800" }}>⌘+V</span>) to attach it.
+                          </div>
+                        ) : (
+                          <div style={{ color: "#ffb800", marginBottom: "5px" }}>
+                            On a phone this posts complete — text and pass together. On a
+                            laptop, press <span style={{ color: "#fff" }}>Ctrl+V</span> /{" "}
+                            <span style={{ color: "#fff" }}>⌘+V</span> in the LinkedIn box to attach your pass.
+                          </div>
+                        )}
+                        <div>
+                          If pasting doesn&apos;t work in your browser, the pass also downloaded —
+                          use the <span style={{ color: "#ffb800" }}>picture icon</span> in the composer instead.
+                        </div>
                         <div style={{ marginTop: "6px" }}>
                           To make <span style={{ color: "#fff" }}>{CLUB_PAGE_NAME}</span> a real clickable tag, delete that name,
                           type <span style={{ color: "#ffb800" }}>@techno</span> and choose the page from the dropdown.
@@ -2742,7 +2788,11 @@ export default function ArcadePage() {
                           letterSpacing: "1px",
                         }}
                       >
-                        {sharedLinkedIn ? "✓ COPIED + PASS SAVED — OPENING LINKEDIN" : "in  POST ON LINKEDIN"}
+                        {sharedLinkedIn
+                          ? passOnClipboard
+                            ? "✓ PASS COPIED — PRESS CTRL+V IN LINKEDIN"
+                            : "✓ PASS SAVED — OPENING LINKEDIN"
+                          : "in  POST ON LINKEDIN"}
                       </button>
                       <button
                         onClick={() => void downloadPass()}
