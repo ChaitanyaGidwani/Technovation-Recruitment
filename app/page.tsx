@@ -550,17 +550,21 @@ export default function ArcadePage() {
       return;
     }
 
-    // Opened FIRST, while the gesture is still live, so it isn't popup-blocked.
+    // Clipboard FIRST, and started synchronously. Opening the tab moves focus
+    // away from this document, and a clipboard write on an unfocused document
+    // is rejected — which silently left whatever was copied earlier in place,
+    // so people pasted a stale pass. Kicking the write off before the tab
+    // opens is the difference between it working and quietly not.
+    const copying = copyPassImage();
+
+    // Still inside the same gesture, so this isn't popup-blocked.
     const win = window.open(url, "_blank", "noopener,noreferrer");
-    if (!win) window.location.href = url; // popup blocked → same tab
+    if (!win) window.location.href = url;
 
     setSharedLinkedIn(true);
     setTimeout(() => setSharedLinkedIn(false), 10000);
 
-    // Now the slow work, after the navigation is already under way. The
-    // caption is in the URL, so the clipboard is free for the image, which
-    // LinkedIn's composer accepts as a paste.
-    void copyPassImage().then(setPassOnClipboard);
+    void copying.then(setPassOnClipboard);
     void downloadPass();
   };
 
@@ -885,16 +889,23 @@ export default function ArcadePage() {
    * the write would be rejected; handing over the promise keeps the gesture
    * alive while the canvas renders.
    */
-  const copyPassImage = useCallback(async (): Promise<boolean> => {
+  const copyPassImage = useCallback((): Promise<boolean> => {
     try {
-      if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) return false;
-      const item = new ClipboardItem({
-        "image/png": passAsBlob().then((b) => b as Blob),
-      });
-      await navigator.clipboard.write([item]);
-      return true;
+      if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
+        return Promise.resolve(false);
+      }
+      // Prefer the already-rendered file. A clipboard write is rejected once
+      // the document loses focus, so the less time it spends waiting on a
+      // canvas, the more reliably it lands.
+      const ready: Promise<Blob> = passFileRef.current
+        ? Promise.resolve(passFileRef.current as Blob)
+        : passAsBlob().then((b) => b as Blob);
+      return navigator.clipboard
+        .write([new ClipboardItem({ "image/png": ready })])
+        .then(() => true)
+        .catch(() => false);
     } catch {
-      return false; // Firefox, or permission denied — the download covers it
+      return Promise.resolve(false); // Firefox — the download covers it
     }
   }, [passAsBlob]);
 
