@@ -82,6 +82,9 @@ function candFromRow(r: Cand): Cand {
     rejectedAtStage: r.rejected_at_stage ?? undefined,
     rejectionFeedback: r.rejection_feedback ?? undefined,
     notes: r.notes ?? undefined,
+    // The single team a selected member was assigned to. Distinct from
+    // `domains`, which stays as the two they applied for.
+    department: r.department ?? undefined,
     // Drafted-but-unreleased decision. Only ever populated for the admin
     // listing — _cand_public strips these, so an applicant's own row can
     // never carry them.

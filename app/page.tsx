@@ -40,6 +40,47 @@ const TASK_DEADLINE = "7 AUGUST, 6:00 PM";
 // Interview window. Used on the arcade floor and on the dashboard of everyone
 // who cleared the Task Round — one constant so the two can't disagree.
 const INTERVIEW_WINDOW = "14–16 AUGUST";
+
+// Club LinkedIn page — the destination of the share, and named in the caption
+// so the post credits the club rather than just mentioning it in passing.
+const CLUB_LINKEDIN = "https://www.linkedin.com/company/the-networking-club-abesec/posts/?feedView=all";
+
+/** Exactly as the page appears in LinkedIn's @ dropdown. */
+const CLUB_PAGE_NAME = "TECHNOVATION - The Networking Club, ABESEC";
+
+/**
+ * The announcement, written so the club tag comes FIRST.
+ *
+ * A real @mention only exists if the poster types "@" in the composer and picks
+ * the page from LinkedIn's dropdown — pasted text can never become a live tag,
+ * whatever format it's in. Rather than paste a dead "@Name" and hope nobody
+ * notices it isn't a link, the sentence is built to OPEN with the mention: type
+ * @, pick the page, then paste this. One action, and the tag is genuine.
+ *
+ * This returns only the part that follows the tag.
+ */
+function linkedInCaptionAfterTag(dept: string): string {
+  return (
+    ` — thrilled to share that I've been selected as a TECHIE` +
+    `${dept ? `, joining the ${dept} team` : ""}! 🎮\n\n` +
+    `The process ran across three rounds — screening, a hands-on domain task, and an ` +
+    `interview — and I'm grateful to the team for the opportunity.\n\n` +
+    `Excited for everything we're going to build this year.\n\n` +
+    `#Technovation #TheNetworkingClub #ABESEC #Networking #NewBeginnings`
+  );
+}
+
+/**
+ * Whole thing, for the composer's pre-fill.
+ *
+ * Note there is no "@" in front of the club name. A pasted "@Name" is inert —
+ * it renders as plain grey text, so it reads as a tag that failed rather than
+ * as prose. The name alone reads correctly either way, and the instructions
+ * tell the poster how to turn it into a genuine mention.
+ */
+function linkedInCaption(dept: string): string {
+  return CLUB_PAGE_NAME + linkedInCaptionAfterTag(dept);
+}
 const SCANLINES = 0.35;
 const FLICKER = true;
 const SCREEN_TINT = "blue" as "blue" | "green" | "amber";
@@ -284,12 +325,15 @@ export default function ArcadePage() {
   });
   const [pin, setPin] = useState("");
   const [stageIdx, setStageIdx] = useState(1);
+  const [sharedLinkedIn, setSharedLinkedIn] = useState(false);
   const [taskInput, setTaskInput] = useState("");
   const [taskSubmitted, setTaskSubmitted] = useState(false);
   // Rejection / "journey stopped" state (set by the Guild Council admin).
   const [rejected, setRejected] = useState(false);
   const [rejectedAtStage, setRejectedAtStage] = useState(1);
   const [rejectionFeedback, setRejectionFeedback] = useState("");
+  /** Assigned team for a selected member. Empty for everyone else. */
+  const [department, setDepartment] = useState("");
   // Per-department task submissions (keyed by domain key).
   const [taskLinks, setTaskLinks] = useState<Record<string, string>>({});
   const [taskDone, setTaskDone] = useState<Record<string, boolean>>({});
@@ -338,6 +382,8 @@ export default function ArcadePage() {
     const submitted = doms.filter((d) => !!taskDone[d.key]);
     const pending = doms.filter((d) => !taskDone[d.key]);
     const names = (list: typeof doms) => list.map((d) => d.name).join(" and ");
+    // Assigned team, used only in the selection message below.
+    const dept = (department || "").trim();
 
     // Oldest first while building; reversed at the end.
     const log: Comm[] = [reg];
@@ -398,12 +444,14 @@ export default function ArcadePage() {
         color: "#ffb800",
         status: "SELECTED",
         title: "YOU'RE IN — WELCOME TO TECHNOVATION",
-        body: "You've been selected. Onboarding details are on their way to your registered email.",
+        body: `Congratulations — you've been selected as a TECHIE for 2026${
+          dept ? `, joining the ${dept} team` : ""
+        }. Onboarding details and your first steps are on their way to your registered email. Welcome to the guild — we can't wait to build with you.`,
       });
     }
 
     return log.reverse();
-  }, [stageIdx, taskDone, selectedClasses, rejected, rejectedAtStage, rejectionFeedback, playerNo]);
+  }, [stageIdx, taskDone, selectedClasses, rejected, rejectedAtStage, rejectionFeedback, playerNo, department]);
 
   // Returning Candidate Login state
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -443,6 +491,67 @@ export default function ArcadePage() {
   const cur = useRef({ x: 0, y: 0 });
 
   const selDomain = (idx = 0) => DOMAINS.find((d) => d.key === selectedClasses[idx]);
+
+  /** Selected as a member — the final stage, not merely past the interview. */
+  const recruited = stageIdx >= 4 && !rejected;
+
+  /**
+   * Copy the caption, then open LinkedIn's composer.
+   *
+   * Order matters: the clipboard write has to happen inside the click handler
+   * to count as a user gesture. Opening the window first would make the copy a
+   * background action and browsers reject it.
+   */
+  /**
+   * Share to LinkedIn with the pass attached.
+   *
+   * Two paths, because no single one works everywhere:
+   *
+   *   1. Native share sheet (phones, and Safari/Chrome on some desktops). This
+   *      hands LinkedIn the IMAGE AND the text together, so the post arrives
+   *      complete — one tap, nothing to attach by hand. Most applicants are on
+   *      a phone, so this is the path that actually matters.
+   *   2. Desktop fallback: LinkedIn's web composer cannot be given a file
+   *      through a URL, full stop. So the pass is downloaded, the caption is
+   *      pre-filled, and the poster attaches the image themselves.
+   */
+  const onShareLinkedIn = async () => {
+    const caption = linkedInCaption(deptLabel);
+
+    try {
+      const file = await passAsFile();
+      if (file && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], text: caption });
+        return;
+      }
+    } catch {
+      /* cancelled or unsupported — fall through to the desktop path */
+    }
+
+    try {
+      void navigator.clipboard?.writeText(caption);
+      setSharedLinkedIn(true);
+      setTimeout(() => setSharedLinkedIn(false), 8000);
+    } catch {
+      /* clipboard blocked — the composer still opens pre-filled */
+    }
+    void downloadPass();
+    window.open(
+      `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(caption)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
+
+  /**
+   * The ONE team a selected member was assigned to.
+   *
+   * Deliberately not derived from `selectedClasses` — those are the two domains
+   * they applied for, and they stay that way across the rest of the dashboard.
+   * This value is used in exactly three places: the welcome panel, the LinkedIn
+   * caption, and the RECRUITED stamp on the pass.
+   */
+  const deptLabel = (department || "").trim();
   const selLabel = () => {
     return selectedClasses.map((k) => {
       const d = DOMAINS.find((dm) => dm.key === k);
@@ -541,12 +650,15 @@ export default function ArcadePage() {
     if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
   }, [page]);
 
-  // draw ticket / hq avatar when entering those pages
-  useEffect(() => {
-    if (page !== "pass") return;
-    const cvs = ticketRef.current;
-    if (!cvs) return;
-    const run = () => {
+  /**
+   * Paint the arcade pass onto any canvas.
+   *
+   * Extracted from the page effect so the same artwork can be rendered
+   * off-screen and saved as a PNG — LinkedIn can't be handed an image through
+   * a share URL, so a selected member downloads the pass and attaches it.
+   */
+  const paintTicket = useCallback(
+    (cvs: HTMLCanvasElement) => {
       const W = 780,
         H = 380;
       const ctx = cvs.getContext("2d");
@@ -606,11 +718,75 @@ export default function ArcadePage() {
       ctx.fillStyle = accent;
       ctx.font = `20px ${PS}`;
       ctx.fillText("#" + String(playerNo || 1).padStart(4, "0"), px + 40, 280);
-    };
+
+      // Recruited stamp. Only for selected members — the pass doubles as the
+      // thing they screenshot and share, so it should say what they became.
+      if (recruited) {
+        const bx = 40;
+        const by = H - 78;
+        const bw = px - 84;
+        ctx.fillStyle = "rgba(46,232,140,.14)";
+        ctx.fillRect(bx, by, bw, 46);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#2ee88c";
+        ctx.strokeRect(bx, by, bw, 46);
+        ctx.fillStyle = "#2ee88c";
+        ctx.font = `16px ${PS}`;
+        ctx.fillText("★ RECRUITED", bx + 14, by + 15);
+        ctx.fillStyle = "#7de8ff";
+        ctx.font = `9px ${PS}`;
+        ctx.fillText(deptLabel.toUpperCase().slice(0, 34), bx + 170, by + 19);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [recruited, deptLabel, form.name, form.email, form.branch, playerNo, selectedClasses]
+  );
+
+  // draw ticket when entering the pass page
+  useEffect(() => {
+    if (page !== "pass") return;
+    const cvs = ticketRef.current;
+    if (!cvs) return;
+    const run = () => paintTicket(cvs);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(run);
     else run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, paintTicket]);
+
+  /**
+   * Render the pass off-screen and save it as a PNG.
+   *
+   * Waits on document.fonts.ready — without it the pixel fonts may not have
+   * loaded and the saved image comes out in a fallback typeface, which looks
+   * broken next to the on-screen version.
+   */
+  const renderPassCanvas = useCallback(async () => {
+    try {
+      if (document.fonts?.ready) await document.fonts.ready;
+    } catch {
+      /* proceed with whatever is loaded */
+    }
+    const cvs = document.createElement("canvas");
+    paintTicket(cvs);
+    return cvs;
+  }, [paintTicket]);
+
+  const passFileName = `technovation-pass-${String(playerNo || 1).padStart(4, "0")}.png`;
+
+  const downloadPass = useCallback(async () => {
+    const cvs = await renderPassCanvas();
+    const a = document.createElement("a");
+    a.href = cvs.toDataURL("image/png");
+    a.download = passFileName;
+    a.click();
+  }, [renderPassCanvas, passFileName]);
+
+  /** The pass as a File, for the native share sheet. */
+  const passAsFile = useCallback(async (): Promise<File | null> => {
+    const cvs = await renderPassCanvas();
+    const blob: Blob | null = await new Promise((res) => cvs.toBlob(res, "image/png"));
+    if (!blob) return null;
+    return new File([blob], passFileName, { type: "image/png" });
+  }, [renderPassCanvas, passFileName]);
 
   useEffect(() => {
     if (page !== "hq") return;
@@ -671,6 +847,7 @@ export default function ArcadePage() {
           : match.stageIdx && match.stageIdx <= 4 ? match.stageIdx : 1
       );
       setRejectionFeedback(match.rejectionFeedback || "");
+      setDepartment(match.department || "");
 
       // Per-department task submissions (with legacy single-link fallback)
       const subs: Record<string, string> = { ...(match.submissions || {}) };
@@ -2272,15 +2449,25 @@ export default function ArcadePage() {
     const reachedIdx = Math.min(Math.max(rejectedAtStage, 1), STAGES.length - 1);
     const reachedLabel = STAGES[reachedIdx]?.label || "SCREENING";
     // Deliberately attributes the outcome to the size of the field rather than
-    // to any shortcoming. Reaching the Task Round put someone in the top ~70 of
-    // 289, and the message should say so plainly instead of consoling them.
-    const positive =
-      `You made it to the ${reachedLabel} stage, and you got there on merit — ` +
-      `your application and your work were genuinely strong. ` +
-      `We had far more good people than we had spots, and that is the only reason ` +
-      `your journey pauses here. It is not a reflection of your ability. ` +
-      `Keep building and keep shipping — we would be glad to see you apply again, ` +
-      `and we wish you the very best in everything you take on next. 🎮`;
+    // to any shortcoming, and says so with real numbers instead of consoling.
+    // Someone stopped at the interview stage sat in front of us and came within
+    // touching distance, so they get a different, warmer note than someone who
+    // didn't get that far — a single generic message would ring hollow for them.
+    const interviewed = reachedIdx >= 3;
+    const positive = interviewed
+      ? `You made it to the final round and sat down with us to make your case. ` +
+        `We had only a handful of places, and that is the whole of it — the line had to ` +
+        `fall somewhere, and it fell agonisingly close to you. Nothing about this says ` +
+        `you weren't good enough, because you were; there simply wasn't room. Thank you ` +
+        `for the time, the work and the nerve it takes to be interviewed. Please come back ` +
+        `next season — we would genuinely like to see your name again — and until then, ` +
+        `all the very best for everything ahead of you. 🎮`
+      : `You made it to the ${reachedLabel} stage, and you got there on merit — ` +
+        `your application and your work were genuinely strong. ` +
+        `We had far more good people than we had spots, and that is the only reason ` +
+        `your journey pauses here. It is not a reflection of your ability. ` +
+        `Keep building and keep shipping — we would be glad to see you apply again, ` +
+        `and we wish you the very best in everything you take on next. 🎮`;
     return (
       <div className="screen-h" style={{ overflowY: "auto", overflowX: "hidden", background: "radial-gradient(120% 80% at 50% -5%, #2a0e18 0%, #0a0e1c 55%, #05060d 100%)", position: "relative" }}>
         <div style={scanOverlay(0.22)} />
@@ -2300,8 +2487,13 @@ export default function ArcadePage() {
           <div style={{ textAlign: "center" }}>
             <div style={{ fontFamily: PS, fontSize: "clamp(20px,4vw,40px)", color: "#ff2bd1", textShadow: "0 0 18px rgba(255,43,209,.6)", letterSpacing: "2px" }}>GAME OVER</div>
             <div style={{ fontFamily: VT, fontSize: "clamp(18px,2.2vw,26px)", color: "#7de8ff", marginTop: "12px" }}>
-              You played really well, and made it all the way to the{" "}
-              <span style={{ color: "#ffb800" }}>{reachedLabel}</span> stage.
+              {interviewed ? (
+                <>You went the distance — all the way to the{" "}
+                <span style={{ color: "#ffb800" }}>{reachedLabel}</span>, and it came down to the finest of margins.</>
+              ) : (
+                <>You played really well, and made it all the way to the{" "}
+                <span style={{ color: "#ffb800" }}>{reachedLabel}</span> stage.</>
+              )}
             </div>
           </div>
 
@@ -2474,6 +2666,99 @@ export default function ArcadePage() {
                   <div style={{ fontFamily: PS, fontSize: "clamp(11px,1.4vw,14px)", color: "#4a5a7a" }}>🔒 TASK GUILD LOCKED</div>
                   <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#a9c3d6", marginTop: "12px", lineHeight: 1.35 }}>
                     Clear the <span style={{ color: "#00f0ff" }}>SCREENING</span> round first. Once the Guild Council shortlists you, your domain tasks unlock here.
+                  </div>
+                </div>
+              ) : stageIdx >= 4 ? (
+                /* Selected. The end of the road — nothing to do here but
+                   celebrate and wait for onboarding. */
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  <div style={{ ...taskCard(false), borderColor: "#ffb800", background: "rgba(255,180,40,.09)", boxShadow: "0 0 30px rgba(255,180,40,.18)" }}>
+                    <div style={{ fontFamily: PS, fontSize: "clamp(11px,1.6vw,16px)", color: "#ffb800", textShadow: "0 0 14px #ffb800", lineHeight: 1.5 }}>
+                      ★ YOU&apos;RE IN — WELCOME TO TECHNOVATION!
+                    </div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(16px,1.9vw,21px)", color: "#cfe8ff", marginTop: "14px", lineHeight: 1.5 }}>
+                      Congratulations — you&apos;ve been selected as a{" "}
+                      <span style={{ color: "#ffb800" }}>TECHIE</span> for 2026
+                      {deptLabel && (
+                        <>, joining the <span style={{ color: "#00f0ff" }}>{deptLabel}</span> team</>
+                      )}
+                      .
+                    </div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(16px,1.9vw,21px)", color: "#a9c3d6", marginTop: "12px", lineHeight: 1.5 }}>
+                      You cleared the screening, the task round and the interview.
+                      That is a genuinely hard run, and you earned every step of it.
+                    </div>
+                    <div style={{ marginTop: "14px", padding: "12px 14px", background: "rgba(0,240,255,.07)", border: "2px solid #00f0ff", borderRadius: "8px" }}>
+                      <div style={{ fontFamily: PS, fontSize: "clamp(9px,1.2vw,12px)", color: "#00f0ff", textShadow: "0 0 10px #00f0ff", lineHeight: 1.5 }}>
+                        ▶ WHAT HAPPENS NEXT
+                      </div>
+                      <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#a9c3d6", marginTop: "8px", lineHeight: 1.45 }}>
+                        Onboarding details and your first steps are on their way to
+                        your registered email. Keep an eye on your inbox — and come
+                        ready to build.
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: VT, fontSize: "clamp(16px,1.9vw,21px)", color: "#ffb800", marginTop: "14px", lineHeight: 1.5, textAlign: "center" }}>
+                      Welcome to the guild. 🎮
+                    </div>
+
+                    {/* Share to LinkedIn. Copies the caption first, because
+                        LinkedIn's composer no longer accepts pre-filled text
+                        from the URL — without the copy they'd arrive at an
+                        empty box with nothing to paste. */}
+                    <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid rgba(255,180,40,.25)" }}>
+                      <div style={{ fontFamily: PS, fontSize: "clamp(8px,1.1vw,11px)", color: "#7de8ff", lineHeight: 1.5 }}>
+                        ▶ SHARE THE NEWS
+                      </div>
+                      <div style={{ fontFamily: VT, fontSize: "clamp(15px,1.8vw,20px)", color: "#a9c3d6", marginTop: "7px", lineHeight: 1.45 }}>
+                        Tell people you&apos;re in — we&apos;d love to see it. One tap
+                        copies the caption, downloads your <span style={{ color: "#ffb800" }}>RECRUITED</span> pass,
+                        and opens LinkedIn.
+                      </div>
+                      <div style={{ fontFamily: VT, fontSize: "clamp(14px,1.7vw,18px)", color: "#7de8ff", marginTop: "9px", lineHeight: 1.5, background: "rgba(0,240,255,.06)", border: "1px solid rgba(0,240,255,.3)", borderRadius: "7px", padding: "10px 12px", textAlign: "left" }}>
+                        <div style={{ color: "#ffb800", marginBottom: "5px" }}>On a phone this posts complete — text and pass together.</div>
+                        <div>On a laptop, LinkedIn won&apos;t let a website attach the image for you, so:{" "}
+                          <span style={{ color: "#ffb800" }}>tap the picture icon</span> in the composer and pick the pass that just downloaded.</div>
+                        <div style={{ marginTop: "6px" }}>
+                          To make <span style={{ color: "#fff" }}>{CLUB_PAGE_NAME}</span> a real clickable tag, delete that name,
+                          type <span style={{ color: "#ffb800" }}>@techno</span> and choose the page from the dropdown.
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => void onShareLinkedIn()}
+                        style={{
+                          cursor: "pointer",
+                          display: "block",
+                          width: "100%",
+                          marginTop: "12px",
+                          fontFamily: PS,
+                          fontSize: "clamp(9px,1.2vw,12px)",
+                          color: "#ffffff",
+                          background: "#0a66c2",
+                          border: "none",
+                          borderRadius: "8px",
+                          padding: "14px",
+                          boxShadow: "0 5px 0 #064079, 0 0 20px rgba(10,102,194,.5)",
+                          letterSpacing: "1px",
+                        }}
+                      >
+                        {sharedLinkedIn ? "✓ COPIED + PASS SAVED — OPENING LINKEDIN" : "in  POST ON LINKEDIN"}
+                      </button>
+                      <button
+                        onClick={() => void downloadPass()}
+                        style={{ cursor: "pointer", display: "block", width: "100%", marginTop: "9px", fontFamily: VT, fontSize: "clamp(15px,1.8vw,19px)", color: "#7de8ff", background: "transparent", border: "1px solid rgba(125,232,255,.35)", borderRadius: "7px", padding: "9px" }}
+                      >
+                        ↓ Download my RECRUITED pass
+                      </button>
+                      <a
+                        href={CLUB_LINKEDIN}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ display: "block", textAlign: "center", marginTop: "10px", fontFamily: VT, fontSize: "clamp(14px,1.7vw,18px)", color: "#7de8ff" }}
+                      >
+                        Follow TECHNOVATION on LinkedIn ↗
+                      </a>
+                    </div>
                   </div>
                 </div>
               ) : stageIdx >= 3 ? (
